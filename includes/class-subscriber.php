@@ -243,7 +243,7 @@ class Subscriber {
 	 * @return int|\WP_Error Subscriber ID on success, WP_Error on failure.
 	 */
 	public function save(): int|\WP_Error {
-		$result = $this->id ? $this->db->update_subscriber( $this ) : $this->db->insert_subscriber( $this );
+		$result = $this->id ? $this->db->update_subscriber( $this ) : $this->db->add_subscriber( $this );
 
 		if ( ! is_wp_error( $result ) ) {
 			$this->id = $result;

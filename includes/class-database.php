@@ -53,7 +53,7 @@ class Database {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @return bool|\WP_Error True if table created successfully, WP_Error on failure.
+	 * @return bool|\WP_Error True if table created successfully, \WP_Error on failure.
 	 */
 	public function create_table(): bool|\WP_Error {
 		global $wpdb;
@@ -140,7 +140,7 @@ class Database {
 	 * @since 1.0.0
 	 *
 	 * @param int $id Subscriber ID.
-	 * @return Subscriber|\WP_Error Subscriber object or WP_Error on failure.
+	 * @return Subscriber|\WP_Error Subscriber object or \WP_Error on failure.
 	 */
 	public function get_subscriber( int $id ): Subscriber|\WP_Error {
 		global $wpdb;
@@ -177,7 +177,7 @@ class Database {
 	 * @since 1.0.0
 	 *
 	 * @param string $email Subscriber email.
-	 * @return Subscriber|\WP_Error Subscriber object or WP_Error on failure.
+	 * @return Subscriber|\WP_Error Subscriber object or \WP_Error on failure.
 	 */
 	public function get_subscriber_by_email( string $email ): Subscriber|\WP_Error {
 		global $wpdb;
@@ -209,16 +209,17 @@ class Database {
 	}
 
 	/**
-	 * Insert subscriber.
+	 * Add a new subscriber.
 	 *
 	 * @since 1.0.0
 	 *
 	 * @param Subscriber $subscriber Subscriber object.
-	 * @return int|\WP_Error Subscriber ID on success, WP_Error on failure.
+	 * @return int|\WP_Error Subscriber ID on success, \WP_Error on failure.
 	 */
-	public function insert_subscriber( Subscriber $subscriber ): int|\WP_Error {
+	public function add_subscriber( $subscriber ) {
 		global $wpdb;
 
+		// Validate required fields early.
 		if ( empty( $subscriber->email ) ) {
 			return new \WP_Error(
 				'missing_email',
@@ -226,69 +227,69 @@ class Database {
 			);
 		}
 
-		// Check if subscriber already exists.
-		$existing = $this->get_subscriber_by_email( $subscriber->email );
-		if ( ! is_wp_error( $existing ) ) {
+		// Sanitize email once.
+		$sanitized_email = sanitize_email( $subscriber->email );
+
+		// Use prepared statement for better security.
+		$existing = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"SELECT id FROM {$this->get_table_name()} WHERE email = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$sanitized_email
+			)
+		);
+
+		if ( $existing ) {
 			return new \WP_Error(
 				'subscriber_exists',
 				__( 'Subscriber already exists.', 'glue-link' )
 			);
 		}
 
-		$table = $this->get_table_name();
-		$data  = array(
-			'email'      => $subscriber->email,
-			'first_name' => $subscriber->first_name,
-			'last_name'  => $subscriber->last_name,
-			'fields'     => is_array( $subscriber->fields ) ? implode( ',', array_unique( $subscriber->fields ) ) : $subscriber->fields,
-			'tags'       => is_array( $subscriber->tags ) ? implode( ',', array_unique( $subscriber->tags ) ) : $subscriber->tags,
-			'forms'      => is_array( $subscriber->forms ) ? implode( ',', array_unique( $subscriber->forms ) ) : $subscriber->forms,
-			'status'     => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
-			'created'    => ! empty( $subscriber->created ) ? $subscriber->created : current_time( 'mysql', true ),
-		);
+		// Extract method for common data preparation.
+		$data = $this->prepare_subscriber_data( $subscriber );
 
-		$format = array(
-			'%s', // Email address.
-			'%s', // First name.
-			'%s', // Last name.
-			'%s', // Custom fields.
-			'%s', // Tags.
-			'%s', // Forms.
-			'%s', // Status.
-			'%s', // Created date.
+		$result = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$this->get_table_name(),
+			$data['data'],
+			$data['format']
 		);
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-		$result = $wpdb->insert( $table, $data, $format );
 
 		if ( false === $result ) {
 			return new \WP_Error(
 				'db_insert_error',
-				__( 'Could not insert subscriber.', 'glue-link' )
+				__( 'Could not add subscriber.', 'glue-link' )
 			);
 		}
 
-		$this->clear_subscriber_cache( $subscriber->email );
+		$subscriber_id = (int) $wpdb->insert_id;
+		$this->clear_subscriber_cache( $sanitized_email );
 
-		return (int) $wpdb->insert_id;
+		/**
+		 * Fires after a subscriber is added.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param int        $subscriber_id The ID of the subscriber.
+		 * @param Subscriber $subscriber    The subscriber object.
+		 */
+		do_action( 'glue_link_after_add_subscriber', $subscriber_id, $subscriber );
+
+		return $subscriber_id;
 	}
 
 	/**
-	 * Update subscriber.
+	 * Update an existing subscriber.
 	 *
 	 * @since 1.0.0
 	 *
 	 * @param Subscriber $subscriber Subscriber object.
-	 * @return int|\WP_Error Subscriber ID on success, WP_Error on failure.
+	 * @return int|\WP_Error Subscriber ID on success, \WP_Error on failure.
 	 */
-	public function update_subscriber( Subscriber $subscriber ): int|\WP_Error {
+	public function update_subscriber( $subscriber ) {
 		global $wpdb;
 
-		if ( ! $subscriber->id ) {
-			return new \WP_Error(
-				'missing_id',
-				__( 'Subscriber ID is required.', 'glue-link' )
-			);
+		if ( empty( $subscriber->id ) ) {
+			return $this->add_subscriber( $subscriber );
 		}
 
 		if ( empty( $subscriber->email ) ) {
@@ -298,79 +299,141 @@ class Database {
 			);
 		}
 
-		// Check if email is taken by another subscriber.
-		$existing = $this->get_subscriber_by_email( $subscriber->email );
-		if ( ! is_wp_error( $existing ) && $existing->id !== $subscriber->id ) {
+		// Get existing subscriber with single query.
+		$existing = $this->get_subscriber( $subscriber->id );
+		if ( is_wp_error( $existing ) ) {
+			return $this->add_subscriber( $subscriber );
+		}
+
+		// Check email uniqueness with exception for current subscriber.
+		$sanitized_email = sanitize_email( $subscriber->email );
+		$email_exists    = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"SELECT id FROM {$this->get_table_name()} WHERE email = %s AND id != %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$sanitized_email,
+				$subscriber->id
+			)
+		);
+
+		if ( $email_exists ) {
 			return new \WP_Error(
 				'email_exists',
 				__( 'Email is already taken by another subscriber.', 'glue-link' )
 			);
 		}
 
-		$table = $this->get_table_name();
+		// Merge and prepare data.
+		$subscriber = $this->merge_subscriber_data( $existing, $subscriber );
+		$data       = $this->prepare_subscriber_data( $subscriber, false );
 
-		// Get existing subscriber data to merge arrays.
-		$existing = $this->get_subscriber( $subscriber->id );
-		if ( ! is_wp_error( $existing ) ) {
-			// Convert arrays to comma-separated strings, merge, and ensure no duplicates.
-			$subscriber->fields = array_unique( array_merge( wp_parse_list( $existing->fields ), wp_parse_list( $subscriber->fields ) ) );
-			$subscriber->tags   = array_unique( array_merge( wp_parse_list( $existing->tags ), wp_parse_list( $subscriber->tags ) ) );
-			$subscriber->forms  = array_unique( array_merge( wp_parse_list( $existing->forms ), wp_parse_list( $subscriber->forms ) ) );
-		}
-
-		// Prepare data for update or insert.
-		$data = array(
-			'email'      => sanitize_email( $subscriber->email ), // Ensure email is properly sanitized.
-			'first_name' => sanitize_text_field( $subscriber->first_name ),
-			'last_name'  => sanitize_text_field( $subscriber->last_name ),
-			'fields'     => is_array( $subscriber->fields ) ? implode( ',', $subscriber->fields ) : $subscriber->fields,
-			'tags'       => is_array( $subscriber->tags ) ? implode( ',', $subscriber->tags ) : $subscriber->tags,
-			'forms'      => is_array( $subscriber->forms ) ? implode( ',', $subscriber->forms ) : $subscriber->forms,
-			'status'     => $subscriber->status,
+		$result = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$this->get_table_name(),
+			$data['data'],
+			array( 'id' => $subscriber->id ),
+			$data['format'],
+			array( '%d' )
 		);
 
-		$format = array(
-			'%s', // Email address.
-			'%s', // First name.
-			'%s', // Last name.
-			'%s', // Custom fields.
-			'%s', // Tags.
-			'%s', // Forms.
-			'%s', // Status.
-		);
-
-		$where = array(
-			'id' => $subscriber->id,
-		);
-
-		$where_format = array(
-			'%d',
-		);
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-		$result = $wpdb->update( $table, $data, $where, $format, $where_format );
-
-		if ( false === $result ) {
+		if ( false === $result && ! empty( $wpdb->last_error ) ) {
 			return new \WP_Error(
 				'db_update_error',
 				__( 'Could not update subscriber.', 'glue-link' )
 			);
 		}
 
+		// Clear both old and new email caches.
 		$this->clear_subscriber_cache( $subscriber->id );
-		$this->clear_subscriber_cache( $subscriber->email );
+		$this->clear_subscriber_cache( $sanitized_email );
+		if ( $existing->email !== $sanitized_email ) {
+			$this->clear_subscriber_cache( $existing->email );
+		}
 
 		/**
 		 * Fires after a subscriber is updated.
 		 *
 		 * @since 1.0.0
 		 *
-		 * @param int       $subscriber_id Subscriber ID.
-		 * @param Subscriber $subscriber    Subscriber object.
+		 * @param int        $subscriber_id The ID of the subscriber.
+		 * @param Subscriber $subscriber    The updated subscriber object.
+		 * @param Subscriber $existing      The original subscriber object.
 		 */
-		do_action( 'glue_link_update_subscriber', $subscriber->id, $subscriber );
+		do_action( 'glue_link_after_update_subscriber', $subscriber->id, $subscriber, $existing );
 
 		return $subscriber->id;
+	}
+
+	/**
+	 * Prepare subscriber data for database operations.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param Subscriber $subscriber Subscriber object.
+	 * @param bool       $is_new     Whether this is a new subscriber.
+	 * @return array Array with 'data' and 'format' keys.
+	 */
+	private function prepare_subscriber_data( $subscriber, $is_new = true ) {
+		$data = array(
+			'email'      => sanitize_email( $subscriber->email ),
+			'first_name' => sanitize_text_field( $subscriber->first_name ),
+			'last_name'  => sanitize_text_field( $subscriber->last_name ),
+			'fields'     => $this->prepare_array_field( $subscriber->fields ),
+			'tags'       => $this->prepare_array_field( $subscriber->tags ),
+			'forms'      => $this->prepare_array_field( $subscriber->forms ),
+			'status'     => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
+		);
+
+		if ( $is_new ) {
+			$data['created'] = ! empty( $subscriber->created )
+				? $subscriber->created
+				: current_time( 'mysql', true );
+			$format          = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+		} else {
+			$format = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+		}
+
+		return array(
+			'data'   => $data,
+			'format' => $format,
+		);
+	}
+
+	/**
+	 * Prepare array fields for database storage.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param mixed $field Field value.
+	 * @return string Comma-separated unique values.
+	 */
+	private function prepare_array_field( $field ) {
+		if ( ! is_array( $field ) ) {
+			return (string) $field;
+		}
+		return implode( ',', array_unique( array_filter( $field ) ) );
+	}
+
+	/**
+	 * Merge existing and new subscriber data.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param Subscriber $existing_subscriber Existing subscriber.
+	 * @param Subscriber $new_subscriber      New subscriber data.
+	 * @return Subscriber
+	 */
+	private function merge_subscriber_data( $existing_subscriber, $new_subscriber ) {
+		$fields_to_merge = array( 'fields', 'tags', 'forms' );
+
+		foreach ( $fields_to_merge as $field ) {
+			$new_subscriber->$field = array_unique(
+				array_merge(
+					wp_parse_list( $existing_subscriber->$field ),
+					wp_parse_list( $new_subscriber->$field )
+				)
+			);
+		}
+
+		return $new_subscriber;
 	}
 
 	/**
@@ -379,7 +442,7 @@ class Database {
 	 * @since 1.0.0
 	 *
 	 * @param int $id Subscriber ID.
-	 * @return bool|\WP_Error True on success, WP_Error on failure.
+	 * @return bool|\WP_Error True on success, \WP_Error on failure.
 	 */
 	public function delete_subscriber( int $id ): bool|\WP_Error {
 		global $wpdb;
@@ -517,7 +580,7 @@ class Database {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @return array|\WP_Error Array of counts by status or WP_Error on failure.
+	 * @return array|\WP_Error Array of counts by status or \WP_Error on failure.
 	 */
 	public function get_subscriber_counts(): array|\WP_Error {
 		global $wpdb;
@@ -559,7 +622,7 @@ class Database {
 	 * @since 1.0.0
 	 *
 	 * @param array $ids Array of subscriber IDs.
-	 * @return bool|\WP_Error True on success, WP_Error on failure.
+	 * @return bool|\WP_Error True on success, \WP_Error on failure.
 	 */
 	public function delete_subscribers( array $ids ): bool|\WP_Error {
 		global $wpdb;
