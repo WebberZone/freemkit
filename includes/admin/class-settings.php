@@ -239,13 +239,14 @@ class Settings {
 				'type' => 'header',
 			),
 			'plugins'  => array(
-				'id'      => 'plugins',
-				'name'    => __( 'Freemius Plugins', 'glue-link' ),
-				'desc'    => '',
-				'type'    => 'repeater',
-				'default' => array(),
-				'section' => 'freemius',
-				'fields'  => array(
+				'id'                => 'plugins',
+				'name'              => __( 'Freemius Plugins', 'glue-link' ),
+				'desc'              => '',
+				'type'              => 'repeater',
+				'live_update_field' => 'name',
+				'default'           => array(),
+				'section'           => 'freemius',
+				'fields'            => array(
 					array(
 						'id'      => 'name',
 						'name'    => __( 'Plugin Name', 'glue-link' ),
@@ -423,12 +424,13 @@ class Settings {
 				'field_attributes' => self::get_kit_search_field_attributes( 'custom_fields', array( 'maxItems' => 1 ) ),
 			),
 			'custom_fields'   => array(
-				'id'      => 'custom_fields',
-				'name'    => __( 'Custom Fields', 'glue-link' ),
-				'desc'    => '',
-				'type'    => 'repeater',
-				'default' => array(),
-				'fields'  => array(
+				'id'                => 'custom_fields',
+				'name'              => __( 'Custom Fields', 'glue-link' ),
+				'desc'              => '',
+				'type'              => 'repeater',
+				'live_update_field' => 'local_name',
+				'default'           => array(),
+				'fields'            => array(
 					array(
 						'id'      => 'local_name',
 						'name'    => __( 'Field Local Name', 'glue-link' ),

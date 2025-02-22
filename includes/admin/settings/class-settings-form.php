@@ -363,7 +363,11 @@ class Settings_Form {
 		$disabled    = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
 
 		if ( ! empty( $args['options'] ) ) {
-			$html .= sprintf( '<input type="hidden" name="%1$s[%2$s]" value="-1" />', $this->settings_key, sanitize_key( $args['id'] ) );
+			$html .= sprintf(
+				'<input type="hidden" name="%1$s[%2$s]" value="-1" />',
+				$this->settings_key,
+				sanitize_key( $args['id'] )
+			);
 
 			foreach ( $args['options'] as $key => $option ) {
 				if ( in_array( $key, $value_array, true ) ) {
@@ -929,7 +933,10 @@ class Settings_Form {
 		?>
 	<div class="wz-repeater-item">
 		<div class="repeater-item-header">
-			<span class="repeater-title"><?php echo esc_html( ! empty( $item['fields']['name'] ) ? $item['fields']['name'] : 'New Item' ); ?></span>
+			<?php
+			$display_field = ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name';
+			?>
+			<span class="repeater-title"><?php echo esc_html( ! empty( $item['fields'][ $display_field ] ) ? $item['fields'][ $display_field ] : 'New Item' ); ?></span>
 			<span class="toggle-icon">▼</span>
 		</div>
 		<div class="repeater-item-content" style="display: none;">
@@ -956,7 +963,7 @@ class Settings_Form {
 						<label class="wz-repeater-field-label" for="<?php echo esc_attr( sprintf( '%s_%s_%s', $args['id'], $index, $field_id ) ); ?>">
 							<?php echo esc_html( $field['name'] ); ?>
 							<?php if ( ! empty( $field['required'] ) ) : ?>
-								<span class="required">*</span>
+								<span class="required" title="<?php esc_attr_e( 'Required', 'glue-link' ); ?>">*</span>
 							<?php endif; ?>
 						</label>
 					</div>
@@ -996,8 +1003,9 @@ class Settings_Form {
 		var wrapper = $('#<?php echo esc_js( $args['id'] ); ?>-wrapper');
 		var itemsContainer = wrapper.find('.<?php echo esc_js( $args['id'] ); ?>-items');
 
-		// Live update repeater title when the name field changes
-		wrapper.on('input', '.wz-repeater-item input[name$="[fields][name]"]', function() {
+		// Live update repeater title when the specified field changes
+		var liveUpdateField = '<?php echo esc_js( ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name' ); ?>';
+		wrapper.on('input', '.wz-repeater-item input[name$="[fields][' + liveUpdateField + ']"]', function() {
 			var $this = $(this);
 			var newName = $this.val();
 			var $repeaterTitle = $this.closest('.wz-repeater-item').find('.repeater-title');
