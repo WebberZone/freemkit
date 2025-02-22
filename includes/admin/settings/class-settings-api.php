@@ -1098,7 +1098,7 @@ class Settings_API {
 
 		// Add required indicator to field name if the field is required.
 		if ( ! empty( $field['required'] ) && true === $field['required'] ) {
-			$field['name'] = sprintf( '%s <span class="required">*</span>', $field['name'] );
+			$field['name'] = sprintf( '%s <span class="required" title="%s">*</span>', $field['name'], esc_attr__( 'Required', 'glue-link' ) );
 		}
 
 		return $field;
