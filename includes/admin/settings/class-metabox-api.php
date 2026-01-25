@@ -2,12 +2,12 @@
 /**
  * Class to display and save a Metabox.
  *
- * @package WebberZone\Starter_Plugin
+ * @since 1.0.0
+ *
+ * @package WebberZone\Glue_Link
  */
 
-namespace WebberZone\Starter_Plugin\Admin\Settings;
-
-use WebberZone\Starter_Plugin\Util\Hook_Registry;
+namespace WebberZone\Glue_Link\Admin\Settings;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -15,16 +15,17 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 /**
- * Metabox API class.
+ * ATA Metabox class to register the metabox for ata_snippets post type.
+ *
+ * @since 1.0.0
  */
 #[\AllowDynamicProperties]
 class Metabox_API {
 
-
 	/**
 	 * Current version number
 	 *
-	 * @var string
+	 * @var   string
 	 */
 	const VERSION = '2.3.0';
 
@@ -57,11 +58,11 @@ class Metabox_API {
 	protected $title;
 
 	/**
-	 * Translation strings.
+	 * Text to show to indicate a checkbox has been modified from its default value.
 	 *
-	 * @var array Translation strings.
+	 * @var string Checkbox Modified Text.
 	 */
-	public $translation_strings;
+	public $checkbox_modified_text;
 
 	/**
 	 * Array containing the settings' fields.
@@ -74,23 +75,23 @@ class Metabox_API {
 	 * Main constructor class.
 	 *
 	 * @param array|string $args {
-	 *                           Array or string of arguments. Default is blank array.
+	 *     Array or string of arguments. Default is blank array.
 	 *
-	 * @type string                     $settings_key           Settings key - is used to prepare the form fields. It is not the meta key.
-	 * @type string                     $prefix              Used to create the meta keys. The meta key format is _{$prefix}_{$setting_id}.
-	 * @type string|array|\WP_Screen    $post_type           The post type(s) on which to show the box.
-	 * @type array                      $registered_settings Settings fields array.
-	 * @type array                      $translation_strings Translation strings.
+	 *     @type string                     $settings_key           Settings key - is used to prepare the form fields. It is not the meta key.
+	 *     @type string                     $prefix                 Used to create the meta keys. The meta key format is _{$prefix}_{$setting_id}.
+	 *     @type string|array|\WP_Screen    $post_type              The post type(s) on which to show the box.
+	 *     @type array                      $registered_settings    Settings fields array.
+	 *     @type string                     $checkbox_modified_text Text to show to indicate a checkbox has been modified from its default value.
 	 * }
 	 */
 	public function __construct( $args ) {
 		$defaults = array(
-			'settings_key'        => '',
-			'prefix'              => '',
-			'post_type'           => '',
-			'title'               => '',
-			'registered_settings' => array(),
-			'translation_strings' => array(),
+			'settings_key'           => '',
+			'prefix'                 => '',
+			'post_type'              => '',
+			'title'                  => '',
+			'registered_settings'    => array(),
+			'checkbox_modified_text' => '',
 		);
 
 		$args = wp_parse_args( $args, $defaults );
@@ -99,9 +100,9 @@ class Metabox_API {
 			$this->$name = $value;
 		}
 
-		Hook_Registry::add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
-		Hook_Registry::add_action( 'add_meta_boxes', array( $this, 'add_meta_boxes' ) );
-		Hook_Registry::add_action( "save_post_{$this->post_type}", array( $this, 'save' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
+		add_action( 'add_meta_boxes', array( $this, 'add_meta_boxes' ) );
+		add_action( "save_post_{$this->post_type}", array( $this, 'save' ) );
 	}
 
 	/**
@@ -125,14 +126,14 @@ class Metabox_API {
 	 */
 	public function admin_enqueue_scripts( $hook ) {
 		if ( in_array( $hook, array( 'post.php', 'post-new.php' ), true ) || get_current_screen()->post_type === $this->post_type ) {
-			self::enqueue_scripts_styles();
+			$this->enqueue_scripts_styles();
 		}
 	}
 
 	/**
 	 * Enqueues all scripts, styles, settings, and templates necessary to use the Settings API.
 	 */
-	public static function enqueue_scripts_styles() {
+	public function enqueue_scripts_styles() {
 
 		$minimize = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
 
@@ -155,10 +156,10 @@ class Metabox_API {
 		);
 
 		// Enqueue WZ Admin JS.
-		wp_enqueue_script( 'wz-admin-js' );
-		wp_enqueue_script( 'wz-codemirror-js' );
-		wp_enqueue_script( 'wz-taxonomy-suggest-js' );
-		wp_enqueue_script( 'wz-media-selector-js' );
+		wp_enqueue_script( 'wz-' . $this->prefix . '-admin-js' );
+		wp_enqueue_script( 'wz-' . $this->prefix . '-codemirror-js' );
+		wp_enqueue_script( 'wz-' . $this->prefix . '-taxonomy-suggest-js' );
+		wp_enqueue_script( 'wz-' . $this->prefix . '-media-selector-js' );
 	}
 
 	/**
@@ -200,7 +201,7 @@ class Metabox_API {
 
 		foreach ( $this->registered_settings as $setting ) {
 			$id   = $setting['id'];
-			$type = $setting['type'] ?? 'text';
+			$type = isset( $setting['type'] ) ? $setting['type'] : 'text';
 
 			/**
 			 * Skip settings that are not really settings.
@@ -226,7 +227,7 @@ class Metabox_API {
 		/**
 		 * Filter the post meta array which contains post-specific settings.
 		 *
-		 * @param array $post_meta Array of metabox settings.
+		 * @param array $post_meta Array of ATA metabox settings.
 		 * @param int   $post_id   Post ID
 		 */
 		$post_meta = apply_filters( "{$this->prefix}_meta_key", $post_meta, $post_id );
@@ -258,9 +259,9 @@ class Metabox_API {
 
 		$settings_form = new Settings_Form(
 			array(
-				'settings_key'        => $this->settings_key,
-				'prefix'              => $this->prefix,
-				'translation_strings' => $this->translation_strings,
+				'settings_key'           => $this->settings_key,
+				'prefix'                 => $this->prefix,
+				'checkbox_modified_text' => $this->checkbox_modified_text,
 			)
 		);
 
@@ -288,8 +289,8 @@ class Metabox_API {
 
 			$id            = $args['id'];
 			$value         = get_post_meta( $post->ID, "_{$this->prefix}_{$id}", true );
-			$args['value'] = ! empty( $value ) ? $value : ( $args['default'] ?? '' );
-			$type          = $args['type'] ?? 'text';
+			$args['value'] = ! empty( $value ) ? $value : ( isset( $args['default'] ) ? $args['default'] : $args['options'] );
+			$type          = isset( $args['type'] ) ? $args['type'] : 'text';
 			$callback      = method_exists( $settings_form, "callback_{$type}" ) ? array( $settings_form, "callback_{$type}" ) : array( $settings_form, 'callback_missing' );
 
 			echo '<tr>';
@@ -302,7 +303,7 @@ class Metabox_API {
 		echo '</table>';
 
 		/**
-		 * Action triggered when displaying the meta box.
+		 * Action triggered when displaying Glue for Freemius and Kit meta box.
 		 *
 		 * @param object $post  Post object.
 		 */
@@ -312,7 +313,7 @@ class Metabox_API {
 	/**
 	 * Sanitize Post Meta array.
 	 *
-	 * @param  array $settings Post meta settings array.
+	 * @param array $settings Post meta settings array.
 	 * @return array Sanitized value.
 	 */
 	public function sanitize_post_meta( $settings ) {
@@ -334,7 +335,7 @@ class Metabox_API {
 				$ids   = array();
 				$names = array();
 
-				$taxes = array_unique( str_getcsv( $settings[ $key ], ',', '"', '' ) );
+				$taxes = array_unique( str_getcsv( $settings[ $key ] ) );
 
 				foreach ( $taxes as $tax ) {
 					$tax_name = get_term_by( 'name', $tax, $fields['tax'] );

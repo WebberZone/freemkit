@@ -1,15 +1,13 @@
 <?php
 /**
- * Starter Plugin Options API.
+ * Glue Link Options API.
  *
  * @since 1.0.0
  *
- * @package WebberZone\Starter_Plugin
+ * @package WebberZone\Glue_Link
  */
 
-namespace WebberZone\Starter_Plugin;
-
-use WebberZone\Starter_Plugin\Util\Hook_Registry;
+namespace WebberZone\Glue_Link;
 
 if ( ! defined( 'WPINC' ) ) {
 	die;
@@ -18,50 +16,40 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Options API Class.
  *
- * @since 3.0.0
+ * @since 1.0.0
  */
 class Options_API {
-
 
 	/**
 	 * Settings option name.
 	 *
-	 * @since 3.0.0
-	 * @var   string
+	 * @since 1.0.0
+	 * @var string
 	 */
-	const SETTINGS_OPTION = 'starter_plugin_settings';
+	const SETTINGS_OPTION = 'glue_link_settings';
 
 	/**
 	 * Filter prefix.
 	 *
-	 * @since 3.0.0
-	 * @var   string
+	 * @since 1.0.0
+	 * @var string
 	 */
-	const FILTER_PREFIX = 'starter_plugin';
+	const FILTER_PREFIX = 'glue_link';
 
 	/**
 	 * Settings array.
 	 *
-	 * @since 3.0.0
-	 * @var   array
+	 * @since 1.0.0
+	 * @var array
 	 */
 	private static $settings;
-
-	/**
-	 * Initialize hooks for AJAX functionality.
-	 *
-	 * @since 3.0.0
-	 */
-	public static function init() {
-		Hook_Registry::add_action( 'wp_ajax_' . self::FILTER_PREFIX . '_tags_search', array( __CLASS__, 'tags_search' ) );
-	}
 
 	/**
 	 * Get Settings.
 	 *
 	 * Retrieves all plugin settings
 	 *
-	 * @since  3.0.0
+	 * @since 1.0.0
 	 * @return array Glue Link settings
 	 */
 	public static function get_settings() {
@@ -72,7 +60,7 @@ class Options_API {
 		 *
 		 * Retrieves all plugin settings
 		 *
-		 * @since 3.0.0
+		 * @since 1.0.0
 		 * @param array $settings Settings array
 		 */
 		return apply_filters( self::FILTER_PREFIX . '_get_settings', $settings );
@@ -83,10 +71,10 @@ class Options_API {
 	 *
 	 * Looks to see if the specified setting exists, returns default if not
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
-	 * @param  string $key           Option to fetch.
-	 * @param  mixed  $default_value Default option.
+	 * @param string $key           Option to fetch.
+	 * @param mixed  $default_value Default option.
 	 * @return mixed
 	 */
 	public static function get_option( $key = '', $default_value = null ) {
@@ -106,7 +94,7 @@ class Options_API {
 		/**
 		 * Filter the value for the option being fetched.
 		 *
-		 * @since 3.0.0
+		 * @since 1.0.0
 		 *
 		 * @param mixed $value         Value of the option.
 		 * @param mixed $key           Name of the option.
@@ -117,7 +105,7 @@ class Options_API {
 		/**
 		 * Key specific filter for the value of the option being fetched.
 		 *
-		 * @since 3.0.0
+		 * @since 1.0.0
 		 *
 		 * @param mixed $value         Value of the option.
 		 * @param mixed $key           Name of the option.
@@ -133,7 +121,7 @@ class Options_API {
 	 * Warning: Passing in an empty, false or null string value will remove
 	 *        the key from the settings array.
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
 	 * @param  string          $key   The Key to update.
 	 * @param  string|bool|int $value The value to set the key to.
@@ -145,8 +133,13 @@ class Options_API {
 			return false;
 		}
 
+		// If no value, delete.
+		if ( empty( $value ) ) {
+			return self::delete_option( $key );
+		}
+
 		// First let's grab the current settings.
-		$options = get_option( self::SETTINGS_OPTION, array() );
+		$options = self::get_settings();
 
 		// Let's let devs alter that value coming in.
 		$value = apply_filters( self::FILTER_PREFIX . '_update_option', $value, $key );
@@ -157,32 +150,9 @@ class Options_API {
 
 		// If it updated, let's update the static variable.
 		if ( $did_update ) {
-			self::$settings = $options;
+			self::$settings[ $key ] = $value;
 		}
 
-		return $did_update;
-	}
-
-	/**
-	 * Update all settings at once.
-	 *
-	 * @since 3.0.0
-	 *
-	 * @param  array $settings Settings array to save.
-	 * @param  bool  $merge    Whether to merge with existing settings. Default true.
-	 * @param  bool  $autoload Whether to autoload the option. Default true.
-	 * @return bool True if updated, false otherwise.
-	 */
-	public static function update_settings( array $settings, bool $merge = true, bool $autoload = true ): bool {
-		// Merge incoming array into existing settings if requested.
-		if ( $merge ) {
-			$existing = (array) self::get_settings();
-			$settings = array_merge( $existing, $settings );
-		}
-		$did_update = update_option( self::SETTINGS_OPTION, $settings, $autoload );
-		if ( $did_update ) {
-			self::$settings = $settings;
-		}
 		return $did_update;
 	}
 
@@ -191,7 +161,7 @@ class Options_API {
 	 *
 	 * Removes a Glue Link setting value in both the db and the static variable.
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
 	 * @param  string $key The Key to delete.
 	 * @return boolean True if updated, false if not.
@@ -203,7 +173,7 @@ class Options_API {
 		}
 
 		// First let's grab the current settings.
-		$options = get_option( self::SETTINGS_OPTION, array() );
+		$options = self::get_settings();
 
 		// Next let's try to update the value.
 		if ( isset( $options[ $key ] ) ) {
@@ -223,7 +193,7 @@ class Options_API {
 	/**
 	 * Default settings.
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
 	 * @return array Default settings
 	 */
@@ -234,9 +204,9 @@ class Options_API {
 	/**
 	 * Get the default option for a specific key
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
-	 * @param  string $key Key of the option to fetch.
+	 * @param string $key Key of the option to fetch.
 	 * @return mixed
 	 */
 	public static function get_default_option( $key = '' ) {
@@ -252,25 +222,118 @@ class Options_API {
 	/**
 	 * Reset settings.
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
-	 * @return bool True if updated, false if not.
+	 * @return void
 	 */
-	public static function reset_settings(): bool {
-		$did_update = update_option( self::SETTINGS_OPTION, self::get_settings_defaults() );
+	public static function reset_settings() {
+		delete_option( self::SETTINGS_OPTION );
+	}
 
-		// If it updated, let's update the static variable.
-		if ( $did_update ) {
-			self::$settings = self::get_settings_defaults();
+
+	/**
+	 * Encrypts an API key using either OpenSSL or Sodium, if available.
+	 *
+	 * @param string $key The API key to encrypt.
+	 * @return string The encrypted API key, or the plain text key if no secure method is available.
+	 */
+	public static function encrypt_api_key( $key ) {
+		if ( empty( $key ) ) {
+			return '';
 		}
 
-		return $did_update;
+		// Use OpenSSL if available.
+		if ( extension_loaded( 'openssl' ) ) {
+			$iv_length = openssl_cipher_iv_length( 'aes-256-cbc' );
+			$iv        = openssl_random_pseudo_bytes( $iv_length );
+			$encrypted = openssl_encrypt( $key, 'aes-256-cbc', AUTH_SALT, 0, $iv );
+
+			// Store IV + ciphertext in hex format.
+			return 'enc:' . bin2hex( $iv . $encrypted );
+		}
+
+		// Use Sodium (libsodium) if OpenSSL is unavailable.
+		if ( extension_loaded( 'sodium' ) ) {
+			$sodium_key = substr( hash( 'sha256', AUTH_SALT, true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+			$nonce      = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
+			$encrypted  = sodium_crypto_secretbox( $key, $nonce, $sodium_key );
+
+			return 'enc:' . sodium_bin2hex( $nonce . $encrypted );
+		}
+
+		// Log error and return plain text (not ideal, but prevents breaking functionality).
+		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( self::FILTER_PREFIX . ': No secure encryption method available.' );
+		}
+
+		return $key;
 	}
+
+	/**
+	 * Decrypts an API key using either OpenSSL or Sodium, if available.
+	 *
+	 * @param string $encrypted_key The encrypted API key to decrypt.
+	 * @return string The decrypted API key, or the encrypted key if no secure method is available.
+	 */
+	public static function decrypt_api_key( $encrypted_key ) {
+		if ( empty( $encrypted_key ) ) {
+			return '';
+		}
+
+		// If the key doesn't start with 'enc:', it's not encrypted.
+		if ( strpos( $encrypted_key, 'enc:' ) !== 0 ) {
+			return $encrypted_key;
+		}
+
+		// Remove the 'enc:' prefix.
+		$encrypted_key = substr( $encrypted_key, 4 );
+
+		// Try OpenSSL decryption.
+		if ( extension_loaded( 'openssl' ) ) {
+			$data = hex2bin( $encrypted_key );
+			if ( false === $data ) {
+				return '';
+			}
+
+			$iv_length  = openssl_cipher_iv_length( 'aes-256-cbc' );
+			$iv         = mb_substr( $data, 0, $iv_length, '8bit' );
+			$ciphertext = mb_substr( $data, $iv_length, null, '8bit' );
+
+			$decrypted = openssl_decrypt( $ciphertext, 'aes-256-cbc', AUTH_SALT, 0, $iv );
+			return false === $decrypted ? '' : $decrypted;
+		}
+
+		// Try Sodium (libsodium) decryption.
+		if ( extension_loaded( 'sodium' ) ) {
+			$sodium_key = substr( hash( 'sha256', AUTH_SALT, true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+			$decoded    = sodium_hex2bin( $encrypted_key );
+
+			if ( ! $decoded ) {
+				return '';
+			}
+
+			$nonce      = mb_substr( $decoded, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES, '8bit' );
+			$ciphertext = mb_substr( $decoded, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES, null, '8bit' );
+			$decrypted  = sodium_crypto_secretbox_open( $ciphertext, $nonce, $sodium_key );
+
+			return false === $decrypted ? '' : $decrypted;
+		}
+
+		// Log error and return encrypted key.
+		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( self::FILTER_PREFIX . ': No secure decryption method available.' );
+		}
+
+		return $encrypted_key;
+	}
+
 
 	/**
 	 * Function to add an action to search for tags using Ajax.
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
 	 * @return void
 	 */
@@ -294,7 +357,7 @@ class Options_API {
 
 		$s = isset( $_REQUEST['q'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['q'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
-		$comma = _x( ',', 'tag delimiter', 'starter-plugin' );
+		$comma = _x( ',', 'tag delimiter' );
 		if ( ',' !== $comma ) {
 			$s = str_replace( $comma, ',', $s );
 		}
@@ -304,15 +367,13 @@ class Options_API {
 		}
 		$s = trim( $s );
 
-		/**
-	* This filter has been defined in /wp-admin/includes/ajax-actions.php
-*/
+		/** This filter has been defined in /wp-admin/includes/ajax-actions.php */
 		$term_search_min_chars = (int) apply_filters( 'term_search_min_chars', 2, $tax, $s );
 
 		/*
-		* Require $term_search_min_chars chars for matching (default: 2)
-		* ensure it's a non-negative, non-zero integer.
-		*/
+		 * Require $term_search_min_chars chars for matching (default: 2)
+		 * ensure it's a non-negative, non-zero integer.
+		 */
 		if ( ( 0 === $term_search_min_chars ) || ( strlen( $s ) < $term_search_min_chars ) ) {
 			wp_die();
 		}
@@ -331,5 +392,5 @@ class Options_API {
 	}
 }
 
-// Initialize hooks.
-Options_API::init();
+// Add the tags search AJAX action.
+add_action( 'wp_ajax_' . Options_API::FILTER_PREFIX . '_tags_search', array( Options_API::class, 'tags_search' ) );

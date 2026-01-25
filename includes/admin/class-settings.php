@@ -2,14 +2,16 @@
 /**
  * Register Settings.
  *
+ * @link  https://webberzone.com
  * @since 1.0.0
  *
- * @package WebberZone\Starter_Plugin
+ * @package WebberZone\Glue_Link\Admin
  */
 
-namespace WebberZone\Starter_Plugin\Admin;
+namespace WebberZone\Glue_Link\Admin;
 
-use WebberZone\Starter_Plugin\Util\Hook_Registry;
+use WebberZone\Glue_Link\Admin\Settings\Settings_API;
+use WebberZone\Glue_Link\Options_API;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -19,97 +21,24 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Class to register the settings.
  *
- * @since 2.3.0
+ * @version 2.5.1
+ * @since 1.0.0
  */
 class Settings {
-
-
-
-	/**
-	 * Admin Dashboard.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @var object Admin Dashboard.
-	 */
-	public $admin_dashboard;
 
 	/**
 	 * Settings API.
 	 *
-	 * @since 2.3.0
+	 * @since 1.0.0
 	 *
-	 * @var object Settings API.
+	 * @var Settings_API Settings API.
 	 */
-	public $settings_api;
-
-	/**
-	 * Statistics table.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @var object Statistics table.
-	 */
-	public $statistics;
-
-	/**
-	 * Activator class.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @var object Activator class.
-	 */
-	public $activator;
-
-	/**
-	 * Admin Columns.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @var object Admin Columns.
-	 */
-	public $admin_columns;
-
-	/**
-	 * Metabox functions.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @var object Metabox functions.
-	 */
-	public $metabox;
-
-	/**
-	 * Import Export functions.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @var object Import Export functions.
-	 */
-	public $import_export;
-
-	/**
-	 * Tools page.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @var object Tools page.
-	 */
-	public $tools_page;
-
-	/**
-	 * Settings Page in Admin area.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @var string Settings Page.
-	 */
-	public $settings_page;
+	public Settings_API $settings_api;
 
 	/**
 	 * Prefix which is used for creating the unique filters and actions.
 	 *
-	 * @since 2.3.0
+	 * @since 1.0.0
 	 *
 	 * @var string Prefix.
 	 */
@@ -118,7 +47,7 @@ class Settings {
 	/**
 	 * Settings Key.
 	 *
-	 * @since 2.3.0
+	 * @since 1.0.0
 	 *
 	 * @var string Settings Key.
 	 */
@@ -127,39 +56,57 @@ class Settings {
 	/**
 	 * The slug name to refer to this menu by (should be unique for this menu).
 	 *
-	 * @since 2.3.0
+	 * @since 1.0.0
 	 *
 	 * @var string Menu slug.
 	 */
 	public $menu_slug;
 
 	/**
-	 * Main constructor class.
+	 * Constructor.
 	 *
-	 * @since 2.3.0
+	 * @since 1.0.0
 	 */
 	public function __construct() {
-		$this->settings_key = 'wzkb_settings';
-		self::$prefix       = 'wzkb';
-		$this->menu_slug    = 'wzkb-settings';
+		$this->settings_key = 'glue_link_settings';
+		self::$prefix       = 'glue_link';
+		$this->menu_slug    = 'glue_link_options_page';
 
-		Hook_Registry::add_action( 'admin_menu', array( $this, 'initialise_settings' ) );
-		Hook_Registry::add_action( 'admin_head', array( $this, 'admin_head' ), 11 );
-		Hook_Registry::add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 11, 2 );
-		Hook_Registry::add_filter( 'plugin_action_links_' . plugin_basename( WZKB_PLUGIN_FILE ), array( $this, 'plugin_actions_links' ) );
-		Hook_Registry::add_filter( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ), 99 );
+		$this->register_hooks();
+	}
 
-		Hook_Registry::add_filter( self::$prefix . '_settings_sanitize', array( $this, 'change_settings_on_save' ), 99 );
+	/**
+	 * Register the hooks.
+	 *
+	 * @since 1.0.0
+	 */
+	public function register_hooks() {
+		add_action( 'admin_menu', array( $this, 'initialise_settings' ) );
+		add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 11, 2 );
+		add_filter( 'plugin_action_links_' . plugin_basename( GLUE_LINK_PLUGIN_FILE ), array( $this, 'plugin_actions_links' ) );
+		add_filter( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ), 99 );
+
+		// Add filters for settings page customization.
+		add_filter( self::$prefix . '_setting_field_description', array( $this, 'add_api_validation_button' ), 10, 2 );
+		add_filter( self::$prefix . '_settings_form_buttons', array( $this, 'add_cache_clear_button' ), 10 );
+		add_filter( self::$prefix . '_settings_sanitize', array( $this, 'change_settings_on_save' ), 99 );
+		add_action( self::$prefix . '_settings_page_header', array( $this, 'add_subscribers_link' ) );
+
+		// Add AJAX handlers for Kit API validation, forms, and tags search.
+		add_action( 'wp_ajax_' . self::$prefix . '_validate_api', array( $this, 'ajax_validate_api' ) );
+		add_action( 'wp_ajax_' . self::$prefix . '_validate_api_secret', array( $this, 'ajax_validate_api_secret' ) );
+		add_action( 'wp_ajax_' . self::$prefix . '_refresh_lists', array( $this, 'ajax_refresh_lists' ) );
+		add_action( 'wp_ajax_' . self::$prefix . '_kit_search', array( $this, 'handle_kit_search' ) );
 	}
 
 	/**
 	 * Initialise the settings API.
 	 *
-	 * @since 2.3.0
+	 * @since 1.0.0
 	 */
 	public function initialise_settings() {
 		$props = array(
-			'default_tab'       => 'general',
+			'default_tab'       => 'kit',
 			'help_sidebar'      => $this->get_help_sidebar(),
 			'help_tabs'         => $this->get_help_tabs(),
 			'admin_footer_text' => $this->get_admin_footer_text(),
@@ -171,16 +118,867 @@ class Settings {
 			'translation_strings' => $this->get_translation_strings(),
 			'settings_sections'   => $this->get_settings_sections(),
 			'registered_settings' => $this->get_registered_settings(),
-			'upgraded_settings'   => array(),
 		);
 
-		$this->settings_api = new Settings\Settings_API( $this->settings_key, self::$prefix, $args );
+		$this->settings_api = new Settings_API( $this->settings_key, self::$prefix, $args );
+	}
+
+	/**
+	 * Array containing the settings' sections.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array Settings array
+	 */
+	public static function get_settings_sections(): array {
+		$settings_sections = array(
+			'kit'         => __( 'Kit', 'glue-link' ),
+			'freemius'    => __( 'Freemius', 'glue-link' ),
+			'subscribers' => __( 'Subscribers', 'glue-link' ),
+		);
+
+		/**
+		 * Filter the array containing the settings' sections.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array $settings_sections Settings array
+		 */
+		return apply_filters( 'glue_link_settings_sections', $settings_sections );
+	}
+
+	/**
+	 * Array containing the settings' translation strings.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array Settings array
+	 */
+	public function get_translation_strings(): array {
+		$strings = array(
+			'page_header'          => esc_html__( 'Glue for Freemius and Kit Settings', 'glue-link' ),
+			'reset_message'        => esc_html__( 'Settings have been reset to their default values. Reload this page to view the updated settings.', 'glue-link' ),
+			'success_message'      => esc_html__( 'Settings updated.', 'glue-link' ),
+			'save_changes'         => esc_html__( 'Save Changes', 'glue-link' ),
+			'reset_settings'       => esc_html__( 'Reset all settings', 'glue-link' ),
+			'reset_button_confirm' => esc_html__( 'Do you really want to reset all these settings to their default values?', 'glue-link' ),
+			'checkbox_modified'    => esc_html__( 'Modified from default setting', 'glue-link' ),
+		);
+
+		/**
+		 * Filter the array containing the settings' sections.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array $strings Translation strings.
+		 */
+		return apply_filters( self::$prefix . '_translation_strings', $strings );
+	}
+
+	/**
+	 * Get the admin menus.
+	 *
+	 * @return array Admin menus.
+	 */
+	public function get_menus(): array {
+		$menus = array();
+
+		// Settings menu.
+		$menus[] = array(
+			'settings_page' => true,
+			'type'          => 'options',
+			'page_title'    => esc_html__( 'Glue for Freemius and Kit Settings', 'glue-link' ),
+			'menu_title'    => esc_html__( 'WZ Glue', 'glue-link' ),
+			'menu_slug'     => $this->menu_slug,
+		);
+
+		return $menus;
+	}
+
+	/**
+	 * Retrieve the array of plugin settings
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array Settings array
+	 */
+	public static function get_registered_settings(): array {
+		$settings = array();
+		$sections = self::get_settings_sections();
+
+		foreach ( $sections as $section => $value ) {
+			$method_name = 'settings_' . $section;
+			if ( method_exists( __CLASS__, $method_name ) ) {
+				$settings[ $section ] = self::$method_name();
+			}
+		}
+
+		/**
+		 * Filters the settings array
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array $glue_link_setings Settings array
+		 */
+		return apply_filters( self::$prefix . '_registered_settings', $settings );
+	}
+
+	/**
+	 * Retrieve the array of Freemius settings
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array Freemius settings array
+	 */
+	public static function settings_freemius(): array {
+		$settings = array(
+			'freemius'              => array(
+				'id'   => 'freemius',
+				'name' => __( 'Freemius', 'glue-link' ),
+				'desc' => __( 'Configure your Freemius plugins in this tab by entering required identifiers and keys. Plugin name, ID, public and secret keys are mandatory. Form and tags are optional and default to settings in the Kit tab if left blank.', 'glue-link' ),
+				'type' => 'header',
+			),
+			'webhook_endpoint_type' => array(
+				'id'      => 'webhook_endpoint_type',
+				'name'    => __( 'Webhook Endpoint Type', 'glue-link' ),
+				'desc'    => __( 'Select the method for registering the webhook endpoint. REST API is recommended for better security and standardization. For Query Variable, use: yourdomain.com/?glue_webhook', 'glue-link' ),
+				'type'    => 'select',
+				'options' => array(
+					'rest'  => __( 'REST API', 'glue-link' ),
+					'query' => __( 'Query Variable', 'glue-link' ),
+				),
+				'default' => 'rest',
+			),
+			'webhook_url'           => array(
+				'id'   => 'webhook_url',
+				'name' => __( 'Webhook URL', 'glue-link' ),
+				'desc' => self::get_webhook_url(),
+				'type' => 'header',
+			),
+			'plugins'               => array(
+				'id'                => 'plugins',
+				'name'              => __( 'Freemius Plugins', 'glue-link' ),
+				'desc'              => '',
+				'type'              => 'repeater',
+				'live_update_field' => 'name',
+				'default'           => array(),
+				'section'           => 'freemius',
+				'fields'            => array(
+					array(
+						'id'      => 'name',
+						'name'    => __( 'Plugin Name', 'glue-link' ),
+						'desc'    => __( 'Enter the name of your plugin', 'glue-link' ),
+						'type'    => 'text',
+						'default' => '',
+						'size'    => 'large',
+					),
+					array(
+						'id'      => 'id',
+						'name'    => __( 'Plugin ID', 'glue-link' ),
+						'desc'    => __( 'Enter your Freemius plugin ID', 'glue-link' ),
+						'type'    => 'text',
+						'default' => '',
+						'size'    => 'large',
+					),
+					array(
+						'id'      => 'public_key',
+						'name'    => __( 'Public Key', 'glue-link' ),
+						'desc'    => __( 'Enter your Freemius public key', 'glue-link' ),
+						'type'    => 'text',
+						'default' => '',
+						'size'    => 'large',
+					),
+					array(
+						'id'      => 'secret_key',
+						'name'    => __( 'Secret Key', 'glue-link' ),
+						'desc'    => __( 'Enter your Freemius secret key. Once saved, this will be securely stored and masked.', 'glue-link' ),
+						'type'    => 'sensitive',
+						'default' => '',
+						'size'    => 'large',
+					),
+					array(
+						'id'               => 'free_form_ids',
+						'name'             => __( 'Free Form', 'glue-link' ),
+						'desc'             => __( 'Choose the form(s) for free subscribers. Begin typing to search.', 'glue-link' ),
+						'type'             => 'text',
+						'default'          => '',
+						'size'             => 'large',
+						'field_class'      => 'ts_autocomplete',
+						'field_attributes' => self::get_kit_search_field_attributes( 'forms' ),
+					),
+					array(
+						'id'               => 'free_tag_ids',
+						'name'             => __( 'Free Tag', 'glue-link' ),
+						'desc'             => __( 'Optionally, choose the tag(s) for free subscribers. Begin typing to search.', 'glue-link' ),
+						'type'             => 'text',
+						'default'          => '',
+						'size'             => 'large',
+						'field_class'      => 'ts_autocomplete',
+						'field_attributes' => self::get_kit_search_field_attributes( 'tags' ),
+					),
+					array(
+						'id'               => 'paid_form_ids',
+						'name'             => __( 'Paid Form', 'glue-link' ),
+						'desc'             => __( 'Choose the form(s) for paid subscribers. Begin typing to search.', 'glue-link' ),
+						'type'             => 'text',
+						'default'          => '',
+						'size'             => 'large',
+						'field_class'      => 'ts_autocomplete',
+						'field_attributes' => self::get_kit_search_field_attributes( 'forms' ),
+					),
+					array(
+						'id'               => 'paid_tag_ids',
+						'name'             => __( 'Paid Tag', 'glue-link' ),
+						'desc'             => __( 'Choose the tag(s) for paid subscribers. Begin typing to search.', 'glue-link' ),
+						'type'             => 'text',
+						'default'          => '',
+						'size'             => 'large',
+						'field_class'      => 'ts_autocomplete',
+						'field_attributes' => self::get_kit_search_field_attributes( 'tags' ),
+					),
+				),
+			),
+		);
+
+		/**
+		 * Filters the General settings array.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array $settings General settings array.
+		 */
+		return apply_filters( self::$prefix . '_settings_general', $settings );
+	}
+
+	/**
+	 * Retrieve the array of Kit settings
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array Kit settings array
+	 */
+	public static function settings_kit(): array {
+		$settings = array(
+			'kit'            => array(
+				'id'   => 'kit',
+				'name' => __( 'Kit', 'glue-link' ),
+				'desc' => __( 'Enter your Kit settings in this tab. This section allows you to configure the necessary API credentials and default settings for integrating with the Kit platform. Ensure that you fill in all required fields and save the changes for them to take effect.', 'glue-link' ),
+				'type' => 'header',
+			),
+			'kit_api_key'    => array(
+				'id'       => 'kit_api_key',
+				'name'     => __( 'API Key', 'glue-link' ),
+				/* translators: 1: Kit account link's opening anchor tag, 2: Kit account link's closing anchor tag. */
+				'desc'     => sprintf( __( 'Enter your Kit API key. Get your API key from your %1$sKit account%2$s.', 'glue-link' ), '<a href="https://app.kit.com/account_settings/developer_settings" target="_blank">', '</a>' ),
+				'type'     => 'text',
+				'default'  => '',
+				'size'     => 'large',
+				'required' => true,
+			),
+			'kit_api_secret' => array(
+				'id'       => 'kit_api_secret',
+				'name'     => __( 'API Secret', 'glue-link' ),
+				'desc'     => __( 'Enter your Kit API secret. Once saved, this will be securely stored and masked.', 'glue-link' ),
+				'type'     => 'sensitive',
+				'default'  => '',
+				'size'     => 'large',
+				'required' => true,
+			),
+			'kit_form_id'    => array(
+				'id'               => 'kit_form_id',
+				'name'             => __( 'Global Form ID', 'glue-link' ),
+				'desc'             => __( 'Select the Kit form to add subscribers to. Start typing to search. This is used if the form ID is not set for a specific plugin.', 'glue-link' ),
+				'type'             => 'text',
+				'default'          => '',
+				'size'             => 'large',
+				'field_class'      => 'ts_autocomplete',
+				'field_attributes' => self::get_kit_search_field_attributes( 'forms' ),
+			),
+			'kit_tag_id'     => array(
+				'id'               => 'kit_tag_id',
+				'name'             => __( 'Tag ID', 'glue-link' ),
+				'desc'             => __( 'Select the Kit tag to apply (optional). Start typing to search. This is used if the tag ID is not set for a specific plugin.', 'glue-link' ),
+				'type'             => 'text',
+				'default'          => '',
+				'size'             => 'large',
+				'field_class'      => 'ts_autocomplete',
+				'field_attributes' => self::get_kit_search_field_attributes( 'tags' ),
+			),
+		);
+
+		/**
+		 * Filters the Kit settings array
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array $settings Kit settings array
+		 */
+		return apply_filters( 'glue_link_settings_kit', $settings );
+	}
+
+	/**
+	 * Retrieve the array of Subscribers settings
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array Subscribers settings array
+	 */
+	public static function settings_subscribers(): array {
+		$settings = array(
+			'subscribers'     => array(
+				'id'   => 'subscribers',
+				'name' => __( 'Subscribers', 'glue-link' ),
+				'desc' => __( 'Configure your subscribers settings in this tab.', 'glue-link' ),
+				'type' => 'header',
+			),
+			'last_name_field' => array(
+				'id'               => 'last_name_field',
+				'name'             => __( 'Last Name field', 'glue-link' ),
+				'desc'             => __( 'Select the field name for mapping the last name in Kit. Note: Kit lacks a default last name field; a custom field must be created in your account first.', 'glue-link' ),
+				'type'             => 'text',
+				'default'          => '',
+				'field_class'      => 'ts_autocomplete',
+				'field_attributes' => self::get_kit_search_field_attributes( 'custom_fields', array( 'maxItems' => 1 ) ),
+			),
+			'custom_fields'   => array(
+				'id'                => 'custom_fields',
+				'name'              => __( 'Custom Fields', 'glue-link' ),
+				'desc'              => '',
+				'type'              => 'repeater',
+				'live_update_field' => 'local_name',
+				'default'           => array(),
+				'fields'            => array(
+					array(
+						'id'      => 'local_name',
+						'name'    => __( 'Field Local Name', 'glue-link' ),
+						'desc'    => __( 'Enter the name of your field that will be used locally in the database on this site.', 'glue-link' ),
+						'type'    => 'text',
+						'default' => '',
+					),
+					array(
+						'id'      => 'remote_name',
+						'name'    => __( 'Field name on Kit', 'glue-link' ),
+						'desc'    => __( 'Enter the name of your custom field that is used on the Kit.', 'glue-link' ),
+						'type'    => 'text',
+						'default' => '',
+					),
+				),
+			),
+		);
+
+		/**
+		 * Filters the Subscribers settings array
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array $settings Subscribers settings array
+		 */
+		return apply_filters( 'glue_link_settings_subscribers', $settings );
+	}
+
+	/**
+	 * Get common field attributes for Kit search fields
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $endpoint   The endpoint to search ('forms', 'tags', 'custom_fields').
+	 * @param array  $ts_config  Optional TypeScript configuration.
+	 * @return array Field attributes array
+	 */
+	private static function get_kit_search_field_attributes( string $endpoint, array $ts_config = array() ): array {
+		$attributes = array(
+			'data-wp-prefix'   => 'GlueLink',
+			'data-wp-action'   => self::$prefix . '_kit_search',
+			'data-wp-nonce'    => wp_create_nonce( self::$prefix . '_kit_search' ),
+			'data-wp-endpoint' => $endpoint,
+		);
+
+		if ( ! empty( $ts_config ) ) {
+			$attributes['data-ts-config'] = wp_json_encode( $ts_config );
+		}
+
+		return $attributes;
+	}
+
+	/**
+	 * Adding WordPress plugin action links.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array $links Array of links.
+	 * @return array Updated array of links.
+	 */
+	public function plugin_actions_links( array $links ): array {
+
+		return array_merge(
+			array(
+				'settings' => '<a href="' . admin_url( 'admin.php?page=' . $this->menu_slug ) . '">' . esc_html__( 'Settings', 'glue-link' ) . '</a>',
+			),
+			$links
+		);
+	}
+
+	/**
+	 * Add meta links on Plugins page.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array  $links Array of Links.
+	 * @param string $file Current file.
+	 * @return array Updated array of links.
+	 */
+	public function plugin_row_meta( array $links, string $file ): array {
+
+		if ( false !== strpos( $file, 'glue-link.php' ) ) {
+			$new_links = array(
+				'support' => '<a href = "https://webberzone.com/support/">' . esc_html__( 'Support', 'glue-link' ) . '</a>',
+			);
+
+			$links = array_merge( $links, $new_links );
+		}
+		return $links;
+	}
+
+	/**
+	 * Get the help sidebar content to display on the plugin settings page.
+	 *
+	 * @since 1.0.0
+	 */
+	public function get_help_sidebar() {
+		$help_sidebar =
+			/* translators: 1: Plugin support site link. */
+			'<p>' . sprintf( __( 'For more information or how to get support visit the <a href="%s">support site</a>.', 'glue-link' ), esc_url( 'https://webberzone.com/support/' ) ) . '</p>';
+
+		/**
+		 * Filter to modify the help sidebar content.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param string $help_sidebar Help sidebar content.
+		 */
+		return apply_filters( self::$prefix . '_settings_help', $help_sidebar );
+	}
+
+	/**
+	 * Get the help tabs to display on the plugin settings page.
+	 *
+	 * @since 1.0.0
+	 */
+	public function get_help_tabs() {
+		$help_tabs = array(
+			array(
+				'id'      => 'glue_link-settings-general-help',
+				'title'   => esc_html__( 'Freemius Plugins', 'glue-link' ),
+				'content' =>
+				'<p><strong>' . esc_html__( 'This tab allows you to add or remove plugins that you have added on Freemius', 'glue-link' ) . '</strong></p>' .
+					'<p>' . esc_html__( 'You must click the Save Changes button at the bottom of the screen for new settings to take effect.', 'glue-link' ) . '</p>',
+			),
+			array(
+				'id'      => 'glue_link-settings-kit-help',
+				'title'   => esc_html__( 'Kit', 'glue-link' ),
+				'content' =>
+				'<p><strong>' . esc_html__( 'This tab provides the settings for configuring the integration with Kit. Add your API key.', 'glue-link' ) . '</strong></p>' .
+					'<p>' . esc_html__( 'You must click the Save Changes button at the bottom of the screen for new settings to take effect.', 'glue-link' ) . '</p>',
+			),
+		);
+
+		/**
+		 * Filter to add more help tabs.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param array $help_tabs Associative array of help tabs.
+		 */
+		return apply_filters( self::$prefix . '_settings_help', $help_tabs );
+	}
+
+	/**
+	 * Add footer text on the plugin page.
+	 *
+	 * @since 1.0.0
+	 */
+	public static function get_admin_footer_text() {
+		return sprintf(
+			/* translators: 1: Opening achor tag with Plugin page link, 2: Closing anchor tag. */
+			__( 'Thank you for using %1$sGlue for Freemius and Kit%2$s!', 'glue-link' ),
+			'<a href="https://webberzone.com/plugins/glue-link/" target="_blank">',
+			'</a>'
+		);
+	}
+
+	/**
+	 * Enqueue scripts and styles for the admin settings page.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $hook The current admin page hook.
+	 */
+	public function admin_enqueue_scripts( $hook ) {
+		if ( false === strpos( $hook, $this->menu_slug ) ) {
+			return;
+		}
+
+		$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+
+		// Kit-specific scripts.
+		$this->enqueue_admin_script(
+			'kit-validate',
+			"/js/kit-validate{$suffix}.js",
+			array( 'jquery' )
+		);
+
+		// Settings scripts.
+		$this->enqueue_admin_script(
+			'admin',
+			"/js/admin{$suffix}.js",
+			array( 'jquery' )
+		);
+
+		wp_localize_script(
+			'glue-link-admin',
+			'GlueLinkAdmin',
+			array(
+				'prefix'        => self::$prefix,
+				'thumb_default' => plugins_url( 'images/default.png', __FILE__ ),
+				'ajax_url'      => admin_url( 'admin-ajax.php' ),
+				'nonce'         => wp_create_nonce( self::$prefix . '_admin_nonce' ),
+				'strings'       => array(
+					'cache_cleared' => esc_html__( 'Cache cleared successfully!', 'glue-link' ),
+					'cache_error'   => esc_html__( 'Error clearing cache: ', 'glue-link' ),
+				),
+			)
+		);
+
+		// Tom Select variables.
+		wp_localize_script(
+			'wz-' . self::$prefix . '-tom-select-init',
+			'GlueLinkTomSelectSettings',
+			array(
+				'prefix'        => 'GlueLink',
+				'nonce'         => wp_create_nonce( self::$prefix . '_kit_search' ),
+				'action'        => self::$prefix . '_kit_search',
+				'endpoint'      => '',
+				'forms'         => $this->get_kit_forms(),
+				'tags'          => $this->get_kit_tags(),
+				'custom_fields' => $this->get_kit_custom_fields(),
+				'strings'       => array(
+					/* translators: %s: search term */
+					'no_results' => esc_html__( 'No results found for %s', 'glue-link' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Helper function to enqueue admin scripts.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $handle Script handle without the 'glue-link-' prefix.
+	 * @param string $path   Path to the script relative to the admin directory.
+	 * @param array  $deps   Array of script dependencies.
+	 */
+	private function enqueue_admin_script( string $handle, string $path, array $deps = array() ) {
+		wp_enqueue_script(
+			'glue-link-' . $handle,
+			plugins_url( $path, __FILE__ ),
+			$deps,
+			GLUE_LINK_VERSION,
+			true
+		);
+	}
+
+	/**
+	 * Modify settings when they are being saved.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param  array $settings Settings array.
+	 * @return array Sanitized settings array.
+	 */
+	public function change_settings_on_save( array $settings ): array {
+		return $settings;
+	}
+
+	/**
+	 * Handle AJAX search for ConvertKit resources
+	 *
+	 * @since 1.0.0
+	 */
+	public function handle_kit_search() {
+		if ( ! isset( $_GET['endpoint'] ) || ! isset( $_GET['nonce'] ) ) {
+			wp_send_json_error(
+				(object) array(
+					'message' => __( 'Invalid request parameters', 'glue-link' ),
+					'items'   => array(),
+				)
+			);
+		}
+
+		// Tom Select endpoint.
+		$endpoint = sanitize_text_field( wp_unslash( $_GET['endpoint'] ) );
+		$nonce    = self::$prefix . '_kit_search';
+		$query    = isset( $_GET['query'] ) ? sanitize_text_field( wp_unslash( $_GET['query'] ) ) : '';
+
+		check_ajax_referer( $nonce, 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Insufficient permissions', 'glue-link' ),
+					'items'   => array(),
+				)
+			);
+		}
+
+		try {
+			$items = array();
+
+			switch ( $endpoint ) {
+				case 'forms':
+					$data = $this->get_kit_forms( $query );
+					break;
+				case 'tags':
+					$data = $this->get_kit_tags( $query );
+					break;
+				case 'custom_fields':
+					$data = $this->get_kit_custom_fields( $query );
+					break;
+				default:
+					$data = array();
+					break;
+			}
+
+			foreach ( $data as $entry ) {
+				$items[] = array(
+					'id'   => $entry['id'],
+					'name' => $entry['name'],
+				);
+			}
+
+			wp_send_json_success(
+				array(
+					'message' => '',
+					'items'   => $items,
+				)
+			);
+
+		} catch ( \Exception $e ) {
+			wp_send_json_error(
+				array(
+					'message' => $e->getMessage(),
+					'items'   => array(),
+				)
+			);
+		}
+	}
+
+	/**
+	 * AJAX endpoint to refresh ConvertKit lists
+	 *
+	 * @since 1.0.0
+	 */
+	public function ajax_refresh_lists() {
+		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
+
+		// Delete both transients.
+		foreach ( array( 'forms', 'tags', 'sequences', 'custom_fields' ) as $transient ) {
+			delete_transient( 'glue_link_kit_' . $transient );
+		}
+
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX handler to validate ConvertKit API credentials.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
+	public function ajax_validate_api() {
+		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'glue-link' ) ) );
+		}
+
+		$api_key = isset( $_POST['kit_api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['kit_api_key'] ) ) : '';
+
+		if ( empty( $api_key ) ) {
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'API key is empty.', 'glue-link' ) ) );
+		}
+
+		$api    = new \WebberZone\Glue_Link\Kit_API( $api_key );
+		$result = $api->validate_api_credentials();
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( (object) array( 'message' => $result->get_error_message() ) );
+		}
+
+		wp_send_json_success( (object) array( 'message' => esc_html__( 'API key is valid.', 'glue-link' ) ) );
+	}
+
+	/**
+	 * AJAX handler to validate ConvertKit API secret.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
+	public function ajax_validate_api_secret() {
+		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'glue-link' ) ) );
+		}
+
+		$secret_input = isset( $_POST['kit_api_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['kit_api_secret'] ) ) : '';
+
+		// First try to use it as a raw value (when validating before saving).
+		if ( ! empty( $secret_input ) && strpos( $secret_input, '*' ) === false ) {
+			$api_secret = $secret_input;
+		} else {
+			// If it contains asterisks, it's likely from the database, so try to decrypt.
+			$api_secret = Options_API::decrypt_api_key( $secret_input );
+		}
+
+		if ( empty( $api_secret ) ) {
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'API secret is empty.', 'glue-link' ) ) );
+		}
+
+		if ( strpos( $api_secret, '*' ) !== false ) {
+			$api_secret = Options_API::decrypt_api_key( Options_API::get_option( 'kit_api_secret' ) );
+		}
+
+		$api    = new \WebberZone\Glue_Link\Kit_API( '', $api_secret );
+		$result = $api->get_account();
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( (object) array( 'message' => $result->get_error_message() ) );
+		}
+
+		wp_send_json_success( (object) array( 'message' => esc_html__( 'API secret is valid!', 'glue-link' ) ) );
+	}
+
+	/**
+	 * Get Kit data, optionally filtered by search term.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $type   Type of data to get ('forms' or 'tags').
+	 * @param string $search Optional search term.
+	 * @return array|\WP_Error Array of items or WP_Error on failure.
+	 */
+	private function get_kit_data( $type, $search = '' ): array|\WP_Error {
+		$transient_key = self::$prefix . "_kit_{$type}";
+		$items         = get_transient( $transient_key );
+
+		if ( false === $items ) {
+			$api = new \WebberZone\Glue_Link\Kit_API();
+
+			switch ( $type ) {
+				case 'forms':
+					$response = $api->get_forms();
+					break;
+				case 'tags':
+					$response = $api->get_tags();
+					break;
+				case 'custom_fields':
+					$response = $api->get_custom_fields();
+					break;
+				default:
+					$response = new \WP_Error( 'invalid_type', __( 'Invalid type specified.', 'glue-link' ) );
+					break;
+			}
+
+			if ( is_wp_error( $response ) ) {
+				return $response;
+			}
+
+			// Extract items from the appropriate key in response.
+			$items = isset( $response[ $type ] ) ? $response[ $type ] : array();
+
+			if ( ! empty( $items ) ) {
+				set_transient( $transient_key, $items, DAY_IN_SECONDS );
+			}
+		}
+
+		if ( ! empty( $search ) ) {
+			$search = trim( strtolower( $search ) );
+			$items  = array_filter(
+				$items,
+				function ( $item ) use ( $search ) {
+					$name = trim( strtolower( (string) $item['name'] ) );
+					$id   = trim( strtolower( (string) $item['id'] ) );
+					return false !== strpos( $name, $search ) || false !== strpos( $id, $search );
+				}
+			);
+		}
+
+		return array_values( $items );
+	}
+
+	/**
+	 * Get Kit forms, optionally filtered by search term.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $search Optional search term.
+	 * @return array Array of forms.
+	 */
+	private function get_kit_forms( $search = '' ) {
+		return $this->get_kit_data( 'forms', $search );
+	}
+
+	/**
+	 * Get Kit tags, optionally filtered by search term.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $search Optional search term.
+	 * @return array Array of tags.
+	 */
+	private function get_kit_tags( $search = '' ) {
+		return $this->get_kit_data( 'tags', $search );
+	}
+
+	/**
+	 * Get Kit custom fields, optionally filtered by search term.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $search Optional search term.
+	 * @return array Array of custom fields.
+	 */
+	private function get_kit_custom_fields( $search = '' ) {
+		return $this->get_kit_data( 'custom_fields', $search );
+	}
+
+	/**
+	 * Add API validation button after API key settings.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $desc Description HTML.
+	 * @param array  $args Field arguments.
+	 * @return string Modified description HTML.
+	 */
+	public function add_api_validation_button( string $desc, array $args ): string {
+		// Only add button after API key field.
+		if ( 'kit_api_key' === $args['id'] ) {
+			$desc .= ' <button type="button" class="button button-secondary validate-api-key">' . esc_html__( 'Validate API Key', 'glue-link' ) . '</button>';
+			$desc .= '<span class="api-validation-status" style="margin-left: 10px;"></span>';
+		}
+		if ( 'kit_api_secret' === $args['id'] ) {
+			$desc .= ' <button type="button" class="button button-secondary validate-api-secret">' . esc_html__( 'Validate API Secret', 'glue-link' ) . '</button>';
+			$desc .= '<span class="api-validation-status" style="margin-left: 10px;"></span>';
+		}
+		return $desc;
 	}
 
 	/**
 	 * Get settings defaults.
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
 	 * @return array Default settings.
 	 */
@@ -188,52 +986,24 @@ class Settings {
 		$defaults = array();
 
 		// Get all registered settings.
-		$settings      = self::get_registered_settings();
-		$default_types = array(
-			'color',
-			'css',
-			'csv',
-			'file',
-			'html',
-			'multicheck',
-			'number',
-			'numbercsv',
-			'password',
-			'postids',
-			'posttypes',
-			'radio',
-			'radiodesc',
-			'repeater',
-			'select',
-			'sensitive',
-			'taxonomies',
-			'text',
-			'textarea',
-			'thumbsizes',
-			'url',
-			'wysiwyg',
-		);
+		$settings = self::get_registered_settings();
 
 		// Loop through each section.
-		foreach ( $settings as $section_settings ) {
+		foreach ( $settings as $section => $section_settings ) {
 			// Loop through each setting in the section.
 			foreach ( $section_settings as $setting ) {
-				if ( ! isset( $setting['id'] ) ) {
-					continue;
+				if ( isset( $setting['id'] ) ) {
+					// When checkbox is set to true, set this to 1.
+					if ( 'checkbox' === $setting['type'] && ! empty( $setting['options'] ) ) {
+						$defaults[ $setting['id'] ] = 1;
+					} elseif ( in_array( $setting['type'], array( 'textarea', 'css', 'html', 'text', 'url', 'csv', 'color', 'numbercsv', 'postids', 'posttypes', 'number', 'wysiwyg', 'file', 'password' ), true ) && isset( $setting['default'] ) ) {
+						$defaults[ $setting['id'] ] = $setting['default'];
+					} elseif ( in_array( $setting['type'], array( 'multicheck', 'radio', 'select', 'radiodesc', 'thumbsizes', 'repeater' ), true ) && isset( $setting['default'] ) ) {
+						$defaults[ $setting['id'] ] = $setting['default'];
+					} else {
+						$defaults[ $setting['id'] ] = '';
+					}
 				}
-
-				$setting_id    = $setting['id'];
-				$setting_type  = $setting['type'] ?? '';
-				$default_value = '';
-
-				// When checkbox is set to true, set this to 1.
-				if ( 'checkbox' === $setting_type ) {
-					$default_value = isset( $setting['default'] ) ? (int) (bool) $setting['default'] : 0;
-				} elseif ( isset( $setting['default'] ) && in_array( $setting_type, $default_types, true ) ) {
-					$default_value = $setting['default'];
-				}
-
-				$defaults[ $setting_id ] = $default_value;
 			}
 		}
 
@@ -248,878 +1018,61 @@ class Settings {
 	}
 
 	/**
-	 * Array containing the translation strings.
+	 * Add subscribers link to settings page header.
 	 *
-	 * @since 1.8.0
+	 * @since 1.0.0
 	 *
-	 * @return array Translation strings.
+	 * @return void
 	 */
-	public function get_translation_strings() {
-		$strings = array(
-			'page_title'           => esc_html__( 'Knowledge Base Settings', 'knowledgebase' ),
-			'menu_title'           => esc_html__( 'Settings', 'knowledgebase' ),
-			'page_header'          => esc_html__( 'Knowledge Base Settings', 'knowledgebase' ),
-			'reset_message'        => esc_html__( 'Settings have been reset to their default values. Reload this page to view the updated settings.', 'knowledgebase' ),
-			'success_message'      => esc_html__( 'Settings updated.', 'knowledgebase' ),
-			'save_changes'         => esc_html__( 'Save Changes', 'knowledgebase' ),
-			'reset_settings'       => esc_html__( 'Reset all settings', 'knowledgebase' ),
-			'reset_button_confirm' => esc_html__( 'Do you really want to reset all these settings to their default values?', 'knowledgebase' ),
-			'checkbox_modified'    => esc_html__( 'Modified from default setting', 'knowledgebase' ),
-			'button_label'         => esc_html__( 'Choose File', 'knowledgebase' ),
-			'previous_saved'       => esc_html__( 'Previously saved', 'knowledgebase' ),
-		);
-
-		/**
-		 * Filter the array containing the settings' sections.
-		 *
-		 * @since 2.2.0
-		 *
-		 * @param array $strings Translation strings.
-		 */
-		return apply_filters( self::$prefix . '_translation_strings', $strings );
-	}
-
-	/**
-	 * Get the admin menus.
-	 *
-	 * @return array Admin menus.
-	 */
-	public function get_menus() {
-		$menus = array();
-
-		// Settings menu.
-		$menus[] = array(
-			'settings_page' => true,
-			'type'          => 'submenu',
-			'parent_slug'   => 'edit.php?post_type=wz_knowledgebase',
-			'page_title'    => esc_html__( 'Knowledge Base Settings', 'knowledgebase' ),
-			'menu_title'    => esc_html__( 'Settings', 'knowledgebase' ),
-			'menu_slug'     => $this->menu_slug,
-		);
-
-		return $menus;
-	}
-
-	/**
-	 * Array containing the settings' sections.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @return array Settings array
-	 */
-	public static function get_settings_sections() {
-		$sections = array(
-			'general' => __( 'General', 'knowledgebase' ),
-			'output'  => __( 'Output', 'knowledgebase' ),
-			'styles'  => __( 'Styles', 'knowledgebase' ),
-			'pro'     => __( 'Pro', 'knowledgebase' ),
-		);
-
-		/**
-		 * Filter the array containing the settings' sections.
-		 *
-		 * @since 2.2.0
-		 *
-		 * @param array $sections Array of settings' sections
-		 */
-		return apply_filters( self::$prefix . '_settings_sections', $sections );
-	}
-
-
-	/**
-	 * Retrieve the array of plugin settings
-	 *
-	 * @since 2.3.0
-	 *
-	 * @return array Settings array
-	 */
-	public static function get_registered_settings() {
-		$settings = array();
-		$sections = self::get_settings_sections();
-
-		foreach ( $sections as $section => $value ) {
-			$method_name = 'settings_' . $section;
-			if ( method_exists( __CLASS__, $method_name ) ) {
-				$settings[ $section ] = self::$method_name();
-			}
-		}
-
-		/**
-		 * Filters the settings array
-		 *
-		 * @since 2.2.0
-		 *
-		 * @param array $Knowledgebase_setings Settings array
-		 */
-		return apply_filters( self::$prefix . '_registered_settings', $settings );
-	}
-
-	/**
-	 * Retrieve the array of General settings
-	 *
-	 * @since 2.3.0
-	 *
-	 * @return array General settings array
-	 */
-	public static function settings_general() {
-		$settings = array(
-			'multi_product_header' => array(
-				'id'      => 'multi_product_header',
-				'name'    => '<h3>' . esc_html__( 'Multi-Product Mode', 'knowledgebase' ) . '</h3>',
-				'desc'    => '',
-				'type'    => 'header',
-				'default' => '',
-			),
-			'multi_product'        => array(
-				'id'      => 'multi_product',
-				'name'    => esc_html__( 'Enable Multi-Product Mode', 'knowledgebase' ),
-				'desc'    => esc_html__(
-					'Enable this option to use a dedicated “Products” menu to organize your knowledge base articles and sections by product. This system allows you to assign each article or section to one or more products, making it easier to manage documentation for different software, hardware, or service lines. If your knowledge base does not need this level of organization, you can leave this option disabled. This is a transitional feature for advanced organization and future compatibility.',
-					'knowledgebase'
-				),
-				'type'    => 'checkbox',
-				'default' => false,
-			),
-			'permalink_header'     => array(
-				'id'   => 'permalink_header',
-				'name' => '<h3>' . esc_html__( 'Permalinks', 'knowledgebase' ) . '</h3>',
-				'desc' => esc_html__( 'The following settings affect the permalinks of the knowledge base. These are set when registering the custom post type and taxonomy. Please visit the Permalinks page in the Settings menu to refresh permalinks if you get 404 errors.', 'knowledgebase' ),
-				'type' => 'header',
-			),
-			'kb_slug'              => array(
-				'id'          => 'kb_slug',
-				'name'        => esc_html__( 'Knowledge Base slug', 'knowledgebase' ),
-				'desc'        => esc_html__( 'This will set the opening path of the URL of the knowledge base and is set when registering the custom post type', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => 'knowledgebase',
-				'field_class' => 'large-text',
-			),
-			'product_slug'         => array(
-				'id'          => 'product_slug',
-				'name'        => esc_html__( 'Product slug', 'knowledgebase' ),
-				'desc'        => esc_html__( 'This slug forms part of the URL for product pages when Multi-Product Mode is enabled. The value is used when registering the custom taxonomy.', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => 'kb/product',
-				'field_class' => 'large-text',
-			),
-			'category_slug'        => array(
-				'id'          => 'category_slug',
-				'name'        => esc_html__( 'Section slug', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Each section is a section of the knowledge base. This setting is used when registering the custom section and forms a part of the URL when browsing section archives', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => 'kb/section',
-				'field_class' => 'large-text',
-			),
-			'tag_slug'             => array(
-				'id'          => 'tag_slug',
-				'name'        => esc_html__( 'Tags slug', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Each article can have multiple tags. This setting is used when registering the custom tag and forms a part of the URL when browsing tag archives', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => 'kb/tags',
-				'field_class' => 'large-text',
-			),
-			'article_permalink'    => array(
-				'id'          => 'article_permalink',
-				'name'        => esc_html__( 'Article Permalink Structure', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Structure for article URLs. Default: %postname%', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => '%postname%',
-				'field_class' => 'large-text',
-				'pro'         => true,
-			),
-			'performance_header'   => array(
-				'id'   => 'performance_header',
-				'name' => '<h3>' . esc_html__( 'Performance', 'knowledgebase' ) . '</h3>',
-				'desc' => '',
-				'type' => 'header',
-			),
-			'cache'                => array(
-				'id'      => 'cache',
-				'name'    => esc_html__( 'Enable cache', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Cache the output of the queries to speed up retrieval of the knowledgebase. Recommended for large knowledge bases', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => false,
-			),
-			'cache_expiry'         => array(
-				'id'      => 'cache_expiry',
-				'name'    => esc_html__( 'Cache Time', 'knowledgebase' ),
-				'desc'    => esc_html__( 'How long should the knowledge base be cached for. Default is 1 day.', 'knowledgebase' ),
-				'type'    => 'select',
-				'default' => DAY_IN_SECONDS,
-				'options' => array(
-					0                    => esc_html__( 'No expiry', 'knowledgebase' ),
-					HOUR_IN_SECONDS      => esc_html__( '1 Hour', 'knowledgebase' ),
-					6 * HOUR_IN_SECONDS  => esc_html__( '6 Hours', 'knowledgebase' ),
-					12 * HOUR_IN_SECONDS => esc_html__( '12 Hours', 'knowledgebase' ),
-					DAY_IN_SECONDS       => esc_html__( '1 Day', 'knowledgebase' ),
-					3 * DAY_IN_SECONDS   => esc_html__( '3 Days', 'knowledgebase' ),
-					WEEK_IN_SECONDS      => esc_html__( '1 Week', 'knowledgebase' ),
-					2 * WEEK_IN_SECONDS  => esc_html__( '2 Weeks', 'knowledgebase' ),
-					MONTH_IN_SECONDS     => esc_html__( '30 Days', 'knowledgebase' ),
-					2 * MONTH_IN_SECONDS => esc_html__( '60 Days', 'knowledgebase' ),
-					3 * MONTH_IN_SECONDS => esc_html__( '90 Days', 'knowledgebase' ),
-					YEAR_IN_SECONDS      => esc_html__( '1 Year', 'knowledgebase' ),
-				),
-				'pro'     => true,
-			),
-			'uninstall_header'     => array(
-				'id'      => 'uninstall_header',
-				'name'    => '<h3>' . esc_html__( 'Uninstall options', 'knowledgebase' ) . '</h3>',
-				'desc'    => '',
-				'type'    => 'header',
-				'default' => '',
-			),
-			'uninstall_options'    => array(
-				'id'      => 'uninstall_options',
-				'name'    => esc_html__( 'Delete options on uninstall', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Check this box to delete the settings on this page when the plugin is deleted via the Plugins page in your WordPress Admin', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-			),
-			'uninstall_data'       => array(
-				'id'      => 'uninstall_data',
-				'name'    => esc_html__( 'Delete all content on uninstall', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Check this box to delete all the posts, categories and tags created by the plugin. There is no way to restore the data if you choose this option', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => false,
-			),
-			'feed_header'          => array(
-				'id'      => 'feed_header',
-				'name'    => '<h3>' . esc_html__( 'Feed options', 'knowledgebase' ) . '</h3>',
-				'desc'    => '',
-				'type'    => 'header',
-				'default' => '',
-			),
-			'include_in_feed'      => array(
-				'id'      => 'include_in_feed',
-				'name'    => esc_html__( 'Include in feed', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Adds the knowledge base articles to the main RSS feed for your site', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-			),
-			'disable_kb_feed'      => array(
-				'id'      => 'disable_kb_feed',
-				'name'    => esc_html__( 'Disable KB feed', 'knowledgebase' ),
-				/* translators: 1: Opening link tag, 2: Closing link tag. */
-				'desc'    => sprintf( esc_html__( 'The knowledge base articles have a default feed. This option will disable the feed. You might need to %1$srefresh your permalinks%2$s when changing this option.', 'knowledgebase' ), '<a href="' . admin_url( 'options-permalink.php' ) . '" target="_blank">', '</a>' ),
-				'type'    => 'checkbox',
-				'default' => false,
-			),
-		);
-
-		/**
-		 * Filters the General settings array
-		 *
-		 * @since 2.2.0
-		 *
-		 * @param array $settings General Settings array
-		 */
-		return apply_filters( self::$prefix . '_settings_general', $settings );
-	}
-
-
-	/**
-	 * Retrieve the array of Output settings
-	 *
-	 * @since 2.3.0
-	 *
-	 * @return array Output settings array
-	 */
-	public static function settings_output() {
-
-		$settings = array(
-			'kb_title'              => array(
-				'id'          => 'kb_title',
-				'name'        => esc_html__( 'Knowledge base title', 'knowledgebase' ),
-				'desc'        => esc_html__( 'This will be displayed as the title of the archive title as well as on other relevant places.', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => 'Knowledge Base',
-				'field_class' => 'large-text',
-			),
-			'category_level'        => array(
-				'id'      => 'category_level',
-				'name'    => esc_html__( 'First section level', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Knowledge Base supports an unlimited hierarchy of sections. Set to 1 if using multi-product mode (sections as first level of each product). Set to 2 for traditional mode (top-level sections as product categories). This determines which section level is displayed in the grid layout. The default is 2, which was the behavior before version 3.0.', 'knowledgebase' ),
-				'type'    => 'number',
-				'default' => '2',
-				'size'    => 'small',
-				'min'     => '1',
-				'max'     => '5',
-			),
-			'show_article_count'    => array(
-				'id'      => 'show_article_count',
-				'name'    => esc_html__( 'Show article count', 'knowledgebase' ),
-				'desc'    => esc_html__( 'If selected, the number of articles will be displayed in an orange circle next to the header. You can override the color by styling wzkb_section_count', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-			),
-			'show_excerpt'          => array(
-				'id'      => 'show_excerpt',
-				'name'    => esc_html__( 'Show excerpt', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Select to include the post excerpt after the article link', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => false,
-			),
-			'clickable_section'     => array(
-				'id'      => 'clickable_section',
-				'name'    => esc_html__( 'Link section title', 'knowledgebase' ),
-				'desc'    => esc_html__( 'If selected, the title of each section of the knowledgebase will be linked to its own page', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-			),
-			'show_empty_sections'   => array(
-				'id'      => 'show_empty_sections',
-				'name'    => esc_html__( 'Show empty sections', 'knowledgebase' ),
-				'desc'    => esc_html__( 'If selected, sections with no articles will also be displayed', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => false,
-			),
-			'limit'                 => array(
-				'id'      => 'limit',
-				'name'    => esc_html__( 'Max articles per section', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Enter the number of articles that should be displayed in each section when viewing the knowledge base. Once this limit is reached, the footer displays a more link to view the category.', 'knowledgebase' ),
-				'type'    => 'number',
-				'default' => '5',
-				'size'    => 'small',
-				'min'     => '1',
-				'max'     => '500',
-			),
-			'show_sidebar'          => array(
-				'id'      => 'show_sidebar',
-				'name'    => esc_html__( 'Show sidebar', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Add the sidebar of your theme into the inbuilt templates for archive, sections and search. Activate this option if your theme does not already include this.', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => false,
-			),
-			'show_related_articles' => array(
-				'id'      => 'show_related_articles',
-				'name'    => esc_html__( 'Show related articles', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Add related articles at the bottom of the knowledge base article. Only works when using the inbuilt template.', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-			),
-		);
-
-		/**
-		 * Filters the Output settings array
-		 *
-		 * @since 2.2.0
-		 *
-		 * @param array $settings Output Settings array
-		 */
-		return apply_filters( self::$prefix . '_settings_output', $settings );
-	}
-
-
-	/**
-	 * Retrieve the array of Styles settings
-	 *
-	 * @since 2.3.0
-	 *
-	 * @return array Styles settings array
-	 */
-	public static function settings_styles() {
-		$settings = array(
-			'product_archive_layout' => array(
-				'id'      => 'product_archive_layout',
-				'name'    => esc_html__( 'Product archive layout', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Choose how products are displayed on the main knowledge base archive when Multi-Product Mode is enabled.', 'knowledgebase' ),
-				'type'    => 'select',
-				'options' => array(
-					'sections' => esc_html__( 'Sections list (current behavior)', 'knowledgebase' ),
-					'grid'     => esc_html__( 'Product cards grid', 'knowledgebase' ),
-				),
-				'default' => 'sections',
-			),
-			'include_styles'         => array(
-				'id'      => 'include_styles',
-				'name'    => esc_html__( 'Include inbuilt styles', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Uncheck this to disable this plugin from adding the inbuilt styles. You will need to add your own CSS styles if you disable this option', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-			),
-			'kb_style'               => array(
-				'id'      => 'kb_style',
-				'name'    => esc_html__( 'Knowledge Base Style', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Select a visual style for your knowledge base display. Premium styles are available in the Pro version.', 'knowledgebase' ),
-				'type'    => 'select',
-				'options' => self::get_kb_styles(),
-				'default' => 'classic',
-			),
-			'columns'                => array(
-				'id'      => 'columns',
-				'name'    => esc_html__( 'Number of columns', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Set the number of columns to display the knowledge base archives.', 'knowledgebase' ),
-				'type'    => 'number',
-				'default' => '2',
-				'size'    => 'small',
-				'min'     => '1',
-				'max'     => '5',
-			),
-			'custom_css'             => array(
-				'id'          => 'custom_css',
-				'name'        => esc_html__( 'Custom CSS', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Enter any custom valid CSS without any wrapping &lt;style&gt; tags', 'knowledgebase' ),
-				'type'        => 'css',
-				'options'     => '',
-				'field_class' => 'codemirror_css',
-			),
-		);
-
-		/**
-		 * Filters the Styles settings array
-		 *
-		 * @since 2.2.0
-		 *
-		 * @param array $settings Styles settings array
-		 */
-		return apply_filters( self::$prefix . '_settings_styles', $settings );
-	}
-
-	/**
-	 * Retrieve the array of Pro settings
-	 *
-	 * @since 3.0.0
-	 *
-	 * @return array Pro settings array
-	 */
-	public static function settings_pro() {
-		$settings = array(
-			'rating_header'                  => array(
-				'id'   => 'rating_header',
-				'name' => '<h3>' . esc_html__( 'Article Rating', 'knowledgebase' ) . '</h3>',
-				'desc' => '',
-				'type' => 'header',
-			),
-			'rating_system'                  => array(
-				'id'      => 'rating_system',
-				'name'    => esc_html__( 'Enable Rating System', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Allow visitors to rate the quality of knowledge base articles.', 'knowledgebase' ),
-				'type'    => 'select',
-				'default' => 'disabled',
-				'options' => array(
-					'disabled' => esc_html__( 'Disabled', 'knowledgebase' ),
-					'binary'   => esc_html__( 'Useful / Not Useful', 'knowledgebase' ),
-					'scale'    => esc_html__( '1-5 Star Rating', 'knowledgebase' ),
-				),
-				'pro'     => true,
-			),
-			'rating_tracking_method'         => array(
-				'id'      => 'rating_tracking_method',
-				'name'    => esc_html__( 'Vote Tracking Method', 'knowledgebase' ),
-				/* translators: %s: URL to rating system documentation */
-				'desc'    => sprintf(
-							/* translators: %1$s: Opening link tag, %2$s: Closing link tag. */
-					esc_html__( 'Choose how to prevent duplicate votes. Each method has different privacy implications. %1$sLearn more about tracking methods and GDPR compliance%2$s.', 'knowledgebase' ),
-					'<a href="https://webberzone.com/support/knowledgebase/knowledge-base-rating-system/#tracking-methods--gdpr-compliance" target="_blank" rel="noopener noreferrer">',
-					'</a>'
-				),
-				'type'    => 'select',
-				'default' => 'cookie',
-				'options' => array(
-					'none'           => esc_html__( 'No Tracking (allows multiple votes)', 'knowledgebase' ),
-					'cookie'         => esc_html__( 'Cookie Only (requires consent)', 'knowledgebase' ),
-					'ip'             => esc_html__( 'IP Address Only (stores personal data)', 'knowledgebase' ),
-					'cookie_ip'      => esc_html__( 'Cookie + IP Address (requires both)', 'knowledgebase' ),
-					'logged_in_only' => esc_html__( 'Logged-in Users Only (best for authenticated sites)', 'knowledgebase' ),
-				),
-				'pro'     => true,
-			),
-			'show_rating_stats'              => array(
-				'id'      => 'show_rating_stats',
-				'name'    => esc_html__( 'Show Rating Statistics', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Display the average rating and vote count below the rating buttons.', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-				'pro'     => true,
-			),
-			'help_widget_header'             => array(
-				'id'   => 'help_widget_header',
-				'name' => '<h3>' . esc_html__( 'Help Widget', 'knowledgebase' ) . '</h3>',
-				'desc' => esc_html__( 'A floating help widget that provides self-service support with search, suggested articles, and contact form.', 'knowledgebase' ),
-				'type' => 'header',
-			),
-			'help_widget_enabled'            => array(
-				'id'      => 'help_widget_enabled',
-				'name'    => esc_html__( 'Enable Help Widget', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Display a floating help widget on your site for self-service support.', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => false,
-				'pro'     => true,
-			),
-			'help_widget_display_location'   => array(
-				'id'      => 'help_widget_display_location',
-				'name'    => esc_html__( 'Display Location', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Choose where the help widget appears on your site.', 'knowledgebase' ),
-				'type'    => 'select',
-				'default' => 'kb_only',
-				'options' => array(
-					'kb_only'  => esc_html__( 'Knowledge Base Only', 'knowledgebase' ),
-					'sitewide' => esc_html__( 'Entire Site', 'knowledgebase' ),
-				),
-				'pro'     => true,
-			),
-			'help_widget_position'           => array(
-				'id'      => 'help_widget_position',
-				'name'    => esc_html__( 'Button Position', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Choose where the help widget button appears on the screen.', 'knowledgebase' ),
-				'type'    => 'select',
-				'default' => 'right',
-				'options' => array(
-					'right' => esc_html__( 'Bottom Right', 'knowledgebase' ),
-					'left'  => esc_html__( 'Bottom Left', 'knowledgebase' ),
-				),
-				'pro'     => true,
-			),
-			'help_widget_button_style'       => array(
-				'id'      => 'help_widget_button_style',
-				'name'    => esc_html__( 'Button Style', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Choose how the help widget button is displayed.', 'knowledgebase' ),
-				'type'    => 'select',
-				'default' => 'icon',
-				'options' => array(
-					'icon'          => esc_html__( 'Icon Only', 'knowledgebase' ),
-					'text'          => esc_html__( 'Text Only', 'knowledgebase' ),
-					'icon_and_text' => esc_html__( 'Icon and Text', 'knowledgebase' ),
-				),
-				'pro'     => true,
-			),
-			'help_widget_button_text'        => array(
-				'id'          => 'help_widget_button_text',
-				'name'        => esc_html__( 'Button Text', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Text to display on the help widget button (when text style is selected).', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => __( 'Help', 'knowledgebase' ),
-				'field_class' => 'regular-text',
-				'pro'         => true,
-			),
-			'help_widget_color'              => array(
-				'id'          => 'help_widget_color',
-				'name'        => esc_html__( 'Help Widget Color', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Primary color for the help widget button and interface elements.', 'knowledgebase' ),
-				'type'        => 'color',
-				'default'     => '#617DEC',
-				'field_class' => 'color-field',
-				'pro'         => true,
-			),
-			'help_widget_hover_color'        => array(
-				'id'          => 'help_widget_hover_color',
-				'name'        => esc_html__( 'Help Widget Hover Color', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Hover color for buttons and interactive elements.', 'knowledgebase' ),
-				'type'        => 'color',
-				'default'     => '#4c63d2',
-				'field_class' => 'color-field',
-				'pro'         => true,
-			),
-			'help_widget_text_color'         => array(
-				'id'          => 'help_widget_text_color',
-				'name'        => esc_html__( 'Help Widget Text Color', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Text color for the help widget button and interface elements.', 'knowledgebase' ),
-				'type'        => 'color',
-				'default'     => '#ffffff',
-				'field_class' => 'color-field',
-				'pro'         => true,
-			),
-			'help_widget_hover_text_color'   => array(
-				'id'          => 'help_widget_hover_text_color',
-				'name'        => esc_html__( 'Help Widget Hover Text Color', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Text color for the help widget button on hover.', 'knowledgebase' ),
-				'type'        => 'color',
-				'default'     => '#ffffff',
-				'field_class' => 'color-field',
-				'pro'         => true,
-			),
-			'help_widget_panel_bg_color'     => array(
-				'id'          => 'help_widget_panel_bg_color',
-				'name'        => esc_html__( 'Panel Background Color', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Background color for the help widget panel.', 'knowledgebase' ),
-				'type'        => 'color',
-				'default'     => '#ffffff',
-				'field_class' => 'color-field',
-				'pro'         => true,
-			),
-			'help_widget_panel_text_color'   => array(
-				'id'          => 'help_widget_panel_text_color',
-				'name'        => esc_html__( 'Panel Text Color', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Default text color within the help widget panel.', 'knowledgebase' ),
-				'type'        => 'color',
-				'default'     => '#1a1a1a',
-				'field_class' => 'color-field',
-				'pro'         => true,
-			),
-			'help_widget_link_hover_color'   => array(
-				'id'          => 'help_widget_link_hover_color',
-				'name'        => esc_html__( 'Link Hover Background', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Background color when hovering over help widget links and list items.', 'knowledgebase' ),
-				'type'        => 'color',
-				'default'     => '#f3f4f6',
-				'field_class' => 'color-field',
-				'pro'         => true,
-			),
-			'help_widget_greeting'           => array(
-				'id'          => 'help_widget_greeting',
-				'name'        => esc_html__( 'Greeting Message', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Welcome message shown when the help widget opens.', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => __( 'Hi! How can we help you?', 'knowledgebase' ),
-				'field_class' => 'large-text',
-				'pro'         => true,
-			),
-			'help_widget_search_placeholder' => array(
-				'id'          => 'help_widget_search_placeholder',
-				'name'        => esc_html__( 'Search Placeholder', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Placeholder text for the search input field.', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => __( 'Search for answers...', 'knowledgebase' ),
-				'field_class' => 'large-text',
-				'pro'         => true,
-			),
-			'help_widget_contact_enabled'    => array(
-				'id'      => 'help_widget_contact_enabled',
-				'name'    => esc_html__( 'Enable Contact Form', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Allow visitors to send messages through the help widget.', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-				'pro'     => true,
-			),
-			'help_widget_contact_email'      => array(
-				'id'          => 'help_widget_contact_email',
-				'name'        => esc_html__( 'Contact Email', 'knowledgebase' ),
-				'desc'        => esc_html__( 'Email address where help widget contact form submissions will be sent.', 'knowledgebase' ),
-				'type'        => 'text',
-				'default'     => get_option( 'admin_email' ),
-				'field_class' => 'regular-text',
-				'pro'         => true,
-			),
-			'help_widget_show_on_mobile'     => array(
-				'id'      => 'help_widget_show_on_mobile',
-				'name'    => esc_html__( 'Show on Mobile', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Display the help widget on mobile devices.', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-				'pro'     => true,
-			),
-			'help_widget_enable_animation'   => array(
-				'id'      => 'help_widget_enable_animation',
-				'name'    => esc_html__( 'Enable Animations', 'knowledgebase' ),
-				'desc'    => esc_html__( 'Enable smooth animations and transitions for the help widget.', 'knowledgebase' ),
-				'type'    => 'checkbox',
-				'default' => true,
-				'pro'     => true,
-			),
-		);
-
-		/**
-		 * Filters the Pro settings array
-		 *
-		 * @since 3.0.0
-		 *
-		 * @param array $settings Pro Settings array
-		 */
-		return apply_filters( self::$prefix . '_settings_pro', $settings );
-	}
-
-	/**
-	 * Get available KB styles.
-	 *
-	 * Returns free styles by default. Pro and other extensions can add their styles via filter.
-	 *
-	 * @since 3.0.0
-	 *
-	 * @return array Array of style options.
-	 */
-	public static function get_kb_styles() {
-		// Free styles only.
-		$styles = array(
-			'legacy'  => esc_html__( 'Legacy', 'knowledgebase' ),
-			'classic' => esc_html__( 'Classic', 'knowledgebase' ),
-		);
-
-		/**
-		 * Filter available KB styles.
-		 *
-		 * Allows Pro or other extensions to add their styles to the dropdown.
-		 *
-		 * @since 3.0.0
-		 *
-		 * @param array $styles Array of style options (key => label).
-		 */
-		return apply_filters( 'wzkb_kb_styles', $styles );
-	}
-
-	/**
-	 * Adding WordPress plugin action links.
-	 *
-	 * @since 3.0.0
-	 *
-	 * @param  array $links Array of links.
-	 * @return array
-	 */
-	public function plugin_actions_links( $links ) {
-
-		return array_merge(
+	public function add_subscribers_link() {
+		$url = add_query_arg(
 			array(
-				'settings' => '<a href="' . admin_url( 'edit.php?post_type=wz_knowledgebase&amp;page=' . $this->menu_slug ) . '">' . esc_html__( 'Settings', 'knowledgebase' ) . '</a>',
+				'page' => 'glue_link_subscribers',
 			),
-			$links
+			admin_url( 'users.php' )
+		);
+		?>
+
+		<a href="<?php echo esc_url( $url ); ?>" class="page-title-action"><?php esc_html_e( 'View Subscribers', 'glue-link' ); ?></a>
+		<?php
+	}
+
+	/**
+	 * Add clear cache button to the settings page.
+	 *
+	 * @since 1.0.0
+	 */
+	public static function add_cache_clear_button() {
+		printf(
+			'<button type="button" name="wp_ajax_glue_link_refresh_cache" id="wp_ajax_glue_link_refresh_cache" class="button button-secondary glue_link_cache_clear" aria-label="%1$s">%1$s</button>',
+			esc_html__( 'Clear cache', 'glue-link' )
 		);
 	}
 
 	/**
-	 * Add meta links on Plugins page.
+	 * Get the webhook URL.
 	 *
-	 * @since 3.0.0
+	 * @since 1.0.0
 	 *
-	 * @param  array  $links Array of Links.
-	 * @param  string $file  Current file.
-	 * @return array
+	 * @return string The webhook URL.
 	 */
-	public function plugin_row_meta( $links, $file ) {
+	private static function get_webhook_url(): string {
+		$endpoint_type = Options_API::get_option( 'webhook_endpoint_type', 'rest' );
 
-		if ( false !== strpos( $file, 'knowledgebase.php' ) ) {
-			$new_links = array(
-				'support'    => '<a href = "https://wordpress.org/support/plugin/knowledgebase">' . esc_html__( 'Support', 'knowledgebase' ) . '</a>',
-				'donate'     => '<a href = "https://ajaydsouza.com/donate/">' . esc_html__( 'Donate', 'knowledgebase' ) . '</a>',
-				'contribute' => '<a href = "https://github.com/WebberZone/knowledgebase">' . esc_html__( 'Contribute', 'knowledgebase' ) . '</a>',
-			);
-
-			$links = array_merge( $links, $new_links );
+		if ( 'rest' === $endpoint_type ) {
+			$webhook_url = home_url( '/wp-json/glue-link/v1/webhook' );
+		} else {
+			$webhook_url = add_query_arg( 'glue_webhook', '1', home_url() );
 		}
-		return $links;
-	}
 
-	/**
-	 * Get the help sidebar content to display on the plugin settings page.
-	 *
-	 * @since 1.8.0
-	 */
-	public function get_help_sidebar() {
-		$help_sidebar =
-		/* translators: 1: Plugin support site link. */
-		'<p>' . sprintf( __( 'For more information or how to get support visit the <a href="%s">support site</a>.', 'knowledgebase' ), esc_url( 'https://webberzone.com/support/' ) ) . '</p>' .
-		/* translators: 1: WordPress.org support forums link. */
-		'<p>' . sprintf( __( 'Support queries should be posted in the <a href="%s">WordPress.org support forums</a>.', 'knowledgebase' ), esc_url( 'https://wordpress.org/support/plugin/knowledgebase' ) ) . '</p>' .
-		'<p>' . sprintf(
-		/* translators: 1: Github issues link, 2: Github plugin page link. */
-			__( '<a href="%1$s">Post an issue</a> on <a href="%2$s">GitHub</a> (bug reports only).', 'knowledgebase' ),
-			esc_url( 'https://github.com/WebberZone/knowledgebase/issues' ),
-			esc_url( 'https://github.com/WebberZone/knowledgebase' )
-		) . '</p>';
-
-		/**
-		 * Filter to modify the help sidebar content.
-		 *
-		 * @since 2.3.0
-		 *
-		 * @param string $help_sidebar Help sidebar content.
-		 */
-		return apply_filters( self::$prefix . '_settings_help', $help_sidebar );
-	}
-
-	/**
-	 * Get the help tabs to display on the plugin settings page.
-	 *
-	 * @since 2.3.0
-	 */
-	public function get_help_tabs() {
-		$help_tabs = array(
-			array(
-				'id'      => 'wzkb-settings-general',
-				'title'   => __( 'General', 'knowledgebase' ),
-				'content' =>
-				'<p>' . __( 'This screen provides the basic settings for configuring your knowledge base.', 'knowledgebase' ) . '</p>' .
-				'<p>' . __( 'Set the knowledge base slugs which drive what the urls are for the knowledge base homepage, articles, categories and tags.', 'knowledgebase' ) . '</p>',
-			),
-			array(
-				'id'      => 'wzkb-settings-styles',
-				'title'   => __( 'Styles', 'knowledgebase' ),
-				'content' =>
-				'<p>' . __( 'This screen provides options to control the look and feel of the knowledge base.', 'knowledgebase' ) . '</p>' .
-							'<p>' . __( 'Disable the styles included within the plugin and/or add your own CSS styles to customize this.', 'knowledgebase' ) . '</p>',
-			),
+		$string = sprintf(
+			'<div class="webhook-url-container">' .
+			'<p>' . esc_html__( 'Copy the following URL to your Freemius dashboard:', 'glue-link' ) . '</p>' .
+			'<p><code>' . esc_url( $webhook_url ) . '</code></p>' .
+			'<p class="description">' . esc_html__( 'This URL is based on your selected webhook endpoint type.', 'glue-link' ) . '</p>' .
+			'</div>'
 		);
 
-		/**
-		 * Filter to add more help tabs.
-		 *
-		 * @since 2.2.0
-		 *
-		 * @param array $help_tabs Associative array of help tabs.
-		 */
-		return apply_filters( self::$prefix . '_settings_help_tabs', $help_tabs );
-	}
-
-	/**
-	 * Add CSS to admin head.
-	 *
-	 * @since 2.2.0
-	 */
-	public function admin_head() {
-		if ( ! is_customize_preview() ) {
-			$css = '
-				<style type="text/css">
-					a.wzkb_button {
-						background: green;
-						padding: 10px;
-						color: white;
-						text-decoration: none;
-						text-shadow: none;
-						border-radius: 3px;
-						transition: all 0.3s ease 0s;
-						border: 1px solid green;
-					}
-					a.wzkb_button:hover {
-						box-shadow: 3px 3px 10px #666;
-					}
-				</style>';
-
-			echo $css; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		}
-	}
-
-	/**
-	 * Add footer text on the plugin page.
-	 *
-	 * @since 2.0.0
-	 */
-	public static function get_admin_footer_text() {
-		return sprintf(
-		/* translators: 1: Opening achor tag with Plugin page link, 2: Closing anchor tag, 3: Opening anchor tag with review link. */
-			__( 'Thank you for using %1$sStarter Plugin%2$s! Please %3$srate us%2$s on %3$sWordPress.org%2$s', 'starter-plugin' ),
-			'<a href="https://webberzone.com/" target="_blank">',
-			'</a>',
-			'<a href="https://wordpress.org/support/plugin/starter-plugin/reviews/#new-post" target="_blank">'
-		);
-	}
-
-	/**
-	 * Enqueue scripts and styles.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @param string $hook Current hook.
-	 */
-	public function admin_enqueue_scripts( $hook ) {
-
-		if ( ! isset( $this->settings_api->settings_page ) || $hook !== $this->settings_api->settings_page ) {
-			return;
-		}
-		wp_enqueue_script( 'wzkb-admin' );
-		wp_enqueue_style( 'wzkb-admin-ui' );
-	}
-
-	/**
-	 * Modify settings when they are being saved.
-	 *
-	 * @since 2.3.0
-	 *
-	 * @param  array $settings Settings array.
-	 * @return array Sanitized settings array.
-	 */
-	public function change_settings_on_save( $settings ) {
-
-		flush_rewrite_rules( true );
-
-		return $settings;
+		return $string;
 	}
 }

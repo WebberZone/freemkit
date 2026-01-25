@@ -2,12 +2,15 @@
 /**
  * Generates the settings form.
  *
- * @link https://webberzone.com
+ * @link  https://webberzone.com
+ * @since 1.0.0
  *
- * @package WebberZone\Starter_Plugin
+ * @package WebberZone\Glue_Link
  */
 
-namespace WebberZone\Starter_Plugin\Admin\Settings;
+namespace WebberZone\Glue_Link\Admin\Settings;
+
+use WebberZone\Glue_Link\Options_API;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -16,9 +19,10 @@ if ( ! defined( 'WPINC' ) ) {
 
 /**
  * Generates the settings form.
+ *
+ * @version 2.5.0
  */
 class Settings_Form {
-
 
 	/**
 	 * Settings Key.
@@ -35,27 +39,27 @@ class Settings_Form {
 	public $prefix;
 
 	/**
-	 * Translation strings.
+	 * Text to show to indicate a checkbox has been modified from its default value.
 	 *
-	 * @var array Translation strings.
+	 * @var string Checkbox Modified Text.
 	 */
-	public $translation_strings;
+	public $checkbox_modified_text;
 
 	/**
 	 * Main constructor class.
 	 *
 	 * @param mixed $args {
-	 *                    Array or string of arguments. Default is blank array.
-	 * @type  string  $settings_key        Settings key.
-	 * @type  string  $prefix              Prefix.
-	 * @type  array   $translation_strings Translation strings.
+	 *    Array or string of arguments. Default is blank array.
+	 *     @type string  $settings_key          Settings key.
+	 *     @type string  $prefix                Prefix.
+	 *     @type string  $checkbox_modified_text Text to show to indicate a checkbox has been modified from its default value.
 	 * }
 	 */
 	public function __construct( $args ) {
 		$defaults = array(
-			'settings_key'        => '',
-			'prefix'              => '',
-			'translation_strings' => array(),
+			'settings_key'           => '',
+			'prefix'                 => '',
+			'checkbox_modified_text' => '',
 		);
 		$args     = wp_parse_args( $args, $defaults );
 
@@ -88,8 +92,8 @@ class Settings_Form {
 	/**
 	 * Get the value of a settings field.
 	 *
-	 * @param  string $option        Settings field name.
-	 * @param  mixed  $default_value Default value if option is not found.
+	 * @param string $option         Settings field name.
+	 * @param mixed  $default_value  Default value if option is not found.
 	 * @return mixed
 	 */
 	public function get_option( $option, $default_value = '' ) {
@@ -106,7 +110,7 @@ class Settings_Form {
 	/**
 	 * Get field ID and name attributes.
 	 *
-	 * @param  array $args Field arguments.
+	 * @param array $args Field arguments.
 	 * @return array Array containing field_id and field_name.
 	 */
 	protected function get_field_attributes( $args ) {
@@ -139,12 +143,12 @@ class Settings_Form {
 	/**
 	 * Miscellaneous callback funcion
 	 *
-	 * @param  array $args Arguments array.
+	 * @param array $args Arguments array.
 	 * @return void
 	 */
 	public function callback_missing( $args ) {
 		/* translators: 1: Code. */
-		printf( 'The callback function used for the %1$s setting is missing.', '<strong>' . esc_attr( $args['id'] ) . '</strong>' );
+		printf( esc_html__( 'The callback function used for the %1$s setting is missing.' ), '<strong>' . esc_attr( $args['id'] ) . '</strong>' );
 	}
 
 	/**
@@ -152,7 +156,7 @@ class Settings_Form {
 	 *
 	 * Renders the header.
 	 *
-	 * @param  array $args Arguments passed by the setting.
+	 * @param array $args Arguments passed by the setting.
 	 * @return void
 	 */
 	public function callback_header( $args ) {
@@ -172,7 +176,7 @@ class Settings_Form {
 	 *
 	 * Renders descriptive text onto the settings field.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_descriptive_text( $args ) {
@@ -185,8 +189,8 @@ class Settings_Form {
 	 * @param array $args Array of arguments.
 	 */
 	public function callback_text( $args ) {
-		$value       = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
-		$size        = sanitize_html_class( $args['size'] ?? 'regular' );
+		$value       = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
+		$size        = sanitize_html_class( isset( $args['size'] ) ? $args['size'] : 'regular' );
 		$class       = sanitize_html_class( $args['field_class'] );
 		$placeholder = empty( $args['placeholder'] ) ? '' : ' placeholder="' . $args['placeholder'] . '"';
 		$disabled    = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
@@ -211,9 +215,7 @@ class Settings_Form {
 		);
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -265,12 +267,12 @@ class Settings_Form {
 	/**
 	 * Display textarea.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_textarea( $args ) {
 
-		$value       = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$value       = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
 		$class       = sanitize_html_class( $args['field_class'] );
 		$placeholder = empty( $args['placeholder'] ) ? '' : ' placeholder="' . $args['placeholder'] . '"';
 		$disabled    = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
@@ -289,16 +291,14 @@ class Settings_Form {
 		);
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	/**
 	 * Display CSS fields.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_css( $args ) {
@@ -308,7 +308,7 @@ class Settings_Form {
 	/**
 	 * Display HTML fields.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_html( $args ) {
@@ -318,35 +318,32 @@ class Settings_Form {
 	/**
 	 * Display checkboxes.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_checkbox( $args ) {
 
-		$value    = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$value    = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
 		$checked  = ! empty( $value ) ? checked( 1, $value, false ) : '';
-		$default  = isset( $args['default'] ) ? (int) $args['default'] : '';
+		$default  = isset( $args['options'] ) ? (int) $args['options'] : '';
 		$disabled = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
 
-		$html              = sprintf(
+		$html  = sprintf(
 			'<input type="hidden" name="%1$s[%2$s]" value="-1" />',
 			$this->settings_key,
 			sanitize_key( $args['id'] )
 		);
-		$html             .= sprintf(
+		$html .= sprintf(
 			'<input type="checkbox" id="%1$s[%2$s]" name="%1$s[%2$s]" value="1" %3$s %4$s />',
 			$this->settings_key,
 			sanitize_key( $args['id'] ),
 			$checked,
 			$disabled
 		);
-		$checkbox_modified = $this->translation_strings['checkbox_modified'] ?? 'Modified from default setting';
-		$html             .= ( (bool) $value !== (bool) $default ) ? '<em style="color:#9B0800">' . $checkbox_modified . '</em>' : '';
-		$html             .= $this->get_field_description( $args );
+		$html .= ( (bool) $value !== (bool) $default ) ? '<em style="color:#9B0800">' . $this->checkbox_modified_text . '</em>' : '';
+		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -355,13 +352,13 @@ class Settings_Form {
 	 *
 	 * Renders multiple checkboxes.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_multicheck( $args ) {
 		$html = '';
 
-		$value       = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$value       = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['default'] );
 		$value_array = wp_parse_list( $value );
 		$disabled    = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
 
@@ -379,16 +376,16 @@ class Settings_Form {
 					$enabled = null;
 				}
 
-					$html .= sprintf(
-						'<input name="%1$s[%2$s][%3$s]" id="%1$s[%2$s][%3$s]" type="checkbox" value="%4$s" %5$s %6$s /> ',
-						$this->settings_key,
-						sanitize_key( $args['id'] ),
-						sanitize_key( $key ),
-						esc_attr( $key ),
-						checked( $key, $enabled, false ),
-						$disabled
-					);
-				$html     .= sprintf(
+				$html .= sprintf(
+					'<input name="%1$s[%2$s][%3$s]" id="%1$s[%2$s][%3$s]" type="checkbox" value="%4$s" %5$s %6$s /> ',
+					$this->settings_key,
+					sanitize_key( $args['id'] ),
+					sanitize_key( $key ),
+					esc_attr( $key ),
+					checked( $key, $enabled, false ),
+					$disabled
+				);
+				$html .= sprintf(
 					'<label for="%1$s[%2$s][%3$s]">%4$s</label> <br />',
 					$this->settings_key,
 					sanitize_key( $args['id'] ),
@@ -399,9 +396,7 @@ class Settings_Form {
 		}
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -410,13 +405,13 @@ class Settings_Form {
 	 *
 	 * Renders radio boxes.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_radio( $args ) {
 		$html = '';
 
-		$value    = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$value    = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['default'] );
 		$disabled = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
 
 		foreach ( $args['options'] as $key => $option ) {
@@ -439,9 +434,7 @@ class Settings_Form {
 
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -450,13 +443,13 @@ class Settings_Form {
 	 *
 	 * Renders radio boxes with each item having it separate description.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_radiodesc( $args ) {
 		$html = '';
 
-		$value    = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$value    = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['default'] );
 		$disabled = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
 
 		foreach ( $args['options'] as $option ) {
@@ -482,9 +475,7 @@ class Settings_Form {
 
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -493,7 +484,7 @@ class Settings_Form {
 	 *
 	 * Renders radio boxes with each item having it separate description.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_thumbsizes( $args ) {
@@ -510,7 +501,7 @@ class Settings_Form {
 			);
 		}
 
-		$value = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$value = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['default'] );
 
 		foreach ( $args['options'] as $name => $option ) {
 			$html .= sprintf(
@@ -527,15 +518,13 @@ class Settings_Form {
 				$name,
 				(int) $option['width'],
 				(int) $option['height'],
-				(bool) $option['crop'] ? ' cropped' : ''
+				(bool) $option['crop'] ? ' ' . __( 'cropped' ) : ''
 			);
 		}
 
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -544,15 +533,15 @@ class Settings_Form {
 	 *
 	 * Renders number fields.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_number( $args ) {
-		$value       = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$value       = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
 		$max         = isset( $args['max'] ) ? intval( $args['max'] ) : 999999;
 		$min         = isset( $args['min'] ) ? intval( $args['min'] ) : 0;
 		$step        = isset( $args['step'] ) ? intval( $args['step'] ) : 1;
-		$size        = $args['size'] ?? 'regular';
+		$size        = isset( $args['size'] ) ? $args['size'] : 'regular';
 		$placeholder = empty( $args['placeholder'] ) ? '' : ' placeholder="' . esc_attr( $args['placeholder'] ) . '"';
 		$disabled    = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
 		$readonly    = ( isset( $args['readonly'] ) && true === $args['readonly'] ) ? ' readonly="readonly"' : '';
@@ -573,9 +562,7 @@ class Settings_Form {
 		);
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -584,11 +571,11 @@ class Settings_Form {
 	 *
 	 * Renders select fields.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_select( $args ) {
-		$value      = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$value      = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['default'] );
 		$class      = sanitize_html_class( $args['field_class'] );
 		$disabled   = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
 		$required   = ( isset( $args['required'] ) && true === $args['required'] ) ? ' required' : '';
@@ -617,22 +604,20 @@ class Settings_Form {
 		$html .= '</select>';
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	/**
 	 * Display posttypes fields.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_posttypes( $args ) {
 		$html = '';
 
-		$options  = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$options  = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
 		$disabled = ( ! empty( $args['disabled'] ) || $args['pro'] ) ? ' disabled="disabled"' : '';
 
 		// If post_types contains a query string then parse it with wp_parse_args.
@@ -673,9 +658,7 @@ class Settings_Form {
 
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -683,13 +666,13 @@ class Settings_Form {
 	/**
 	 * Display taxonomies fields.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_taxonomies( $args ) {
 		$html = '';
 
-		$options = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
+		$options = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
 
 		// If taxonomies contains a query string then parse it with wp_parse_args.
 		if ( is_string( $options ) && strpos( $options, '=' ) ) {
@@ -725,9 +708,7 @@ class Settings_Form {
 
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -739,8 +720,8 @@ class Settings_Form {
 	 */
 	public function callback_wysiwyg( $args ) {
 
-		$value = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
-		$size  = $args['size'] ?? '500px';
+		$value = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
+		$size  = isset( $args['size'] ) ? $args['size'] : '500px';
 
 		printf( '<div style="max-width: %1$s;">', esc_attr( $size ) );
 
@@ -768,10 +749,10 @@ class Settings_Form {
 	 */
 	public function callback_file( $args ) {
 
-		$value = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
-		$size  = sanitize_html_class( $args['size'] ?? 'regular' );
+		$value = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
+		$size  = sanitize_html_class( isset( $args['size'] ) ? $args['size'] : 'regular' );
 		$class = sanitize_html_class( $args['field_class'] );
-		$label = $args['options']['button_label'] ?? $this->translation_strings['button_label'];
+		$label = isset( $args['options']['button_label'] ) ? $args['options']['button_label'] : __( 'Choose File' );
 
 		$html  = sprintf(
 			'<input type="text" class="%1$s" id="%2$s[%3$s]" name="%2$s[%3$s]" value="%4$s"/>',
@@ -780,12 +761,10 @@ class Settings_Form {
 			sanitize_key( $args['id'] ),
 			esc_attr( $value )
 		);
-		$html .= sprintf( '<input type="button" class="button button-secondary file-browser" value="%s" />', $label );
+		$html .= '<input type="button" class="button button-secondary file-browser" value="' . $label . '" />';
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
@@ -796,30 +775,28 @@ class Settings_Form {
 	 */
 	public function callback_password( $args ) {
 
-		$value = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
-		$size  = sanitize_html_class( $args['size'] ?? 'regular' );
+		$value = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
+		$size  = sanitize_html_class( isset( $args['size'] ) ? $args['size'] : 'regular' );
 		$class = sanitize_html_class( $args['field_class'] );
 
 		$html  = sprintf(
 			'<input type="password" class="%1$s" id="%2$s[%3$s]" name="%2$s[%3$s]" value="%4$s" %5$s />',
-			"$class $size-text",
+			$class . ' ' . $size . '-text',
 			$this->settings_key,
 			sanitize_key( $args['id'] ),
 			esc_attr( $value ),
-			! empty( $value ) ? 'placeholder="' . esc_attr( $this->translation_strings['previous_saved'] ) . '"' : ''
+			! empty( $value ) ? 'placeholder="' . esc_attr__( 'Previously saved', 'glue-link' ) . '"' : ''
 		);
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	/**
 	 * Callback for repeater field.
 	 *
-	 * @param  array $args Array of arguments.
+	 * @param array $args Array of arguments.
 	 * @return void
 	 */
 	public function callback_repeater( $args ) {
@@ -839,20 +816,20 @@ class Settings_Form {
 		?>
 		<div class="<?php echo esc_attr( $class ); ?> wz-repeater-wrapper" id="<?php echo esc_attr( $args['id'] ); ?>-wrapper" <?php echo $attributes; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 			<div class="<?php echo esc_attr( $args['id'] ); ?>-items">
-		<?php
-		if ( ! empty( $value ) ) {
-			foreach ( array_values( $value ) as $index => $item ) {
-				$this->render_repeater_item( $args, $index, $item );
-			}
-		}
-		?>
+				<?php
+				if ( ! empty( $value ) ) {
+					foreach ( array_values( $value ) as $index => $item ) {
+						$this->render_repeater_item( $args, $index, $item );
+					}
+				}
+				?>
 			</div>
 			<button type="button" class="button add-item" data-target="<?php echo esc_attr( $args['id'] ); ?>">
-		<?php echo esc_html( ! empty( $args['add_button_text'] ) ? $args['add_button_text'] : 'Add Item' ); ?>
+				<?php echo esc_html( ! empty( $args['add_button_text'] ) ? $args['add_button_text'] : __( 'Add Item', 'glue-link' ) ); ?>
 			</button>
 
 			<script type="text/template" class="repeater-template" data-id="<?php echo esc_attr( $args['id'] ); ?>">
-		<?php $this->render_repeater_item( $args, '{{INDEX}}' ); ?>
+				<?php $this->render_repeater_item( $args, '{{INDEX}}' ); ?>
 			</script>
 		</div>
 
@@ -936,18 +913,16 @@ class Settings_Form {
 		$html  = ob_get_clean();
 		$html .= $this->get_field_description( $args );
 
-		/**
-	* This filter has been defined in class-settings-api.php
-*/
+		/** This filter has been defined in class-settings-api.php */
 		echo apply_filters( $this->prefix . '_after_setting_output', $html, $args ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	/**
 	 * Render a single repeater item.
 	 *
-	 * @param  array      $args  Repeater field arguments.
-	 * @param  string|int $index Current item index.
-	 * @param  array|null $item  Item data if exists.
+	 * @param array      $args  Repeater field arguments.
+	 * @param string|int $index Current item index.
+	 * @param array|null $item  Item data if exists.
 	 * @return void
 	 */
 	private function render_repeater_item( $args, $index, $item = null ) {
@@ -958,54 +933,54 @@ class Settings_Form {
 		?>
 	<div class="wz-repeater-item">
 		<div class="repeater-item-header">
-		<?php
-		$display_field = ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name';
-		?>
-			<span class="repeater-title"><?php echo esc_html( ! empty( $item['fields'][ $display_field ] ) ? $item['fields'][ $display_field ] : $this->translation_strings['repeater_new_item'] ); ?></span>
+			<?php
+			$display_field = ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name';
+			?>
+			<span class="repeater-title"><?php echo esc_html( ! empty( $item['fields'][ $display_field ] ) ? $item['fields'][ $display_field ] : 'New Item' ); ?></span>
 			<span class="toggle-icon">▼</span>
 		</div>
 		<div class="repeater-item-content" style="display: none;">
-		<?php
-		foreach ( $args['fields'] as $field ) {
-			$field_id = sanitize_key( $field['id'] );
+			<?php
+			foreach ( $args['fields'] as $field ) {
+				$field_id = sanitize_key( $field['id'] );
 
-			$field_args = array_merge(
-				(array) $field,
-				array(
-					'value'        => isset( $item['fields'][ $field_id ] ) ? $item['fields'][ $field_id ] : ( isset( $field['default'] ) ? $field['default'] : '' ),
-					'_repeater_id' => $args['id'],
-					'_index'       => $index,
-				)
-			);
-			$field_args = Settings_API::parse_field_args( $field_args, $args['section'] );
+				$field_args = array_merge(
+					(array) $field,
+					array(
+						'value'        => isset( $item['fields'][ $field_id ] ) ? $item['fields'][ $field_id ] : ( isset( $field['default'] ) ? $field['default'] : '' ),
+						'_repeater_id' => $args['id'],
+						'_index'       => $index,
+					)
+				);
+				$field_args = Settings_API::parse_field_args( $field_args, $args['section'] );
 
-			if ( ! isset( $field['type'] ) || ! is_string( $field['type'] ) ) {
+				if ( ! isset( $field['type'] ) || ! is_string( $field['type'] ) ) {
 					continue;
-			}
-			?>
+				}
+				?>
 				<div class="wz-repeater-field">
 					<div class="wz-repeater-field-header">
 						<label class="wz-repeater-field-label" for="<?php echo esc_attr( sprintf( '%s_%s_%s', $args['id'], $index, $field_id ) ); ?>">
-			<?php echo esc_html( $field['name'] ); ?>
-			<?php if ( ! empty( $field['required'] ) ) : ?>
-								<span class="required" title="<?php echo esc_attr( $this->translation_strings['required_label'] ); ?>">*</span>
-			<?php endif; ?>
+							<?php echo esc_html( $field['name'] ); ?>
+							<?php if ( ! empty( $field['required'] ) ) : ?>
+								<span class="required" title="<?php esc_attr_e( 'Required', 'glue-link' ); ?>">*</span>
+							<?php endif; ?>
 						</label>
 					</div>
 
 					<div class="wz-repeater-field-input">
-			<?php
-			$callback = 'callback_' . $field['type'];
+						<?php
+						$callback = 'callback_' . $field['type'];
 
-			if ( method_exists( $this, $callback ) ) {
-				$this->$callback( $field_args );
-			} else {
-				do_action( "{$this->prefix}_repeater_field_{$field['type']}", $field_args, $index );
-			}
-			?>
+						if ( method_exists( $this, $callback ) ) {
+							$this->$callback( $field_args );
+						} else {
+							do_action( "{$this->prefix}_repeater_field_{$field['type']}", $field_args, $index );
+						}
+						?>
 					</div>
 				</div>
-		<?php } ?>
+			<?php } ?>
 		</div>
 
 		<div class="repeater-item-footer">
@@ -1034,7 +1009,7 @@ class Settings_Form {
 			var $this = $(this);
 			var newName = $this.val();
 			var $repeaterTitle = $this.closest('.wz-repeater-item').find('.repeater-title');
-			$repeaterTitle.text(newName || '<?php echo esc_js( $this->translation_strings['repeater_new_item'] ); ?>'); // Update title or set default if empty
+			$repeaterTitle.text(newName || 'New Item'); // Update title or set default if empty
 		});
 	});
 	</script>
@@ -1051,8 +1026,8 @@ class Settings_Form {
 	 * @param array $args Array of arguments.
 	 */
 	public function callback_sensitive( $args ) {
-		$encrypted_key = $args['value'] ?? $this->get_option( $args['id'], $args['default'] );
-		$decrypted_key = Settings_API::decrypt_api_key( $encrypted_key );
+		$encrypted_key = isset( $args['value'] ) ? $args['value'] : $this->get_option( $args['id'], $args['options'] );
+		$decrypted_key = Options_API::decrypt_api_key( $encrypted_key );
 
 		$args['value'] = $decrypted_key ? str_repeat( '*', strlen( $decrypted_key ) - 4 ) . substr( $decrypted_key, -4 ) : '';
 

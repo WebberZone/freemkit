@@ -5,12 +5,13 @@
  * Functions to register, read, write and update settings.
  * Portions of this code have been inspired by Easy Digital Downloads, WordPress Settings Sandbox, WordPress Settings API class, etc.
  *
- * @package WebberZone\Starter_Plugin
+ * @link  https://webberzone.com
+ * @since 1.0.0
+ *
+ * @package WebberZone\Glue_Link
  */
 
-namespace WebberZone\Starter_Plugin\Admin\Settings;
-
-use WebberZone\Starter_Plugin\Util\Hook_Registry;
+namespace WebberZone\Glue_Link\Admin\Settings;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -20,17 +21,17 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Settings API wrapper class
  *
- * @version 2.7.3
+ * @version 2.6.0
  */
+#[\AllowDynamicProperties]
 class Settings_API {
-
 
 	/**
 	 * Current version number
 	 *
-	 * @var string
+	 * @var   string
 	 */
-	public const VERSION = '2.7.1';
+	public const VERSION = '2.7.0';
 
 	/**
 	 * Settings Key.
@@ -137,23 +138,15 @@ class Settings_API {
 	/**
 	 * Main constructor class.
 	 *
-	 * @param string $settings_key Settings key.
-	 * @param string $prefix       Prefix. Used for actions and filters.
-	 * @param mixed  $args         {
-	 *                             Array
-	 *                             or
-	 *                             string
-	 *                             of
-	 *                             arguments.
-	 *                             Default
-	 *                             is
-	 *                             blank
-	 *                             array.
-	 * @type  array  $translation_strings    Translation strings.
-	 * @type  array  $settings_sections      Settings sections.
-	 * @type  array  $props                  Properties.
-	 * @type  array  $registered_settings    Registered settings.
-	 * @type  array  $upgraded_settings      Upgraded settings.
+	 * @param string $settings_key              Settings key.
+	 * @param string $prefix                    Prefix. Used for actions and filters.
+	 * @param mixed  $args                      {
+	 *     Array or string of arguments. Default is blank array.
+	 *     @type array  $translation_strings    Translation strings.
+	 *     @type array  $settings_sections      Settings sections.
+	 *     @type array  $props                  Properties.
+	 *     @type array  $registered_settings    Registered settings.
+	 *     @type array  $upgraded_settings      Upgraded settings.
 	 * }
 	 */
 	public function __construct( $settings_key, $prefix, $args ) {
@@ -186,39 +179,23 @@ class Settings_API {
 	 * Adds the functions to the appropriate WordPress hooks.
 	 */
 	public function hooks() {
-		Hook_Registry::add_action( 'admin_menu', array( $this, 'admin_menu' ), 11 );
-		Hook_Registry::add_action( 'admin_init', array( $this, 'admin_init' ) );
-		Hook_Registry::add_filter( 'admin_footer_text', array( $this, 'admin_footer_text' ) );
-		Hook_Registry::add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
-		Hook_Registry::add_filter( 'admin_body_class', array( $this, 'admin_body_class' ) );
-	}
-
-	/**
-	 * Filters the CSS classes for the body tag in the admin.
-	 *
-	 * @param  string $classes Space-separated list of CSS classes.
-	 * @return string Space-separated list of CSS classes.
-	 */
-	public function admin_body_class( $classes ) {
-		$current_screen = get_current_screen();
-
-		if ( in_array( $current_screen->id, $this->menu_pages, true ) ) {
-			$classes .= " {$this->prefix}-dashboard-page";
-		}
-		return $classes;
+		add_action( 'admin_menu', array( $this, 'admin_menu' ), 11 );
+		add_action( 'admin_init', array( $this, 'admin_init' ) );
+		add_filter( 'admin_footer_text', array( $this, 'admin_footer_text' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 	}
 
 	/**
 	 * Sets properties.
 	 *
 	 * @param array|string $args {
-	 *                           Array or string of arguments. Default is blank array.
+	 *     Array or string of arguments. Default is blank array.
 	 *
-	 * @type array  $menus             Array of admin menus. See add_custom_menu_page() for more info.
-	 * @type string $default_tab       Default tab.
-	 * @type string $admin_footer_text Admin footer text.
-	 * @type string $help_sidebar      Help sidebar.
-	 * @type array  $help_tabs         Help tabs.
+	 *     @type array  $menus             Array of admin menus. See add_custom_menu_page() for more info.
+	 *     @type string $default_tab       Default tab.
+	 *     @type string $admin_footer_text Admin footer text.
+	 *     @type string $help_sidebar      Help sidebar.
+	 *     @type array  $help_tabs         Help tabs.
 	 * }
 	 */
 	public function set_props( $args ) {
@@ -242,17 +219,17 @@ class Settings_API {
 	 * Sets translation strings.
 	 *
 	 * @param array $strings {
-	 *                       Array of translation strings.
+	 *     Array of translation strings.
 	 *
-	 * @type string $page_title           Page title.
-	 * @type string $menu_title           Menu title.
-	 * @type string $page_header          Page header.
-	 * @type string $reset_message        Reset message.
-	 * @type string $success_message      Success message.
-	 * @type string $save_changes         Save changes button label.
-	 * @type string $reset_settings       Reset settings button label.
-	 * @type string $reset_button_confirm Reset button confirmation message.
-	 * @type string $checkbox_modified    Checkbox modified label.
+	 *     @type string $page_title           Page title.
+	 *     @type string $menu_title           Menu title.
+	 *     @type string $page_header          Page header.
+	 *     @type string $reset_message        Reset message.
+	 *     @type string $success_message      Success message.
+	 *     @type string $save_changes         Save changes button label.
+	 *     @type string $reset_settings       Reset settings button label.
+	 *     @type string $reset_button_confirm Reset button confirmation message.
+	 *     @type string $checkbox_modified    Checkbox modified label.
 	 * }
 	 *
 	 * @return void
@@ -262,16 +239,12 @@ class Settings_API {
 		// Args prefixed with an underscore are reserved for internal use.
 		$defaults = array(
 			'page_header'          => '',
-			'reset_message'        => 'Settings have been reset to their default values. Reload this page to view the updated settings.',
-			'success_message'      => 'Settings updated.',
-			'save_changes'         => 'Save Changes',
-			'reset_settings'       => 'Reset all settings',
-			'reset_button_confirm' => 'Do you really want to reset all these settings to their default values?',
-			'checkbox_modified'    => 'Modified from default setting',
-			'button_label'         => 'Choose File',
-			'previous_saved'       => 'Previously saved',
-			'repeater_new_item'    => 'New Item',
-			'required_label'       => 'Required',
+			'reset_message'        => __( 'Settings have been reset to their default values. Reload this page to view the updated settings.' ),
+			'success_message'      => __( 'Settings updated.' ),
+			'save_changes'         => __( 'Save Changes' ),
+			'reset_settings'       => __( 'Reset all settings' ),
+			'reset_button_confirm' => __( 'Do you really want to reset all these settings to their default values?' ),
+			'checkbox_modified'    => __( 'Modified from default setting' ),
 		);
 
 		$strings = wp_parse_args( $strings, $defaults );
@@ -282,7 +255,7 @@ class Settings_API {
 	/**
 	 * Set settings sections
 	 *
-	 * @param  array $sections Setting sections array in the format of: id => Title.
+	 * @param array $sections Setting sections array in the format of: id => Title.
 	 * @return object Class object.
 	 */
 	public function set_sections( $sections ) {
@@ -294,7 +267,7 @@ class Settings_API {
 	/**
 	 * Add a single section
 	 *
-	 * @param  array $section New Section.
+	 * @param array $section New Section.
 	 * @return object Object of the class instance.
 	 */
 	public function add_section( $section ) {
@@ -306,22 +279,22 @@ class Settings_API {
 	/**
 	 * Set the settings fields for registered settings.
 	 *
-	 * @param  array $registered_settings {
-	 *                                    Array of settings in format id => attributes.
-	 * @type   string $section           Section title.
-	 * @type   string $id                Field ID.
-	 * @type   string $name              Field name.
-	 * @type   string $desc              Field description.
-	 * @type   string $type              Field type.
-	 * @type   string $options           Field default option(s).
-	 * @type   string $max               Field max. Applicable for numbers.
-	 * @type   string $min               Field min. Applicable for numbers.
-	 * @type   string $step              Field step. Applicable for numbers.
-	 * @type   string $size              Field size. Applicable for text and textarea.
-	 * @type   string $field_class       CSS class.
-	 * @type   array  $field_attributes  HTML Attributes in the form of attribute => value.
-	 * @type   string $placeholder       Placeholder. Applicable for text and textarea.
-	 * @type   string $sanitize_callback Sanitize callback.
+	 * @param array $registered_settings {
+	 *     Array of settings in format id => attributes.
+	 *          @type string $section           Section title.
+	 *          @type string $id                Field ID.
+	 *          @type string $name              Field name.
+	 *          @type string $desc              Field description.
+	 *          @type string $type              Field type.
+	 *          @type string $options           Field default option(s).
+	 *          @type string $max               Field max. Applicable for numbers.
+	 *          @type string $min               Field min. Applicable for numbers.
+	 *          @type string $step              Field step. Applicable for numbers.
+	 *          @type string $size              Field size. Applicable for text and textarea.
+	 *          @type string $field_class       CSS class.
+	 *          @type array  $field_attributes  HTML Attributes in the form of attribute => value.
+	 *          @type string $placeholder       Placeholder. Applicable for text and textarea.
+	 *          @type string $sanitize_callback Sanitize callback.
 	 *    }
 	 * }
 	 *                                   }
@@ -336,7 +309,7 @@ class Settings_API {
 	/**
 	 * Set the settings fields for settings to upgrade.
 	 *
-	 * @param  array $upgraded_settings Settings array.
+	 * @param array $upgraded_settings Settings array.
 	 * @return object Object of the class instance.
 	 */
 	public function set_upgraded_settings( $upgraded_settings = array() ) {
@@ -431,6 +404,8 @@ class Settings_API {
 	 * Add admin menu.
 	 */
 	public function admin_menu() {
+		global ${$this->prefix . '_menu_pages'};
+
 		foreach ( $this->menus as $menu ) {
 			$menu_page = $this->add_custom_menu_page( $menu );
 
@@ -439,18 +414,19 @@ class Settings_API {
 				$this->settings_page = $menu_page;
 			}
 		}
+		${$this->prefix . '_menu_pages'} = $this->menu_pages;
 
 		// Load the settings contextual help.
-		Hook_Registry::add_action( 'load-' . $this->settings_page, array( $this, 'settings_help' ) );
+		add_action( 'load-' . $this->settings_page, array( $this, 'settings_help' ) );
 	}
 
 	/**
 	 * Get the appropriate capability for the menu based on the user's roles and settings.
 	 *
-	 * @param  array    $roles             Array of roles to check.
-	 * @param  string   $base_capability   The default capability.
-	 * @param  \WP_User $current_user      The current user object.
-	 * @param  array    $role_capabilities Array of role capabilities.
+	 * @param array    $roles Array of roles to check.
+	 * @param string   $base_capability The default capability.
+	 * @param \WP_User $current_user The current user object.
+	 * @param array    $role_capabilities Array of role capabilities.
 	 * @return string The capability to use for the menu.
 	 */
 	public static function get_capability_for_menu( $roles = array(), $base_capability = 'manage_options', $current_user = null, $role_capabilities = array() ) {
@@ -491,52 +467,52 @@ class Settings_API {
 
 		// Settings API scripts.
 		wp_register_script(
-			'wz-' . $this->prefix . '-admin',
+			'wz-' . $this->prefix . '-admin-js',
 			plugins_url( 'js/settings-admin-scripts' . $minimize . '.js', __FILE__ ),
 			array( 'jquery' ),
 			self::VERSION,
 			true
 		);
 		wp_register_script(
-			'wz-' . $this->prefix . '-codemirror',
-			plugins_url( 'js/apply-cm' . $minimize . '.js', __FILE__ ),
+			'wz-' . $this->prefix . '-codemirror-js',
+			plugins_url( 'js/apply-codemirror' . $minimize . '.js', __FILE__ ),
 			array( 'jquery' ),
 			self::VERSION,
 			true
 		);
 		wp_register_script(
-			'wz-' . $this->prefix . '-taxonomy-suggest',
+			'wz-' . $this->prefix . '-taxonomy-suggest-js',
 			plugins_url( 'js/taxonomy-suggest' . $minimize . '.js', __FILE__ ),
 			array( 'jquery' ),
 			self::VERSION,
 			true
 		);
 		wp_register_script(
-			'wz-' . $this->prefix . '-media-selector',
+			'wz-' . $this->prefix . '-media-selector-js',
 			plugins_url( 'js/media-selector' . $minimize . '.js', __FILE__ ),
 			array( 'jquery' ),
 			self::VERSION,
 			true
 		);
 		wp_register_style(
-			'wz-' . $this->prefix . '-admin',
+			'wz-' . $this->prefix . '-admin-css',
 			plugins_url( 'css/admin-style' . $minimize . '.css', __FILE__ ),
 			array(),
 			self::VERSION
 		);
 
-		// Tom Select scripts and styles.
+		// Top Select scripts and styles.
 		wp_register_style(
 			'wz-' . $this->prefix . '-tom-select',
-			plugins_url( 'css/tom-select.min.css', __FILE__ ),
+			'https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css',
 			array(),
-			self::VERSION
+			'2.3.1'
 		);
 		wp_register_script(
 			'wz-' . $this->prefix . '-tom-select',
-			plugins_url( 'js/tom-select.complete.min.js', __FILE__ ),
+			'https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js',
 			array( 'jquery' ),
-			self::VERSION,
+			'2.3.1',
 			true
 		);
 		wp_register_script(
@@ -545,14 +521,6 @@ class Settings_API {
 			array( 'jquery', 'wz-' . $this->prefix . '-tom-select' ),
 			self::VERSION,
 			true
-		);
-		wp_localize_script(
-			"wz-{$this->prefix}-admin",
-			'WZSettingsAdmin',
-			array(
-				'prefix'       => $this->prefix,
-				'settings_key' => $this->settings_key,
-			)
 		);
 
 		if ( $hook === $this->settings_page ) {
@@ -583,10 +551,10 @@ class Settings_API {
 			)
 		);
 
-		wp_enqueue_script( 'wz-' . $this->prefix . '-admin' );
-		wp_enqueue_script( 'wz-' . $this->prefix . '-codemirror' );
-		wp_enqueue_script( 'wz-' . $this->prefix . '-taxonomy-suggest' );
-		wp_enqueue_script( 'wz-' . $this->prefix . '-media-selector' );
+		wp_enqueue_script( 'wz-' . $this->prefix . '-admin-js' );
+		wp_enqueue_script( 'wz-' . $this->prefix . '-codemirror-js' );
+		wp_enqueue_script( 'wz-' . $this->prefix . '-taxonomy-suggest-js' );
+		wp_enqueue_script( 'wz-' . $this->prefix . '-media-selector-js' );
 
 		// Enqueue Tom Select.
 		wp_enqueue_style( 'wz-' . $this->prefix . '-tom-select' );
@@ -597,14 +565,14 @@ class Settings_API {
 			'wz-' . $this->prefix . '-tom-select-init',
 			'WZTomSelectSettings',
 			array(
-				'action'   => $this->prefix . '_taxonomy_search_tom_select',
-				'nonce'    => wp_create_nonce( $this->prefix . '_taxonomy_search_tom_select' ),
+				'action'   => $this->prefix . '_kit_search',
+				'nonce'    => wp_create_nonce( $this->prefix . '_kit_search' ),
 				'endpoint' => 'forms',
 			)
 		);
 		wp_enqueue_script( 'wz-' . $this->prefix . '-tom-select-init' );
 
-		wp_enqueue_style( 'wz-' . $this->prefix . '-admin' );
+		wp_enqueue_style( 'wz-' . $this->prefix . '-admin-css' );
 	}
 
 	/**
@@ -625,9 +593,9 @@ class Settings_API {
 
 		$this->settings_form = new Settings_Form(
 			array(
-				'settings_key'        => $settings_key,
-				'prefix'              => $this->prefix,
-				'translation_strings' => $this->translation_strings,
+				'settings_key'           => $settings_key,
+				'prefix'                 => $this->prefix,
+				'checkbox_modified_text' => $this->translation_strings['checkbox_modified'],
 			)
 		);
 
@@ -642,12 +610,12 @@ class Settings_API {
 
 			foreach ( $settings as $setting ) {
 
-					$args = self::parse_field_args( $setting, $section );
+				$args = self::parse_field_args( $setting, $section );
 
-					$id       = $args['id'];
-					$name     = $args['name'];
-					$type     = isset( $args['type'] ) ? $args['type'] : 'text';
-					$callback = method_exists( $this->settings_form, "callback_{$type}" ) ? array( $this->settings_form, "callback_{$type}" ) : array( $this->settings_form, 'callback_missing' );
+				$id       = $args['id'];
+				$name     = $args['name'];
+				$type     = isset( $args['type'] ) ? $args['type'] : 'text';
+				$callback = method_exists( $this->settings_form, "callback_{$type}" ) ? array( $this->settings_form, "callback_{$type}" ) : array( $this->settings_form, 'callback_missing' );
 
 				add_settings_field(
 					"{$settings_key}[{$id}]",     // ID of the settings field. We save it within the settings array.
@@ -708,33 +676,22 @@ class Settings_API {
 		// Populate some default values.
 		foreach ( $this->registered_settings as $tab => $settings ) {
 			foreach ( $settings as $option ) {
-				/**
-				 * Skip settings that are not really settings.
-				 *
-				 * @param array $non_setting_types Array of types which are not settings.
-				 */
-				$non_setting_types = apply_filters( $this->prefix . '_non_setting_types', array( 'header', 'descriptive_text' ) );
-
-				if ( in_array( $option['type'], $non_setting_types, true ) ) {
-					continue;
-				}
-
-				// Base default per type.
-				$options[ $option['id'] ] = ( 'checkbox' === $option['type'] ) ? 0 : '';
-
-				// Prefer the explicit 'default' key when provided.
-				if ( isset( $option['default'] ) ) {
-					$options[ $option['id'] ] = $option['default'];
+				// When checkbox is set to true, set this to 1.
+				if ( 'checkbox' === $option['type'] && ! empty( $option['options'] ) ) {
+					$options[ $option['id'] ] = 1;
 				} else {
-					// Back-compat for legacy configs that used 'options' to store default values for text-like fields.
-					if ( in_array( $option['type'], array( 'textarea', 'css', 'html', 'text', 'url', 'csv', 'color', 'numbercsv', 'postids', 'posttypes', 'number', 'wysiwyg', 'file', 'password' ), true ) && isset( $option['options'] ) ) {
+					$options[ $option['id'] ] = 0;
+				}
+				// If an option is set.
+				if ( in_array( $option['type'], array( 'textarea', 'css', 'html', 'text', 'url', 'csv', 'color', 'numbercsv', 'postids', 'posttypes', 'number', 'wysiwyg', 'file', 'password' ), true ) ) {
+					if ( isset( $option['default'] ) ) {
+						$options[ $option['id'] ] = $option['default'];
+					} elseif ( isset( $option['options'] ) ) {
 						$options[ $option['id'] ] = $option['options'];
 					}
-
-					// Back-compat: when checkbox used 'options' truthy to indicate checked by default.
-					if ( 'checkbox' === $option['type'] && ! empty( $option['options'] ) ) {
-						$options[ $option['id'] ] = 1;
-					}
+				}
+				if ( in_array( $option['type'], array( 'multicheck', 'radio', 'select', 'radiodesc', 'thumbsizes' ), true ) && isset( $option['default'] ) ) {
+					$options[ $option['id'] ] = $option['default'];
 				}
 			}
 		}
@@ -757,7 +714,7 @@ class Settings_API {
 	/**
 	 * Get the default option for a specific key
 	 *
-	 * @param  string $key Key of the option to fetch.
+	 * @param string $key Key of the option to fetch.
 	 * @return mixed
 	 */
 	public function get_default_option( $key = '' ) {
@@ -819,7 +776,7 @@ class Settings_API {
 					// For repeater fields, create a closure to pass the field configuration.
 					if ( 'repeater' === $setting['type'] ) {
 						return function ( $value ) use ( $settings_sanitize, $setting ) {
-								return $settings_sanitize->sanitize_repeater_field( $value, $setting );
+							return $settings_sanitize->sanitize_repeater_field( $value, $setting );
 						};
 					}
 					$sanitize_callback = array( $settings_sanitize, 'sanitize_' . $setting['type'] . '_field' );
@@ -864,14 +821,14 @@ class Settings_API {
 		$settings_types = $this->get_registered_settings_types();
 
 		// Get the tab. This is also our settings' section.
-		$tab = $referrer['tab'] ?? $this->default_tab;
+		$tab = isset( $referrer['tab'] ) ? $referrer['tab'] : $this->default_tab;
 
 		$input = $input ? $input : array();
 
 		/**
 		 * Filter the settings for the tab. e.g. prefix_settings_general_sanitize.
 		 *
-		 * @param array $input Input unclean array
+		 * @param  array $input Input unclean array
 		 */
 		$input = apply_filters( $this->prefix . '_settings_' . $tab . '_sanitize', $input );
 
@@ -883,7 +840,7 @@ class Settings_API {
 			/**
 			 * Skip settings that are not really settings.
 			 *
-			 * @param array $non_setting_types Array of types which are not settings.
+			 * @param  array $non_setting_types Array of types which are not settings.
 			 */
 			$non_setting_types = apply_filters( $this->prefix . '_non_setting_types', array( 'header', 'descriptive_text' ) );
 
@@ -937,28 +894,27 @@ class Settings_API {
 		ob_start();
 		?>
 			<div class="wrap">
-		<?php do_action( $this->prefix . '_settings_page_header_before' ); ?>
 				<h1><?php echo esc_html( $this->translation_strings['page_header'] ); ?></h1>
-		<?php do_action( $this->prefix . '_settings_page_header' ); ?>
+				<?php do_action( $this->prefix . '_settings_page_header' ); ?>
 
 				<div id="poststuff">
 				<div id="post-body" class="metabox-holder columns-2">
 				<div id="post-body-content">
 
-		<?php $this->show_navigation(); ?>
-		<?php $this->show_form(); ?>
+				<?php $this->show_navigation(); ?>
+				<?php $this->show_form(); ?>
 
 				</div><!-- /#post-body-content -->
 
 				<div id="postbox-container-1" class="postbox-container">
 
 					<div id="side-sortables" class="meta-box-sortables ui-sortable">
-		<?php
-		$sidebar_file = dirname( __DIR__ ) . '/sidebar.php';
-		if ( file_exists( $sidebar_file ) ) {
-			include_once $sidebar_file;
-		}
-		?>
+					<?php
+					$sidebar_file = dirname( __DIR__ ) . '/sidebar.php';
+					if ( file_exists( $sidebar_file ) ) {
+						include_once $sidebar_file;
+					}
+					?>
 					</div><!-- /#side-sortables -->
 
 				</div><!-- /#postbox-container-1 -->
@@ -968,8 +924,8 @@ class Settings_API {
 
 			</div><!-- /.wrap -->
 
-		<?php
-		echo ob_get_clean(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			<?php
+			echo ob_get_clean(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	/**
@@ -978,7 +934,7 @@ class Settings_API {
 	 * Shows all the settings section labels as tab
 	 */
 	public function show_navigation() {
-		$active_tab = isset( $_GET['tab'] ) && array_key_exists( sanitize_key( wp_unslash( $_GET['tab'] ) ), $this->settings_sections ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : $this->default_tab; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.NonceVerification.Recommended
+		$active_tab = isset( $_GET['tab'] ) && array_key_exists( sanitize_key( wp_unslash( $_GET['tab'] ) ), $this->settings_sections ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'general'; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.NonceVerification.Recommended
 
 		$html = '<ul class="nav-tab-wrapper" style="padding:0">';
 
@@ -993,13 +949,9 @@ class Settings_API {
 
 			$active = $active_tab === $tab_id ? ' ' : '';
 
-			$html .= sprintf(
-				'<li style="padding:0; border:0; margin:0;"><a href="#%s" title="%s" class="nav-tab %s">%s</a></li>',
-				esc_attr( $tab_id ),
-				esc_attr( $tab_name ),
-				sanitize_html_class( $active ),
-				esc_html( $tab_name )
-			);
+			$html .= '<li style="padding:0; border:0; margin:0;"><a href="#' . esc_attr( $tab_id ) . '" title="' . esc_attr( $tab_name ) . '" class="nav-tab ' . sanitize_html_class( $active ) . '">';
+			$html .= esc_html( $tab_name );
+			$html .= '</a></li>';
 
 		}
 
@@ -1017,27 +969,27 @@ class Settings_API {
 		ob_start();
 		?>
 
-			<form method="post" action="options.php" id="<?php echo esc_attr( "{$this->prefix}-settings-form" ); ?>">
+			<form method="post" action="options.php">
 
-		<?php settings_fields( $this->settings_key ); ?>
+			<?php settings_fields( $this->settings_key ); ?>
 
-		<?php foreach ( $this->settings_sections as $tab_id => $tab_name ) : ?>
+			<?php foreach ( $this->settings_sections as $tab_id => $tab_name ) : ?>
 
 				<div id="<?php echo esc_attr( $tab_id ); ?>">
 					<table class="form-table">
-			<?php
-			do_settings_fields( $this->prefix . '_settings_' . $tab_id, $this->prefix . '_settings_' . $tab_id );
-			?>
+					<?php
+						do_settings_fields( $this->prefix . '_settings_' . $tab_id, $this->prefix . '_settings_' . $tab_id );
+					?>
 					</table>
 					<p>
-			<?php
-			// Default submit button.
-			submit_button(
-				$this->translation_strings['save_changes'],
-				'primary',
-				'submit',
-				false
-			);
+					<?php
+						// Default submit button.
+						submit_button(
+							$this->translation_strings['save_changes'],
+							'primary',
+							'submit',
+							false
+						);
 
 					echo '&nbsp;&nbsp;';
 
@@ -1063,22 +1015,22 @@ class Settings_API {
 					 * @param array  $settings_sections Settings sections.
 					 */
 					do_action( $this->prefix . '_settings_form_buttons', $tab_id, $tab_name, $this->settings_sections );
-			?>
+					?>
 					</p>
 				</div><!-- /#tab_id-->
 
-		<?php endforeach; ?>
+				<?php endforeach; ?>
 
 			</form>
 
-		<?php
-		echo ob_get_clean(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			<?php
+			echo ob_get_clean(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 
 	/**
 	 * Add rating links to the admin dashboard
 	 *
-	 * @param  string $footer_text The existing footer text.
+	 * @param string $footer_text The existing footer text.
 	 * @return string Updated Footer text
 	 */
 	public function admin_footer_text( $footer_text ) {
@@ -1113,6 +1065,8 @@ class Settings_API {
 	/**
 	 * Parse field arguments with defaults.
 	 *
+	 * @since 1.0.0
+	 *
 	 * @param array  $field   Field arguments.
 	 * @param string $section Section name.
 	 *
@@ -1144,104 +1098,9 @@ class Settings_API {
 
 		// Add required indicator to field name if the field is required.
 		if ( ! empty( $field['required'] ) && true === $field['required'] ) {
-			$field['name'] = sprintf( '%s <span class="required" title="%s">*</span>', $field['name'], 'Required' );
+			$field['name'] = sprintf( '%s <span class="required" title="%s">*</span>', $field['name'], esc_attr__( 'Required', 'glue-link' ) );
 		}
 
 		return $field;
-	}
-
-	/**
-	 * Get the encryption key for API key encryption/decryption.
-	 *
-	 * @return string The encryption key.
-	 */
-	private static function get_encryption_key() {
-		return defined( 'AUTH_SALT' ) ? AUTH_SALT : ( defined( 'SECURE_AUTH_SALT' ) ? SECURE_AUTH_SALT : hash( 'sha256', __NAMESPACE__ . 'knowledgebase_encryption_fallback' ) );
-	}
-
-	/**
-	 * Encrypts an API key using either OpenSSL or Sodium, if available.
-	 *
-	 * @param  string $key The API key to encrypt.
-	 * @return string The encrypted API key, or the plain text key if no secure method is available.
-	 */
-	public static function encrypt_api_key( $key ) {
-		if ( empty( $key ) ) {
-			return '';
-		}
-
-		// Use OpenSSL if available.
-		if ( extension_loaded( 'openssl' ) ) {
-			$iv_length = openssl_cipher_iv_length( 'aes-256-cbc' );
-			$iv        = openssl_random_pseudo_bytes( $iv_length );
-			$encrypted = openssl_encrypt( $key, 'aes-256-cbc', self::get_encryption_key(), 0, $iv );
-
-			// Store IV + ciphertext in hex format.
-			return 'enc:' . bin2hex( $iv . $encrypted );
-		}
-
-		// Use Sodium (libsodium) if OpenSSL is unavailable.
-		if ( extension_loaded( 'sodium' ) ) {
-			$sodium_key = substr( hash( 'sha256', self::get_encryption_key(), true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
-			$nonce      = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
-			$encrypted  = sodium_crypto_secretbox( $key, $nonce, $sodium_key );
-
-			return 'enc:' . sodium_bin2hex( $nonce . $encrypted );
-		}
-
-		return $key;
-	}
-
-	/**
-	 * Decrypts an API key using either OpenSSL or Sodium, if available.
-	 *
-	 * @param  string $encrypted_key The encrypted API key to decrypt.
-	 * @return string The decrypted API key, or the encrypted key if no secure method is available.
-	 */
-	public static function decrypt_api_key( $encrypted_key ) {
-		if ( empty( $encrypted_key ) ) {
-			return '';
-		}
-
-		// If the key doesn't start with 'enc:', it's not encrypted.
-		if ( strpos( $encrypted_key, 'enc:' ) !== 0 ) {
-			return $encrypted_key;
-		}
-
-		// Remove the 'enc:' prefix.
-		$encrypted_key = substr( $encrypted_key, 4 );
-
-		// Try OpenSSL decryption.
-		if ( extension_loaded( 'openssl' ) ) {
-			$data = hex2bin( $encrypted_key );
-			if ( false === $data ) {
-				return '';
-			}
-
-			$iv_length  = openssl_cipher_iv_length( 'aes-256-cbc' );
-			$iv         = mb_substr( $data, 0, $iv_length, '8bit' );
-			$ciphertext = mb_substr( $data, $iv_length, null, '8bit' );
-
-			$decrypted = openssl_decrypt( $ciphertext, 'aes-256-cbc', self::get_encryption_key(), 0, $iv );
-			return false === $decrypted ? '' : $decrypted;
-		}
-
-		// Try Sodium (libsodium) decryption.
-		if ( extension_loaded( 'sodium' ) ) {
-			$sodium_key = substr( hash( 'sha256', self::get_encryption_key(), true ), 0, SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
-			$decoded    = sodium_hex2bin( $encrypted_key );
-
-			if ( ! $decoded ) {
-				return '';
-			}
-
-			$nonce      = mb_substr( $decoded, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES, '8bit' );
-			$ciphertext = mb_substr( $decoded, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES, null, '8bit' );
-			$decrypted  = sodium_crypto_secretbox_open( $ciphertext, $nonce, $sodium_key );
-
-			return false === $decrypted ? '' : $decrypted;
-		}
-
-		return $encrypted_key;
 	}
 }
