@@ -124,10 +124,9 @@ class Webhook_Handler {
 	 * @since 1.0.0
 	 *
 	 * @param string $input Raw webhook input data.
-	 * @param string $signature Request signature.
 	 * @return array|\WP_Error Array of processed data or WP_Error on failure.
 	 */
-	private function process_webhook( string $input, string $signature ): array|\WP_Error {
+	private function process_webhook( string $input ): array|\WP_Error {
 		// Decode the request.
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
@@ -141,13 +140,7 @@ class Webhook_Handler {
 			return new \WP_Error( 'invalid_plugin', 'Plugin ID not found in configuration' );
 		}
 
-		// Verify the signature.
-		$plugin_config = $this->plugin_configs[ $plugin_id ];
-		$hash          = hash_hmac( 'sha256', $input, $plugin_config['secret_key'] );
-
-		if ( ! hash_equals( $hash, $signature ) ) {
-			return new \WP_Error( 'invalid_signature', 'Invalid signature' );
-		}
+		// Note: Signature validation is handled in validate_webhook_signature() before this method is called.
 
 		// Process the webhook data.
 		// Check if objects property exists.
@@ -356,8 +349,15 @@ class Webhook_Handler {
 		$input     = file_get_contents( 'php://input' );
 		$signature = $this->get_signature();
 
+		// Validate signature before processing.
+		$validation = $this->validate_webhook_signature( $input, $signature );
+		if ( is_wp_error( $validation ) ) {
+			status_header( 400 );
+			die( esc_html( $validation->get_error_message() ) );
+		}
+
 		// Process the webhook.
-		$result = $this->process_webhook( $input, $signature );
+		$result = $this->process_webhook( $input );
 		if ( is_wp_error( $result ) ) {
 			status_header( 400 );
 			die( esc_html( $result->get_error_message() ) );
@@ -365,6 +365,40 @@ class Webhook_Handler {
 
 		status_header( 200 );
 		die( esc_html( $result['message'] ) );
+	}
+
+	/**
+	 * Validate webhook signature and configuration without processing side effects.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $input Raw webhook input data.
+	 * @param string $signature Request signature.
+	 * @return true|\WP_Error True if validation passes, WP_Error otherwise.
+	 */
+	private function validate_webhook_signature( string $input, string $signature ): bool|\WP_Error {
+		// Decode the request.
+		$fs_event = json_decode( $input );
+		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
+			return new \WP_Error( 'invalid_request', 'Invalid request body or missing plugin ID' );
+		}
+
+		$plugin_id = $fs_event->plugin_id;
+
+		// Check if plugin ID exists in config.
+		if ( ! isset( $this->plugin_configs[ $plugin_id ] ) ) {
+			return new \WP_Error( 'invalid_plugin', 'Plugin ID not found in configuration' );
+		}
+
+		// Verify the signature.
+		$plugin_config = $this->plugin_configs[ $plugin_id ];
+		$hash          = hash_hmac( 'sha256', $input, $plugin_config['secret_key'] );
+
+		if ( ! hash_equals( $hash, $signature ) ) {
+			return new \WP_Error( 'invalid_signature', 'Invalid signature' );
+		}
+
+		return true;
 	}
 
 	/**
@@ -379,14 +413,8 @@ class Webhook_Handler {
 		// Get signature from headers.
 		$signature = $this->get_signature( $request );
 
-		// Process the webhook.
-		$result = $this->process_webhook( $request->get_body(), $signature );
-
-		if ( is_wp_error( $result ) ) {
-			return $result;
-		}
-
-		return true;
+		// Validate signature only, without processing side effects.
+		return $this->validate_webhook_signature( $request->get_body(), $signature );
 	}
 
 	/**
@@ -401,8 +429,14 @@ class Webhook_Handler {
 		// Get signature from headers.
 		$signature = $this->get_signature( $request );
 
+		// Validate signature before processing.
+		$validation = $this->validate_webhook_signature( $request->get_body(), $signature );
+		if ( is_wp_error( $validation ) ) {
+			return $validation;
+		}
+
 		// Process the webhook.
-		$result = $this->process_webhook( $request->get_body(), $signature );
+		$result = $this->process_webhook( $request->get_body() );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
