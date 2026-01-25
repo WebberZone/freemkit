@@ -159,7 +159,7 @@ class Subscriber {
 	 * @param array $data Subscriber data.
 	 * @return bool|\WP_Error True on success, WP_Error on failure.
 	 */
-	private function init_by_data( array $data ): bool|\WP_Error {
+	private function init_by_data( array $data ) {
 		// Ensure email exists and is valid.
 		if ( empty( $data['email'] ) || ! filter_var( $data['email'], FILTER_VALIDATE_EMAIL ) ) {
 			return new \WP_Error( 'invalid_email', __( 'Invalid subscriber email.', 'glue-link' ) );
@@ -242,7 +242,7 @@ class Subscriber {
 	 *
 	 * @return int|\WP_Error Subscriber ID on success, WP_Error on failure.
 	 */
-	public function save(): int|\WP_Error {
+	public function save() {
 		$result = $this->id ? $this->db->update_subscriber( $this ) : $this->db->add_subscriber( $this );
 
 		if ( ! is_wp_error( $result ) ) {

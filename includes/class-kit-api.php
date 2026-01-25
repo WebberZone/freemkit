@@ -71,7 +71,7 @@ class Kit_API {
 	 *
 	 * @return true|\WP_Error True if API credentials are valid, WP_Error on failure.
 	 */
-	public function validate_api_credentials(): bool|\WP_Error {
+	public function validate_api_credentials() {
 		if ( empty( $this->api_key ) ) {
 			return new \WP_Error(
 				self::ERROR_NO_API_KEY,
@@ -116,7 +116,7 @@ class Kit_API {
 	 * @since 1.0.0
 	 * @return true|\WP_Error True if API secret is set, WP_Error otherwise.
 	 */
-	private function validate_api_secret(): bool|\WP_Error {
+	private function validate_api_secret() {
 		if ( empty( $this->api_secret ) ) {
 			return new \WP_Error(
 				self::ERROR_NO_API_SECRET,
@@ -134,7 +134,7 @@ class Kit_API {
 	 * @param string $email Email address to validate.
 	 * @return true|\WP_Error True if email is valid, WP_Error otherwise.
 	 */
-	private function validate_email( string $email ): bool|\WP_Error {
+	private function validate_email( string $email ) {
 		if ( empty( $email ) ) {
 			return new \WP_Error(
 				self::ERROR_NO_EMAIL,
@@ -163,7 +163,7 @@ class Kit_API {
 	 * @param string $email Email address to validate.
 	 * @return true|\WP_Error True if valid, WP_Error otherwise.
 	 */
-	private function validate_subscriber_request( string $email ): bool|\WP_Error {
+	private function validate_subscriber_request( string $email ) {
 		$validate = $this->validate_api_secret();
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
@@ -178,7 +178,7 @@ class Kit_API {
 	 * @since 1.0.0
 	 * @return array|\WP_Error Response from the API or WP_Error on failure.
 	 */
-	public function get_account(): array|\WP_Error {
+	public function get_account() {
 		$validate = $this->validate_api_secret();
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
@@ -195,7 +195,7 @@ class Kit_API {
 	 * @param array  $params   Optional parameters for the request.
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function get( string $endpoint, array $params = array() ): array|\WP_Error {
+	public function get( string $endpoint, array $params = array() ) {
 		// Only validate API key if api_secret is not present in params.
 		if ( ! isset( $params['api_secret'] ) ) {
 			if ( empty( $this->api_key ) ) {
@@ -218,7 +218,7 @@ class Kit_API {
 	 * @param array  $data     The data to send in the request body.
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function post( string $endpoint, array $data = array() ): array|\WP_Error {
+	public function post( string $endpoint, array $data = array() ) {
 		// Pre-check API credentials.
 		$validation = $this->validate_api_credentials();
 		if ( is_wp_error( $validation ) ) {
@@ -237,7 +237,7 @@ class Kit_API {
 	 * @param array  $params  Optional parameters for the request.
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function request( string $endpoint, string $method = 'GET', array $params = array() ): array|\WP_Error {
+	public function request( string $endpoint, string $method = 'GET', array $params = array() ) {
 		$url = $this->api_url . $endpoint;
 
 		$args = array(
@@ -278,7 +278,7 @@ class Kit_API {
 	 * @param array  $params   Optional parameters for the request.
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function put( string $endpoint, array $params = array() ): array|\WP_Error {
+	public function put( string $endpoint, array $params = array() ) {
 		return $this->request( $endpoint, 'PUT', $params );
 	}
 
@@ -290,7 +290,7 @@ class Kit_API {
 	 * @param array  $params   Optional parameters for the request.
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function delete( string $endpoint, array $params = array() ): array|\WP_Error {
+	public function delete( string $endpoint, array $params = array() ) {
 		return $this->request( $endpoint, 'DELETE', $params );
 	}
 
@@ -303,7 +303,7 @@ class Kit_API {
 	 *
 	 * @return array|\WP_Error Array of forms or \WP_Error on failure.
 	 */
-	public function get_forms(): array|\WP_Error {
+	public function get_forms() {
 		return $this->get( 'forms' );
 	}
 
@@ -316,7 +316,7 @@ class Kit_API {
 	 *
 	 * @return array|\WP_Error Array of sequences or \WP_Error on failure.
 	 */
-	public function get_sequences(): array|\WP_Error {
+	public function get_sequences() {
 		return $this->get( 'sequences' );
 	}
 
@@ -329,7 +329,7 @@ class Kit_API {
 	 *
 	 * @return array|\WP_Error Array of tags or \WP_Error on failure.
 	 */
-	public function get_tags(): array|\WP_Error {
+	public function get_tags() {
 		return $this->get( 'tags' );
 	}
 
@@ -342,7 +342,7 @@ class Kit_API {
 	 *
 	 * @return array|\WP_Error Array of custom fields or \WP_Error on failure.
 	 */
-	public function get_custom_fields(): array|\WP_Error {
+	public function get_custom_fields() {
 		return $this->get( 'custom_fields' );
 	}
 
@@ -367,7 +367,7 @@ class Kit_API {
 	 * }
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function get_subscribers( array $args = array() ): array|\WP_Error {
+	public function get_subscribers( array $args = array() ) {
 		$validate = $this->validate_api_secret();
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
@@ -402,7 +402,7 @@ class Kit_API {
 	 * @param string $email Email address to look up.
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function get_subscriber( string $email ): array|\WP_Error {
+	public function get_subscriber( string $email ) {
 		$validate = $this->validate_subscriber_request( $email );
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
@@ -429,7 +429,7 @@ class Kit_API {
 		string $first_name = '',
 		string $email_address = '',
 		array $fields = array()
-	): array|\WP_Error {
+	) {
 		$data = array(
 			'api_secret' => $this->api_secret,
 		);
@@ -469,7 +469,7 @@ class Kit_API {
 	 * }
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function update_subscriber_by_email( string $email, array $args = array() ): array|\WP_Error {
+	public function update_subscriber_by_email( string $email, array $args = array() ) {
 		$validate = $this->validate_subscriber_request( $email );
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
@@ -512,7 +512,7 @@ class Kit_API {
 	 * @param string $email Email address of the subscriber to unsubscribe.
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function unsubscribe( string $email ): array|\WP_Error {
+	public function unsubscribe( string $email ) {
 		$validate = $this->validate_subscriber_request( $email );
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
@@ -546,7 +546,7 @@ class Kit_API {
 		string $first_name,
 		array $fields = array(),
 		array $tags = array()
-	): array|\WP_Error {
+	) {
 		$validate = $this->validate_email( $email );
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
@@ -592,7 +592,7 @@ class Kit_API {
 		string $sort_order = 'asc',
 		string $subscriber_state = 'active',
 		int $page = 1
-	): array|\WP_Error {
+	) {
 		return $this->get(
 			sprintf( 'forms/%s/subscriptions', $form_id ),
 			array(
@@ -622,7 +622,7 @@ class Kit_API {
 		string $email,
 		string $first_name = '',
 		array $fields = array()
-	): array|\WP_Error {
+	) {
 		$validate = $this->validate_subscriber_request( $email );
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
@@ -655,7 +655,7 @@ class Kit_API {
 	 * @param int $subscriber_id Subscriber ID.
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function remove_tag_from_subscriber( int $tag_id, int $subscriber_id ): array|\WP_Error {
+	public function remove_tag_from_subscriber( int $tag_id, int $subscriber_id ) {
 		return $this->delete(
 			sprintf( 'subscribers/%s/tags/%s', $subscriber_id, $tag_id ),
 			array(
@@ -676,7 +676,7 @@ class Kit_API {
 	 *
 	 * @return array|\WP_Error The response or \WP_Error on failure.
 	 */
-	public function remove_tag_from_subscriber_by_email( int $tag_id, string $email ): array|\WP_Error {
+	public function remove_tag_from_subscriber_by_email( int $tag_id, string $email ) {
 		return $this->post(
 			sprintf( 'tags/%s/unsubscribe', $tag_id ),
 			array(

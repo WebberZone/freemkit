@@ -126,7 +126,7 @@ class Webhook_Handler {
 	 * @param string $input Raw webhook input data.
 	 * @return array|\WP_Error Array of processed data or WP_Error on failure.
 	 */
-	private function process_webhook( string $input ): array|\WP_Error {
+	private function process_webhook( string $input ) {
 		// Decode the request.
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
@@ -376,7 +376,7 @@ class Webhook_Handler {
 	 * @param string $signature Request signature.
 	 * @return true|\WP_Error True if validation passes, WP_Error otherwise.
 	 */
-	private function validate_webhook_signature( string $input, string $signature ): bool|\WP_Error {
+	private function validate_webhook_signature( string $input, string $signature ) {
 		// Decode the request.
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
@@ -409,7 +409,7 @@ class Webhook_Handler {
 	 * @param \WP_REST_Request $request Request object.
 	 * @return true|\WP_Error True if permissions are valid, \WP_Error otherwise.
 	 */
-	public function check_webhook_permissions( \WP_REST_Request $request ): bool|\WP_Error {
+	public function check_webhook_permissions( \WP_REST_Request $request ) {
 		// Get signature from headers.
 		$signature = $this->get_signature( $request );
 
@@ -425,7 +425,7 @@ class Webhook_Handler {
 	 * @param \WP_REST_Request $request Request object.
 	 * @return \WP_REST_Response|\WP_Error
 	 */
-	public function handle_webhook( \WP_REST_Request $request ): \WP_REST_Response|\WP_Error {
+	public function handle_webhook( \WP_REST_Request $request ) {
 		// Get signature from headers.
 		$signature = $this->get_signature( $request );
 

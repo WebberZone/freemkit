@@ -868,7 +868,7 @@ class Settings {
 	 * @param string $search Optional search term.
 	 * @return array|\WP_Error Array of items or WP_Error on failure.
 	 */
-	private function get_kit_data( $type, $search = '' ): array|\WP_Error {
+	private function get_kit_data( string $type, string $search = '' ) {
 		$transient_key = self::$prefix . "_kit_{$type}";
 		$items         = get_transient( $transient_key );
 
