@@ -27,7 +27,7 @@ class Database {
 	 * @since 1.0.0
 	 * @var string
 	 */
-	private string $table_name;
+	private $table_name;
 
 	/**
 	 * Database version.
@@ -35,7 +35,7 @@ class Database {
 	 * @since 1.0.0
 	 * @var string
 	 */
-	private string $db_version = '1.0.0';
+	private $db_version = '1.0.0';
 
 	/**
 	 * Constructor.
@@ -55,7 +55,7 @@ class Database {
 	 *
 	 * @return bool|\WP_Error True if table created successfully, \WP_Error on failure.
 	 */
-	public function create_table(): bool|\WP_Error {
+	public function create_table() {
 		global $wpdb;
 
 		$charset_collate = $wpdb->get_charset_collate();
@@ -103,7 +103,7 @@ class Database {
 	 *
 	 * @return bool True if update is required, false otherwise.
 	 */
-	public function needs_update(): bool {
+	public function needs_update() {
 		$current_version = get_option( 'glue_link_db_version', '0' );
 		return version_compare( $current_version, $this->db_version, '<' );
 	}
@@ -115,7 +115,7 @@ class Database {
 	 *
 	 * @return string Table name.
 	 */
-	public function get_table_name(): string {
+	public function get_table_name() {
 		return $this->table_name;
 	}
 
@@ -126,7 +126,7 @@ class Database {
 	 *
 	 * @param int|string $identifier Subscriber ID or email.
 	 */
-	public function clear_subscriber_cache( $identifier ): void {
+	public function clear_subscriber_cache( $identifier ) {
 		if ( is_int( $identifier ) ) {
 			wp_cache_delete( 'glue_link_subscriber_' . $identifier, 'glue_link' );
 		} elseif ( is_string( $identifier ) ) {
@@ -142,7 +142,7 @@ class Database {
 	 * @param int $id Subscriber ID.
 	 * @return Subscriber|\WP_Error Subscriber object or \WP_Error on failure.
 	 */
-	public function get_subscriber( int $id ): Subscriber|\WP_Error {
+	public function get_subscriber( $id ) {
 		global $wpdb;
 
 		$cache_key  = 'glue_link_subscriber_' . $id;
@@ -179,7 +179,7 @@ class Database {
 	 * @param string $email Subscriber email.
 	 * @return Subscriber|\WP_Error Subscriber object or \WP_Error on failure.
 	 */
-	public function get_subscriber_by_email( string $email ): Subscriber|\WP_Error {
+	public function get_subscriber_by_email( $email ) {
 		global $wpdb;
 
 		$cache_key  = 'glue_link_subscriber_email_' . md5( $email );
@@ -444,7 +444,7 @@ class Database {
 	 * @param int $id Subscriber ID.
 	 * @return bool|\WP_Error True on success, \WP_Error on failure.
 	 */
-	public function delete_subscriber( int $id ): bool|\WP_Error {
+	public function delete_subscriber( $id ) {
 		global $wpdb;
 
 		$subscriber = $this->get_subscriber( $id );
@@ -501,7 +501,7 @@ class Database {
 	 * }
 	 * @return Subscriber[] Array of Subscriber objects.
 	 */
-	public function get_subscribers( array $args = array() ): array {
+	public function get_subscribers( $args = array() ) {
 		global $wpdb;
 
 		$defaults = array(
@@ -582,7 +582,7 @@ class Database {
 	 *
 	 * @return array|\WP_Error Array of counts by status or \WP_Error on failure.
 	 */
-	public function get_subscriber_counts(): array|\WP_Error {
+	public function get_subscriber_counts() {
 		global $wpdb;
 
 		$cache_key = 'glue_link_subscriber_counts';
@@ -624,7 +624,7 @@ class Database {
 	 * @param array $ids Array of subscriber IDs.
 	 * @return bool|\WP_Error True on success, \WP_Error on failure.
 	 */
-	public function delete_subscribers( array $ids ): bool|\WP_Error {
+	public function delete_subscribers( $ids ) {
 		global $wpdb;
 
 		if ( empty( $ids ) ) {
@@ -676,7 +676,7 @@ class Database {
 	 * }
 	 * @return int Total number of subscribers matching the criteria.
 	 */
-	public function get_subscriber_count( array $args = array() ): int {
+	public function get_subscriber_count( $args = array() ) {
 		global $wpdb;
 
 		$defaults = array(
