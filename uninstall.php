@@ -11,13 +11,6 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 /**
- * Define GLUE_LINK_DELETE_DATA as true in wp-config.php to delete all data on uninstall.
- */
-if ( ! defined( 'GLUE_LINK_DELETE_DATA' ) ) {
-	define( 'GLUE_LINK_DELETE_DATA', false );
-}
-
-/**
  * Delete options and data for a single site.
  *
  * @param int $site_id Site ID. 0 for current site.
@@ -39,7 +32,7 @@ function glue_link_delete_site_options( int $site_id = 0 ): void {
 		delete_option( $option_name );
 	}
 
-	if ( GLUE_LINK_DELETE_DATA ) {
+	if ( defined( 'GLUE_LINK_DELETE_DATA' ) && GLUE_LINK_DELETE_DATA ) {
 
 		// Delete the subscribers table.
 		$table_name = $wpdb->prefix . 'glue_link_subscribers';
