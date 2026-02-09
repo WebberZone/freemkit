@@ -3,14 +3,11 @@
  * Functions to sanitize settings.
  *
  * @link  https://webberzone.com
- * @since 1.0.0
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\Better_External_Links
  */
 
 namespace WebberZone\Glue_Link\Admin\Settings;
-
-use WebberZone\Glue_Link\Options_API;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -19,8 +16,6 @@ if ( ! defined( 'WPINC' ) ) {
 
 /**
  * Settings Sanitize Class.
- *
- * @since 1.0.0
  */
 class Settings_Sanitize {
 
@@ -57,6 +52,23 @@ class Settings_Sanitize {
 		foreach ( $args as $name => $value ) {
 			$this->$name = $value;
 		}
+	}
+
+	/**
+	 * Get the value of a settings field.
+	 *
+	 * @param string $option         Settings field name.
+	 * @param mixed  $default_value  Default value if option is not found.
+	 * @return mixed
+	 */
+	public function get_option( $option, $default_value = '' ) {
+		$options = \get_option( $this->settings_key );
+
+		if ( isset( $options[ $option ] ) ) {
+			return $options[ $option ];
+		}
+
+		return $default_value;
 	}
 
 	/**
@@ -168,7 +180,7 @@ class Settings_Sanitize {
 		 *
 		 * @param array $allowedtags Allowed tags array.
 		 */
-		$allowedtags = apply_filters( 'wz_sanitize_allowed_tags', $allowedtags );
+		$allowedtags = apply_filters( $this->prefix . '_sanitize_allowed_tags', $allowedtags ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
 
 		return wp_kses( wp_unslash( $value ), $allowedtags );
 	}
@@ -180,7 +192,7 @@ class Settings_Sanitize {
 	 * @return int  Sanitized value
 	 */
 	public function sanitize_checkbox_field( $value ) {
-		$value = ( -1 === (int) $value ) ? 0 : 1;
+		$value = in_array( (int) $value, array( 0, -1 ), true ) ? 0 : 1;
 
 		return $value;
 	}
@@ -263,14 +275,14 @@ class Settings_Sanitize {
 			}
 		}
 
-		$stored_encrypted_key = Options_API::get_option( $key );
+		$stored_encrypted_key = $this->get_option( $key );
 
 		// If input is masked, return existing encrypted key.
-		if ( empty( $value ) || str_contains( $value, '**' ) ) {
+		if ( empty( $value ) || strpos( $value, '**' ) !== false ) {
 			return $stored_encrypted_key;
 		}
 
-		return Options_API::encrypt_api_key( $value );
+		return Settings_API::encrypt_api_key( $value );
 	}
 
 	/**
@@ -404,7 +416,7 @@ class Settings_Sanitize {
 	 */
 	public static function sanitize_tax_slugs( &$settings, $source_key, $target_key ) {
 		if ( isset( $settings[ $source_key ] ) ) {
-			$slugs = array_unique( str_getcsv( $settings[ $source_key ] ) );
+			$slugs = array_unique( str_getcsv( $settings[ $source_key ], ',', '"', '' ) );
 
 			foreach ( $slugs as $slug ) {
 				// Pattern is Name (taxonomy:term_taxonomy_id).
