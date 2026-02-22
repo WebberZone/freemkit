@@ -1,6 +1,6 @@
 <?php
 /**
- * Kit API wrapper class
+ * Kit API wrapper class.
  *
  * @package WebberZone\Glue_Link
  * @since 1.0.0
@@ -11,678 +11,177 @@ namespace WebberZone\Glue_Link;
 /**
  * Class Kit_API
  *
- * A wrapper class for interacting with the Kit API.
- *
- * @since 1.0.0
+ * Wraps Kit's official ConvertKit_API_V4 library.
  */
-class Kit_API {
+class Kit_API extends \ConvertKit_API_V4 {
 
 	/**
 	 * Error codes.
-	 *
-	 * @since 1.0.0
-	 * @var string
 	 */
-	private const ERROR_NO_API_KEY    = 'invalid_api_key';
-	private const ERROR_NO_API_SECRET = 'invalid_api_secret';
+	private const ERROR_NO_CONNECTION = 'invalid_connection';
 	private const ERROR_NO_EMAIL      = 'invalid_email';
 	private const ERROR_API_ERROR     = 'api_error';
 
 	/**
-	 * The Kit API URL.
+	 * Whether credentials are sourced from the ConvertKit plugin.
 	 *
-	 * @since 1.0.0
-	 * @var string
+	 * @var bool
 	 */
-	protected $api_url = 'https://api.convertkit.com/v3/';
-
-	/**
-	 * Kit API Key.
-	 *
-	 * @since 1.0.0
-	 * @var string
-	 */
-	protected $api_key;
-
-	/**
-	 * Kit API Secret.
-	 *
-	 * @since 1.0.0
-	 * @var string
-	 */
-	protected $api_secret;
+	protected bool $using_convertkit_credentials = false;
 
 	/**
 	 * Constructor.
 	 *
-	 * @since 1.0.0
-	 * @param string $api_key    The Kit API key.
-	 * @param string $api_secret The Kit API secret.
+	 * @param string $access_token Access token override.
+	 * @param string $refresh_token Refresh token override.
 	 */
-	public function __construct( string $api_key = '', string $api_secret = '' ) {
-		$this->api_key    = $api_key ? $api_key : Options_API::get_option( 'kit_api_key' );
-		$this->api_secret = $api_secret ? $api_secret : Options_API::decrypt_api_key( Options_API::get_option( 'kit_api_secret' ) );
+	public function __construct( string $access_token = '', string $refresh_token = '' ) {
+		$settings              = new Kit_Settings();
+		$client_id             = defined( 'GLUE_LINK_KIT_OAUTH_CLIENT_ID' ) ? (string) GLUE_LINK_KIT_OAUTH_CLIENT_ID : '';
+		$redirect_uri          = defined( 'GLUE_LINK_KIT_OAUTH_REDIRECT_URI' ) ? (string) GLUE_LINK_KIT_OAUTH_REDIRECT_URI : '';
+		$resolved_access_token = $access_token ? $access_token : $settings->get_access_token();
+		$resolved_refresh      = $refresh_token ? $refresh_token : $settings->get_refresh_token();
+
+		parent::__construct(
+			$client_id,
+			$redirect_uri,
+			$resolved_access_token ? $resolved_access_token : false,
+			$resolved_refresh ? $resolved_refresh : false
+		);
+
+		$this->using_convertkit_credentials = $settings->using_convertkit_credentials();
 	}
 
 	/**
-	 * Validates the Kit API credentials.
+	 * Whether access and refresh token exist.
 	 *
-	 * @since 1.0.0
+	 * @return bool
+	 */
+	public function has_access_and_refresh_token(): bool {
+		return ! empty( $this->access_token ) && ! empty( $this->refresh_token );
+	}
+
+	/**
+	 * Validate API credentials.
 	 *
-	 * @return true|\WP_Error True if API credentials are valid, WP_Error on failure.
+	 * @return true|\WP_Error
 	 */
 	public function validate_api_credentials() {
-		if ( empty( $this->api_key ) ) {
-			return new \WP_Error(
-				self::ERROR_NO_API_KEY,
-				esc_html__( 'Please provide a Kit API key.', 'glue-link' )
-			);
+		if ( $this->has_access_and_refresh_token() ) {
+			return true;
 		}
 
-		$url = add_query_arg(
-			array(
-				'api_key' => $this->api_key,
-			),
-			$this->api_url . 'forms'
-		);
-
-		$response = wp_remote_get( $url );
-
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
-		$code = wp_remote_retrieve_response_code( $response );
-
-		if ( 200 !== $code || isset( $body['error'] ) ) {
-			$error = isset( $body['error'] ) ? $body['error'] : wp_remote_retrieve_response_message( $response );
-			return new \WP_Error(
-				self::ERROR_API_ERROR,
-				sprintf(
-					/* translators: %s: Error message from the API */
-					esc_html__( 'Kit API Error: %s', 'glue-link' ),
-					$error
-				)
-			);
-		}
-
-		return true;
+		return new \WP_Error( self::ERROR_NO_CONNECTION, esc_html__( 'Connect to Kit using OAuth to continue.', 'glue-link' ) );
 	}
 
 	/**
-	 * Validates that the API secret is set.
+	 * Exchange authorization code for OAuth credentials.
 	 *
-	 * @since 1.0.0
-	 * @return true|\WP_Error True if API secret is set, WP_Error otherwise.
+	 * @param string $authorization_code Authorization code.
+	 * @return array|\WP_Error
 	 */
-	private function validate_api_secret() {
-		if ( empty( $this->api_secret ) ) {
-			return new \WP_Error(
-				self::ERROR_NO_API_SECRET,
-				esc_html__( 'Please provide a Kit API secret.', 'glue-link' )
-			);
+	public function get_access_token( $authorization_code ) {
+		$result = parent::get_access_token( $authorization_code );
+
+		if ( is_wp_error( $result ) ) {
+			do_action( 'glue_link_api_get_access_token_error', $result, $this->client_id );
+			return $result;
 		}
 
-		return true;
+		do_action( 'glue_link_api_get_access_token', $result, $this->client_id );
+		return $result;
 	}
 
 	/**
-	 * Validates an email address.
+	 * Refresh OAuth token.
 	 *
-	 * @since 1.0.0
-	 * @param string $email Email address to validate.
-	 * @return true|\WP_Error True if email is valid, WP_Error otherwise.
+	 * @return array|\WP_Error
 	 */
-	private function validate_email( string $email ) {
-		if ( empty( $email ) ) {
-			return new \WP_Error(
-				self::ERROR_NO_EMAIL,
-				esc_html__( 'Please provide an email address.', 'glue-link' )
-			);
+	public function refresh_token() {
+		$previous_access_token  = (string) $this->access_token;
+		$previous_refresh_token = (string) $this->refresh_token;
+		$result                 = parent::refresh_token();
+
+		if ( is_wp_error( $result ) ) {
+			do_action( 'glue_link_api_refresh_token_error', $result, $this->client_id );
+			return $result;
 		}
 
-		if ( ! is_email( $email ) ) {
-			return new \WP_Error(
-				self::ERROR_NO_EMAIL,
-				sprintf(
-					/* translators: %s: Email address */
-					esc_html__( 'Invalid email address format: %s', 'glue-link' ),
-					$email
-				)
-			);
-		}
-
-		return true;
+		do_action( 'glue_link_api_refresh_token', $result, $this->client_id, $previous_access_token, $previous_refresh_token );
+		return $result;
 	}
 
 	/**
-	 * Validates both email and API secret.
+	 * Get current account.
 	 *
-	 * @since 1.0.0
-	 * @param string $email Email address to validate.
-	 * @return true|\WP_Error True if valid, WP_Error otherwise.
-	 */
-	private function validate_subscriber_request( string $email ) {
-		$validate = $this->validate_api_secret();
-		if ( is_wp_error( $validate ) ) {
-			return $validate;
-		}
-
-		return $this->validate_email( $email );
-	}
-
-	/**
-	 * Gets the Kit account information.
-	 *
-	 * @since 1.0.0
-	 * @return array|\WP_Error Response from the API or WP_Error on failure.
+	 * @return array|\WP_Error|null
 	 */
 	public function get_account() {
-		$validate = $this->validate_api_secret();
-		if ( is_wp_error( $validate ) ) {
-			return $validate;
+		if ( ! $this->has_access_and_refresh_token() ) {
+			return new \WP_Error( self::ERROR_NO_CONNECTION, esc_html__( 'Connect to Kit using OAuth to continue.', 'glue-link' ) );
 		}
 
-		return $this->get( 'account', array( 'api_secret' => $this->api_secret ) );
+		return parent::get_account();
 	}
 
 	/**
-	 * Make a GET request to the Kit API.
-	 *
-	 * @since 1.0.0
-	 * @param string $endpoint The API endpoint.
-	 * @param array  $params   Optional parameters for the request.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function get( string $endpoint, array $params = array() ) {
-		// Only validate API key if api_secret is not present in params.
-		if ( ! isset( $params['api_secret'] ) ) {
-			if ( empty( $this->api_key ) ) {
-				return new \WP_Error(
-					self::ERROR_NO_API_KEY,
-					esc_html__( 'Please provide a Kit API key.', 'glue-link' )
-				);
-			}
-			$params['api_key'] = $this->api_key;
-		}
-
-		return $this->request( $endpoint, 'GET', $params );
-	}
-
-	/**
-	 * Make a POST request to the Kit API.
-	 *
-	 * @since 1.0.0
-	 * @param string $endpoint The API endpoint.
-	 * @param array  $data     The data to send in the request body.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function post( string $endpoint, array $data = array() ) {
-		// Pre-check API credentials.
-		$validation = $this->validate_api_credentials();
-		if ( is_wp_error( $validation ) ) {
-			return $validation;
-		}
-
-		return $this->request( $endpoint, 'POST', $data );
-	}
-
-	/**
-	 * Make a request to the Kit API.
-	 *
-	 * @since 1.0.0
-	 * @param string $endpoint The API endpoint.
-	 * @param string $method  The HTTP method for the request.
-	 * @param array  $params  Optional parameters for the request.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function request( string $endpoint, string $method = 'GET', array $params = array() ) {
-		$url = $this->api_url . $endpoint;
-
-		$args = array(
-			'method'  => $method,
-			'timeout' => 45,
-		);
-
-		if ( 'GET' === $method ) {
-			$url = add_query_arg( $params, $url );
-		} else {
-			$args['headers'] = array(
-				'Content-Type' => 'application/json',
-			);
-			$args['body']    = wp_json_encode( $params );
-		}
-
-		$response = wp_remote_request( $url, $args );
-
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-
-		$response_code = wp_remote_retrieve_response_code( $response );
-		$response_body = wp_remote_retrieve_body( $response );
-
-		if ( ! preg_match( '/^[2-3][0-9]{2}/', (string) $response_code ) ) {
-			return new \WP_Error( 'api_error', 'API request failed', array( 'status' => $response_code ) );
-		}
-
-		return json_decode( $response_body, true );
-	}
-
-	/**
-	 * Make a PUT request to the Kit API.
-	 *
-	 * @since 1.0.0
-	 * @param string $endpoint The API endpoint.
-	 * @param array  $params   Optional parameters for the request.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function put( string $endpoint, array $params = array() ) {
-		return $this->request( $endpoint, 'PUT', $params );
-	}
-
-	/**
-	 * Make a DELETE request to the Kit API.
-	 *
-	 * @since 1.0.0
-	 * @param string $endpoint The API endpoint.
-	 * @param array  $params   Optional parameters for the request.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function delete( string $endpoint, array $params = array() ) {
-		return $this->request( $endpoint, 'DELETE', $params );
-	}
-
-	/**
-	 * Get all forms from Kit.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#list-forms
-	 *
-	 * @return array|\WP_Error Array of forms or \WP_Error on failure.
-	 */
-	public function get_forms() {
-		return $this->get( 'forms' );
-	}
-
-	/**
-	 * Get all sequences (courses) from Kit.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#list-sequences
-	 *
-	 * @return array|\WP_Error Array of sequences or \WP_Error on failure.
-	 */
-	public function get_sequences() {
-		return $this->get( 'sequences' );
-	}
-
-	/**
-	 * Get all tags from Kit.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#list-tags
-	 *
-	 * @return array|\WP_Error Array of tags or \WP_Error on failure.
-	 */
-	public function get_tags() {
-		return $this->get( 'tags' );
-	}
-
-	/**
-	 * Get all custom fields from Kit.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#list-custom-fields
-	 *
-	 * @return array|\WP_Error Array of custom fields or \WP_Error on failure.
-	 */
-	public function get_custom_fields() {
-		return $this->get( 'custom_fields' );
-	}
-
-	/**
-	 * Get all subscribers.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#list-subscribers
-	 *
-	 * @param array $args {
-	 *     Optional. Arguments to retrieve subscribers.
-	 *
-	 *     @type string $search       Search term.
-	 *     @type string $page         Page number.
-	 *     @type string $from         Start date.
-	 *     @type string $to           End date.
-	 *     @type string $updated_from Start date for updated subscribers.
-	 *     @type string $updated_to   End date for updated subscribers.
-	 *     @type string $sort_order   Sort order.
-	 *     @type string $sort_field   Sort field.
-	 * }
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function get_subscribers( array $args = array() ) {
-		$validate = $this->validate_api_secret();
-		if ( is_wp_error( $validate ) ) {
-			return $validate;
-		}
-
-		$args['api_secret'] = $this->api_secret;
-
-		$valid_params = array(
-			'page'          => 1,
-			'from'          => '',
-			'to'            => '',
-			'updated_from'  => '',
-			'updated_to'    => '',
-			'sort_order'    => 'desc',
-			'sort_field'    => '',
-			'email_address' => '',
-		);
-
-		foreach ( $valid_params as $param => $default ) {
-			if ( ! isset( $args[ $param ] ) || '' === $args[ $param ] ) {
-				unset( $args[ $param ] );
-			}
-		}
-
-		return $this->get( 'subscribers', $args );
-	}
-
-	/**
-	 * Get subscriber by email address.
-	 *
-	 * @since 1.0.0
-	 * @param string $email Email address to look up.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function get_subscriber( string $email ) {
-		$validate = $this->validate_subscriber_request( $email );
-		if ( is_wp_error( $validate ) ) {
-			return $validate;
-		}
-
-		return $this->get_subscribers( array( 'email_address' => $email ) );
-	}
-
-	/**
-	 * Update subscriber information by ID.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#update-subscriber
-	 *
-	 * @param int    $subscriber_id The subscriber ID.
-	 * @param string $first_name    First name of the subscriber.
-	 * @param string $email_address New email address if updating.
-	 * @param array  $fields        Custom fields as key/value pairs.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function update_subscriber(
-		int $subscriber_id,
-		string $first_name = '',
-		string $email_address = '',
-		array $fields = array()
-	) {
-		$data = array(
-			'api_secret' => $this->api_secret,
-		);
-
-		if ( ! empty( $first_name ) ) {
-			$data['first_name'] = $first_name;
-		}
-
-		if ( ! empty( $email_address ) ) {
-			$data['email_address'] = $email_address;
-		}
-
-		if ( ! empty( $fields ) ) {
-			if ( count( $fields ) > 140 ) {
-				return new \WP_Error(
-					'too_many_fields',
-					esc_html__( 'Maximum of 140 custom fields allowed.', 'glue-link' )
-				);
-			}
-			$data['fields'] = $fields;
-		}
-
-		return $this->put( sprintf( 'subscribers/%d', $subscriber_id ), $data );
-	}
-
-	/**
-	 * Update subscriber information by email.
-	 *
-	 * @since 1.0.0
-	 * @param string $email Email address of the subscriber.
-	 * @param array  $args {
-	 *     Optional. Array of subscriber arguments.
-	 *
-	 *     @type string $first_name    First name of the subscriber.
-	 *     @type string $email_address New email address if updating.
-	 *     @type array  $fields        Custom fields as key/value pairs.
-	 * }
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function update_subscriber_by_email( string $email, array $args = array() ) {
-		$validate = $this->validate_subscriber_request( $email );
-		if ( is_wp_error( $validate ) ) {
-			return $validate;
-		}
-
-		// Get the subscriber details first.
-		$subscriber = $this->get_subscriber( $email );
-		if ( is_wp_error( $subscriber ) ) {
-			return $subscriber;
-		}
-
-		if ( empty( $subscriber['subscriber'] ) || empty( $subscriber['subscriber']['id'] ) ) {
-			return new \WP_Error(
-				'subscriber_not_found',
-				sprintf(
-					/* translators: %s: Email address */
-					esc_html__( 'Subscriber with email %s not found.', 'glue-link' ),
-					$email
-				)
-			);
-		}
-
-		$subscriber_id = $subscriber['subscriber']['id'];
-
-		return $this->update_subscriber(
-			$subscriber_id,
-			$args['first_name'] ?? '',
-			$args['email_address'] ?? '',
-			$args['fields'] ?? array()
-		);
-	}
-
-	/**
-	 * Unsubscribe a subscriber by email address.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#unsubscribe-subscriber
-	 *
-	 * @param string $email Email address of the subscriber to unsubscribe.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function unsubscribe( string $email ) {
-		$validate = $this->validate_subscriber_request( $email );
-		if ( is_wp_error( $validate ) ) {
-			return $validate;
-		}
-
-		$data = array(
-			'api_secret' => $this->api_secret,
-			'email'      => $email,
-		);
-
-		return $this->put( 'unsubscribe', $data );
-	}
-
-	/**
-	 * Subscribe to a form.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#subscribe-to-form
+	 * Subscribe to form.
 	 *
 	 * @param int    $form_id Form ID.
-	 * @param string $email   Email address.
-	 * @param string $first_name First name of the subscriber.
-	 * @param array  $fields   Custom fields as key/value pairs. Fields must exist in Kit.
-	 * @param array  $tags     Array of tag IDs to subscribe to.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
+	 * @param string $email Email.
+	 * @param string $first_name First name.
+	 * @param array  $fields Fields.
+	 * @param array  $tags Tags.
+	 * @return array|\WP_Error|null
 	 */
-	public function subscribe_to_form(
-		int $form_id,
-		string $email,
-		string $first_name,
-		array $fields = array(),
-		array $tags = array()
-	) {
+	public function subscribe_to_form( int $form_id, string $email, string $first_name, array $fields = array(), array $tags = array() ) {
 		$validate = $this->validate_email( $email );
 		if ( is_wp_error( $validate ) ) {
 			return $validate;
 		}
 
-		$data = array(
-			'api_key' => $this->api_key,
-			'email'   => $email,
-		);
-
-		// Add optional parameters if they exist and are not empty.
-		if ( ! empty( $first_name ) ) {
-			$data['first_name'] = $first_name;
+		$subscriber = parent::create_subscriber( $email, $first_name, 'active', $fields );
+		if ( is_wp_error( $subscriber ) ) {
+			return $subscriber;
 		}
 
-		if ( ! empty( $fields ) ) {
-			$data['fields'] = $fields;
+		$subscriber_id = isset( $subscriber['subscriber']['id'] ) ? (int) $subscriber['subscriber']['id'] : 0;
+		if ( $subscriber_id <= 0 ) {
+			return new \WP_Error( self::ERROR_API_ERROR, esc_html__( 'Unable to determine subscriber ID.', 'glue-link' ) );
+		}
+
+		$result = parent::add_subscriber_to_form( $form_id, $subscriber_id );
+		if ( is_wp_error( $result ) ) {
+			return $result;
 		}
 
 		if ( ! empty( $tags ) ) {
-			$data['tags'] = wp_parse_id_list( $tags );
+			foreach ( wp_parse_id_list( $tags ) as $tag_id ) {
+				$tag_result = parent::tag_subscriber( (int) $tag_id, $subscriber_id );
+				if ( is_wp_error( $tag_result ) ) {
+					return $tag_result;
+				}
+			}
 		}
 
-		return $this->post( "forms/{$form_id}/subscribe", $data );
+		return $result;
 	}
 
 	/**
-	 * List subscriptions to a form
+	 * Validate email.
 	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#list-subscriptions-to-a-form
-	 *
-	 * @param integer $form_id          Form ID.
-	 * @param string  $sort_order       Sort Order (asc|desc).
-	 * @param string  $subscriber_state Subscriber State (active,cancelled).
-	 * @param integer $page             Page.
-	 *
-	 * @return array|\WP_Error The response or \WP_Error on failure.
+	 * @param string $email Email.
+	 * @return true|\WP_Error
 	 */
-	public function get_form_subscriptions(
-		int $form_id,
-		string $sort_order = 'asc',
-		string $subscriber_state = 'active',
-		int $page = 1
-	) {
-		return $this->get(
-			sprintf( 'forms/%s/subscriptions', $form_id ),
-			array(
-				'api_secret'       => $this->api_secret,
-				'sort_order'       => $sort_order,
-				'subscriber_state' => $subscriber_state,
-				'page'             => $page,
-			)
-		);
-	}
-
-	/**
-	 * Subscribe to a tag.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#subscribe-to-tag
-	 *
-	 * @param int    $tag_id Tag ID.
-	 * @param string $email  Email address.
-	 * @param string $first_name First name of the subscriber.
-	 * @param array  $fields Custom fields as key/value pairs. Fields must exist in Kit.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function tag_subscriber(
-		int $tag_id,
-		string $email,
-		string $first_name = '',
-		array $fields = array()
-	) {
-		$validate = $this->validate_subscriber_request( $email );
-		if ( is_wp_error( $validate ) ) {
-			return $validate;
+	private function validate_email( string $email ) {
+		if ( empty( $email ) ) {
+			return new \WP_Error( self::ERROR_NO_EMAIL, esc_html__( 'Email address is required.', 'glue-link' ) );
 		}
 
-		$data = array(
-			'api_secret' => $this->api_secret,
-			'email'      => $email,
-		);
-
-		if ( ! empty( $first_name ) ) {
-			$data['first_name'] = $first_name;
+		if ( ! is_email( $email ) ) {
+			return new \WP_Error( self::ERROR_NO_EMAIL, sprintf( esc_html__( 'Invalid email address format: %s', 'glue-link' ), $email ) );
 		}
 
-		if ( ! empty( $fields ) ) {
-			$data['fields'] = $fields;
-		}
-
-		return $this->post( "tags/{$tag_id}/subscribe", $data );
-	}
-
-	/**
-	 * Remove a tag from a subscriber.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/v3#remove-tag-from-subscriber
-	 *
-	 * @param int $tag_id Tag ID.
-	 * @param int $subscriber_id Subscriber ID.
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function remove_tag_from_subscriber( int $tag_id, int $subscriber_id ) {
-		return $this->delete(
-			sprintf( 'subscribers/%s/tags/%s', $subscriber_id, $tag_id ),
-			array(
-				'api_secret' => $this->api_secret,
-			)
-		);
-	}
-
-	/**
-	 * Removes a tag from a subscriber by email address.
-	 *
-	 * @param integer $tag_id Tag ID.
-	 * @param string  $email  Subscriber email address.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @see https://developers.convertkit.com/#remove-tag-from-a-subscriber-by-email
-	 *
-	 * @return array|\WP_Error The response or \WP_Error on failure.
-	 */
-	public function remove_tag_from_subscriber_by_email( int $tag_id, string $email ) {
-		return $this->post(
-			sprintf( 'tags/%s/unsubscribe', $tag_id ),
-			array(
-				'api_secret' => $this->api_secret,
-				'email'      => $email,
-			)
-		);
+		return true;
 	}
 }

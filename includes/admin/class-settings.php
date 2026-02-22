@@ -2,7 +2,6 @@
 /**
  * Register Settings.
  *
- * @link  https://webberzone.com
  * @since 1.0.0
  *
  * @package WebberZone\Glue_Link\Admin
@@ -21,7 +20,6 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Class to register the settings.
  *
- * @version 2.5.1
  * @since 1.0.0
  */
 class Settings {
@@ -71,6 +69,7 @@ class Settings {
 		$this->settings_key = 'glue_link_settings';
 		self::$prefix       = 'glue_link';
 		$this->menu_slug    = 'glue_link_options_page';
+		new Kit_OAuth( $this->menu_slug );
 
 		$this->register_hooks();
 	}
@@ -87,14 +86,12 @@ class Settings {
 		add_filter( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ), 99 );
 
 		// Add filters for settings page customization.
-		add_filter( self::$prefix . '_setting_field_description', array( $this, 'add_api_validation_button' ), 10, 2 );
+		add_filter( self::$prefix . '_after_setting_output', array( $this, 'add_connection_test_button' ), 10, 2 );
 		add_filter( self::$prefix . '_settings_form_buttons', array( $this, 'add_cache_clear_button' ), 10 );
 		add_filter( self::$prefix . '_settings_sanitize', array( $this, 'change_settings_on_save' ), 99 );
-		add_action( self::$prefix . '_settings_page_header', array( $this, 'add_subscribers_link' ) );
 
-		// Add AJAX handlers for Kit API validation, forms, and tags search.
-		add_action( 'wp_ajax_' . self::$prefix . '_validate_api', array( $this, 'ajax_validate_api' ) );
-		add_action( 'wp_ajax_' . self::$prefix . '_validate_api_secret', array( $this, 'ajax_validate_api_secret' ) );
+		// Add AJAX handlers for Kit resources and connection testing.
+		add_action( 'wp_ajax_' . self::$prefix . '_test_kit_connection', array( $this, 'ajax_test_kit_connection' ) );
 		add_action( 'wp_ajax_' . self::$prefix . '_refresh_lists', array( $this, 'ajax_refresh_lists' ) );
 		add_action( 'wp_ajax_' . self::$prefix . '_kit_search', array( $this, 'handle_kit_search' ) );
 	}
@@ -144,7 +141,9 @@ class Settings {
 		 *
 		 * @param array $settings_sections Settings array
 		 */
-		return apply_filters( 'glue_link_settings_sections', $settings_sections );
+		$settings_sections = apply_filters( 'glue_link_settings_sections', $settings_sections );
+
+		return $settings_sections;
 	}
 
 	/**
@@ -203,6 +202,12 @@ class Settings {
 	 * @return array Settings array
 	 */
 	public static function get_registered_settings(): array {
+		static $running = false;
+		if ( $running ) {
+			return array();
+		}
+		$running = true;
+
 		$settings = array();
 		$sections = self::get_settings_sections();
 
@@ -220,7 +225,10 @@ class Settings {
 		 *
 		 * @param array $glue_link_setings Settings array
 		 */
-		return apply_filters( self::$prefix . '_registered_settings', $settings );
+		$settings = apply_filters( self::$prefix . '_registered_settings', $settings );
+		$running  = false;
+
+		return $settings;
 	}
 
 	/**
@@ -307,6 +315,16 @@ class Settings {
 						'field_attributes' => self::get_kit_search_field_attributes( 'forms' ),
 					),
 					array(
+						'id'               => 'free_event_types',
+						'name'             => __( 'Free Trigger Events', 'glue-link' ),
+						'desc'             => __( 'Choose Freemius webhook event(s) that should add users to the Free form/tag mapping.', 'glue-link' ),
+						'type'             => 'text',
+						'default'          => 'install.installed,install.activated',
+						'size'             => 'large',
+						'field_class'      => 'ts_autocomplete',
+						'field_attributes' => self::get_kit_search_field_attributes( 'freemius_events', array( 'create' => true ) ),
+					),
+					array(
 						'id'               => 'free_tag_ids',
 						'name'             => __( 'Free Tag', 'glue-link' ),
 						'desc'             => __( 'Optionally, choose the tag(s) for free subscribers. Begin typing to search.', 'glue-link' ),
@@ -325,6 +343,16 @@ class Settings {
 						'size'             => 'large',
 						'field_class'      => 'ts_autocomplete',
 						'field_attributes' => self::get_kit_search_field_attributes( 'forms' ),
+					),
+					array(
+						'id'               => 'paid_event_types',
+						'name'             => __( 'Paid Trigger Events', 'glue-link' ),
+						'desc'             => __( 'Choose Freemius webhook event(s) that should add users to the Paid form/tag mapping.', 'glue-link' ),
+						'type'             => 'text',
+						'default'          => 'license.created,subscription.created,payment.created',
+						'size'             => 'large',
+						'field_class'      => 'ts_autocomplete',
+						'field_attributes' => self::get_kit_search_field_attributes( 'freemius_events', array( 'create' => true ) ),
 					),
 					array(
 						'id'               => 'paid_tag_ids',
@@ -359,32 +387,19 @@ class Settings {
 	 */
 	public static function settings_kit(): array {
 		$settings = array(
-			'kit'            => array(
+			'kit'              => array(
 				'id'   => 'kit',
 				'name' => __( 'Kit', 'glue-link' ),
-				'desc' => __( 'Enter your Kit settings in this tab. This section allows you to configure the necessary API credentials and default settings for integrating with the Kit platform. Ensure that you fill in all required fields and save the changes for them to take effect.', 'glue-link' ),
+				'desc' => __( 'Connect to Kit using OAuth (API v4)', 'glue-link' ),
 				'type' => 'header',
 			),
-			'kit_api_key'    => array(
-				'id'       => 'kit_api_key',
-				'name'     => __( 'API Key', 'glue-link' ),
-				/* translators: 1: Kit account link's opening anchor tag, 2: Kit account link's closing anchor tag. */
-				'desc'     => sprintf( __( 'Enter your Kit API key. Get your API key from your %1$sKit account%2$s.', 'glue-link' ), '<a href="https://app.kit.com/account_settings/developer_settings" target="_blank">', '</a>' ),
-				'type'     => 'text',
-				'default'  => '',
-				'size'     => 'large',
-				'required' => true,
+			'kit_oauth_status' => array(
+				'id'   => 'kit_oauth_status',
+				'name' => __( 'Connection', 'glue-link' ),
+				'desc' => Kit_OAuth::get_status_html( 'glue_link_options_page' ),
+				'type' => 'header',
 			),
-			'kit_api_secret' => array(
-				'id'       => 'kit_api_secret',
-				'name'     => __( 'API Secret', 'glue-link' ),
-				'desc'     => __( 'Enter your Kit API secret. Once saved, this will be securely stored and masked.', 'glue-link' ),
-				'type'     => 'sensitive',
-				'default'  => '',
-				'size'     => 'large',
-				'required' => true,
-			),
-			'kit_form_id'    => array(
+			'kit_form_id'      => array(
 				'id'               => 'kit_form_id',
 				'name'             => __( 'Global Form ID', 'glue-link' ),
 				'desc'             => __( 'Select the Kit form to add subscribers to. Start typing to search. This is used if the form ID is not set for a specific plugin.', 'glue-link' ),
@@ -394,7 +409,7 @@ class Settings {
 				'field_class'      => 'ts_autocomplete',
 				'field_attributes' => self::get_kit_search_field_attributes( 'forms' ),
 			),
-			'kit_tag_id'     => array(
+			'kit_tag_id'       => array(
 				'id'               => 'kit_tag_id',
 				'name'             => __( 'Tag ID', 'glue-link' ),
 				'desc'             => __( 'Select the Kit tag to apply (optional). Start typing to search. This is used if the tag ID is not set for a specific plugin.', 'glue-link' ),
@@ -456,11 +471,13 @@ class Settings {
 						'default' => '',
 					),
 					array(
-						'id'      => 'remote_name',
-						'name'    => __( 'Field name on Kit', 'glue-link' ),
-						'desc'    => __( 'Enter the name of your custom field that is used on the Kit.', 'glue-link' ),
-						'type'    => 'text',
-						'default' => '',
+						'id'               => 'remote_name',
+						'name'             => __( 'Field name on Kit', 'glue-link' ),
+						'desc'             => __( 'Enter the name of your custom field that is used on the Kit.', 'glue-link' ),
+						'type'             => 'text',
+						'default'          => '',
+						'field_class'      => 'ts_autocomplete',
+						'field_attributes' => self::get_kit_search_field_attributes( 'custom_fields', array( 'maxItems' => 1 ) ),
 					),
 				),
 			),
@@ -481,7 +498,7 @@ class Settings {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param string $endpoint   The endpoint to search ('forms', 'tags', 'custom_fields').
+	 * @param string $endpoint   The endpoint to search ('forms', 'tags', 'custom_fields', 'freemius_events').
 	 * @param array  $ts_config  Optional TypeScript configuration.
 	 * @return array Field attributes array
 	 */
@@ -577,7 +594,7 @@ class Settings {
 				'id'      => 'glue_link-settings-kit-help',
 				'title'   => esc_html__( 'Kit', 'glue-link' ),
 				'content' =>
-				'<p><strong>' . esc_html__( 'This tab provides the settings for configuring the integration with Kit. Add your API key.', 'glue-link' ) . '</strong></p>' .
+				'<p><strong>' . esc_html__( 'This tab provides the settings for configuring the integration with Kit. OAuth (API v4) is recommended; API key/secret can be used as fallback.', 'glue-link' ) . '</strong></p>' .
 					'<p>' . esc_html__( 'You must click the Save Changes button at the bottom of the screen for new settings to take effect.', 'glue-link' ) . '</p>',
 			),
 		);
@@ -643,30 +660,32 @@ class Settings {
 				'ajax_url'      => admin_url( 'admin-ajax.php' ),
 				'nonce'         => wp_create_nonce( self::$prefix . '_admin_nonce' ),
 				'strings'       => array(
-					'cache_cleared' => esc_html__( 'Cache cleared successfully!', 'glue-link' ),
-					'cache_error'   => esc_html__( 'Error clearing cache: ', 'glue-link' ),
+					'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'glue-link' ),
+					'cache_error'          => esc_html__( 'Error clearing cache: ', 'glue-link' ),
+					'api_validation_error' => esc_html__( 'Error validating API credentials.', 'glue-link' ),
 				),
 			)
 		);
 
 		// Tom Select variables.
-		wp_localize_script(
-			'wz-' . self::$prefix . '-tom-select-init',
-			'GlueLinkTomSelectSettings',
-			array(
-				'prefix'        => 'GlueLink',
-				'nonce'         => wp_create_nonce( self::$prefix . '_kit_search' ),
-				'action'        => self::$prefix . '_kit_search',
-				'endpoint'      => '',
-				'forms'         => $this->get_kit_forms(),
-				'tags'          => $this->get_kit_tags(),
-				'custom_fields' => $this->get_kit_custom_fields(),
-				'strings'       => array(
-					/* translators: %s: search term */
-					'no_results' => esc_html__( 'No results found for %s', 'glue-link' ),
-				),
-			)
-		);
+			wp_localize_script(
+				'wz-' . self::$prefix . '-tom-select-init',
+				'GlueLinkTomSelectSettings',
+				array(
+					'prefix'          => 'GlueLink',
+					'nonce'           => wp_create_nonce( self::$prefix . '_kit_search' ),
+					'action'          => self::$prefix . '_kit_search',
+					'endpoint'        => '',
+					'forms'           => $this->get_localized_kit_data( 'forms' ),
+					'tags'            => $this->get_localized_kit_data( 'tags' ),
+					'custom_fields'   => $this->get_localized_kit_data( 'custom_fields' ),
+					'freemius_events' => $this->get_localized_kit_data( 'freemius_events' ),
+					'strings'         => array(
+						/* translators: %s: search term */
+						'no_results' => esc_html__( 'No results found for %s', 'glue-link' ),
+					),
+				)
+			);
 	}
 
 	/**
@@ -706,7 +725,7 @@ class Settings {
 	 * @since 1.0.0
 	 */
 	public function handle_kit_search() {
-		if ( ! isset( $_GET['endpoint'] ) || ! isset( $_GET['nonce'] ) ) {
+		if ( ! isset( $_REQUEST['endpoint'] ) || ! isset( $_REQUEST['nonce'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			wp_send_json_error(
 				(object) array(
 					'message' => __( 'Invalid request parameters', 'glue-link' ),
@@ -716,9 +735,13 @@ class Settings {
 		}
 
 		// Tom Select endpoint.
-		$endpoint = sanitize_text_field( wp_unslash( $_GET['endpoint'] ) );
+		$endpoint = sanitize_text_field( wp_unslash( $_REQUEST['endpoint'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$nonce    = self::$prefix . '_kit_search';
-		$query    = isset( $_GET['query'] ) ? sanitize_text_field( wp_unslash( $_GET['query'] ) ) : '';
+		$query    = isset( $_REQUEST['q'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		? sanitize_text_field( wp_unslash( $_REQUEST['q'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		: ( isset( $_REQUEST['query'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			? sanitize_text_field( wp_unslash( $_REQUEST['query'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			: '' );
 
 		check_ajax_referer( $nonce, 'nonce' );
 
@@ -744,9 +767,21 @@ class Settings {
 				case 'custom_fields':
 					$data = $this->get_kit_custom_fields( $query );
 					break;
+				case 'freemius_events':
+					$data = $this->get_freemius_events( $query );
+					break;
 				default:
 					$data = array();
 					break;
+			}
+
+			if ( is_wp_error( $data ) ) {
+				wp_send_json_error(
+					array(
+						'message' => $data->get_error_message(),
+						'items'   => array(),
+					)
+				);
 			}
 
 			foreach ( $data as $entry ) {
@@ -781,7 +816,6 @@ class Settings {
 	public function ajax_refresh_lists() {
 		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
 
-		// Delete both transients.
 		foreach ( array( 'forms', 'tags', 'sequences', 'custom_fields' ) as $transient ) {
 			delete_transient( 'glue_link_kit_' . $transient );
 		}
@@ -808,7 +842,7 @@ class Settings {
 			wp_send_json_error( (object) array( 'message' => esc_html__( 'API key is empty.', 'glue-link' ) ) );
 		}
 
-		$api    = new \WebberZone\Glue_Link\Kit_API( $api_key );
+		$api    = new \WebberZone\Glue_Link\Kit_API();
 		$result = $api->validate_api_credentials();
 
 		if ( is_wp_error( $result ) ) {
@@ -849,7 +883,7 @@ class Settings {
 			$api_secret = Options_API::decrypt_api_key( Options_API::get_option( 'kit_api_secret' ) );
 		}
 
-		$api    = new \WebberZone\Glue_Link\Kit_API( '', $api_secret );
+		$api    = new \WebberZone\Glue_Link\Kit_API();
 		$result = $api->get_account();
 
 		if ( is_wp_error( $result ) ) {
@@ -857,6 +891,38 @@ class Settings {
 		}
 
 		wp_send_json_success( (object) array( 'message' => esc_html__( 'API secret is valid!', 'glue-link' ) ) );
+	}
+
+	/**
+	 * AJAX handler to test Kit connection.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
+	public function ajax_test_kit_connection() {
+		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'glue-link' ) ) );
+		}
+
+		$api    = new \WebberZone\Glue_Link\Kit_API();
+		$result = $api->get_account();
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( (object) array( 'message' => $result->get_error_message() ) );
+		}
+
+		$account_name = isset( $result['account']['name'] ) ? sanitize_text_field( (string) $result['account']['name'] ) : '';
+		$message      = $account_name
+			? sprintf(
+				/* translators: %s: Kit account name. */
+				esc_html__( 'Connection successful. Account: %s', 'glue-link' ),
+				$account_name
+			)
+			: esc_html__( 'Connection successful.', 'glue-link' );
+
+		wp_send_json_success( (object) array( 'message' => $message ) );
 	}
 
 	/**
@@ -874,6 +940,11 @@ class Settings {
 
 		if ( false === $items ) {
 			$api = new \WebberZone\Glue_Link\Kit_API();
+			$has = $api->validate_api_credentials();
+
+			if ( is_wp_error( $has ) ) {
+				return $has;
+			}
 
 			switch ( $type ) {
 				case 'forms':
@@ -895,7 +966,15 @@ class Settings {
 			}
 
 			// Extract items from the appropriate key in response.
-			$items = isset( $response[ $type ] ) ? $response[ $type ] : array();
+			if ( isset( $response[ $type ] ) && is_array( $response[ $type ] ) ) {
+				$items = $response[ $type ];
+			} elseif ( isset( $response['data'] ) && is_array( $response['data'] ) ) {
+				$items = $response['data'];
+			} else {
+				$items = array();
+			}
+
+			$items = $this->normalize_kit_items( $items, $type );
 
 			if ( ! empty( $items ) ) {
 				set_transient( $transient_key, $items, DAY_IN_SECONDS );
@@ -918,12 +997,139 @@ class Settings {
 	}
 
 	/**
+	 * Return Kit data for script localization.
+	 *
+	 * @param string $type Resource type.
+	 * @return array
+	 */
+	private function get_localized_kit_data( string $type ): array {
+		if ( 'freemius_events' === $type ) {
+			return $this->get_freemius_events();
+		}
+
+		$data = $this->get_kit_data( $type );
+		return is_wp_error( $data ) ? array() : $data;
+	}
+
+	/**
+	 * Return Freemius event choices for selectors.
+	 *
+	 * @param string $search Optional search text.
+	 * @return array<int,array<string,string>>
+	 */
+	private function get_freemius_events( string $search = '' ): array {
+		$events = array(
+			'install.installed',
+			'install.activated',
+			'install.premium.activated',
+			'install.connected',
+			'install.disconnected',
+			'install.trial.started',
+			'install.trial.extended',
+			'install.trial.cancelled',
+			'install.trial.expired',
+			'install.updated',
+			'license.created',
+			'license.activated',
+			'license.updated',
+			'license.extended',
+			'license.shortened',
+			'license.expired',
+			'license.cancelled',
+			'license.deactivated',
+			'license.deleted',
+			'license.ownership.changed',
+			'license.quota.changed',
+			'subscription.created',
+			'subscription.cancelled',
+			'subscription.renewal.retry',
+			'subscription.renewal.failed',
+			'subscription.renewal.failed.last',
+			'payment.created',
+			'payment.refund',
+			'payment.dispute.created',
+			'payment.dispute.closed',
+			'payment.dispute.lost',
+			'payment.dispute.won',
+			'cart.completed',
+			'plan.lifetime.purchase',
+		);
+
+		$items = array_map(
+			static function ( string $event ): array {
+				return array(
+					'id'   => $event,
+					'name' => $event,
+				);
+			},
+			$events
+		);
+
+		if ( '' !== $search ) {
+			$query = strtolower( trim( $search ) );
+			$items = array_values(
+				array_filter(
+					$items,
+					static function ( array $item ) use ( $query ): bool {
+						$needle = strtolower( $item['id'] . ' ' . $item['name'] );
+						return false !== strpos( $needle, $query );
+					}
+				)
+			);
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Normalize Kit API resource items into id/name pairs.
+	 *
+	 * @param array  $items Raw items.
+	 * @param string $type  Resource type.
+	 * @return array
+	 */
+	private function normalize_kit_items( array $items, string $type ): array {
+		$normalized = array();
+
+		foreach ( $items as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+
+			$id = isset( $item['id'] ) ? (string) $item['id'] : ( isset( $item['key'] ) ? (string) $item['key'] : '' );
+			if ( '' === $id ) {
+				continue;
+			}
+
+			$name = '';
+			if ( isset( $item['name'] ) ) {
+				$name = (string) $item['name'];
+			} elseif ( isset( $item['label'] ) ) {
+				$name = (string) $item['label'];
+			} elseif ( 'custom_fields' === $type && isset( $item['key'] ) ) {
+				$name = (string) $item['key'];
+			}
+
+			if ( '' === $name ) {
+				$name = $id;
+			}
+
+			$normalized[] = array(
+				'id'   => $id,
+				'name' => $name,
+			);
+		}
+
+		return $normalized;
+	}
+
+	/**
 	 * Get Kit forms, optionally filtered by search term.
 	 *
 	 * @since 1.0.0
 	 *
 	 * @param string $search Optional search term.
-	 * @return array Array of forms.
+	 * @return array|\WP_Error Array of forms.
 	 */
 	private function get_kit_forms( $search = '' ) {
 		return $this->get_kit_data( 'forms', $search );
@@ -935,7 +1141,7 @@ class Settings {
 	 * @since 1.0.0
 	 *
 	 * @param string $search Optional search term.
-	 * @return array Array of tags.
+	 * @return array|\WP_Error Array of tags.
 	 */
 	private function get_kit_tags( $search = '' ) {
 		return $this->get_kit_data( 'tags', $search );
@@ -947,7 +1153,7 @@ class Settings {
 	 * @since 1.0.0
 	 *
 	 * @param string $search Optional search term.
-	 * @return array Array of custom fields.
+	 * @return array|\WP_Error Array of custom fields.
 	 */
 	private function get_kit_custom_fields( $search = '' ) {
 		return $this->get_kit_data( 'custom_fields', $search );
@@ -976,6 +1182,26 @@ class Settings {
 	}
 
 	/**
+	 * Add a "Test Connection" button after the OAuth connection output.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $html Field output HTML.
+	 * @param array  $args Field arguments.
+	 * @return string
+	 */
+	public function add_connection_test_button( string $html, array $args ): string {
+		if ( ! isset( $args['id'] ) || 'kit_oauth_status' !== $args['id'] ) {
+			return $html;
+		}
+
+		$html .= '<p><button type="button" class="button button-secondary test-kit-connection">' . esc_html__( 'Test Connection', 'glue-link' ) . '</button>';
+		$html .= '<span class="kit-connection-status" style="margin-left: 10px;"></span></p>';
+
+		return $html;
+	}
+
+	/**
 	 * Get settings defaults.
 	 *
 	 * @since 1.0.0
@@ -983,6 +1209,12 @@ class Settings {
 	 * @return array Default settings.
 	 */
 	public static function settings_defaults() {
+		static $running = false;
+		if ( $running ) {
+			return array();
+		}
+		$running = true;
+
 		$defaults = array();
 
 		// Get all registered settings.
@@ -1014,7 +1246,10 @@ class Settings {
 		 *
 		 * @param array $defaults Default settings.
 		 */
-		return apply_filters( self::$prefix . '_settings_defaults', $defaults );
+		$defaults = apply_filters( self::$prefix . '_settings_defaults', $defaults );
+		$running  = false;
+
+		return $defaults;
 	}
 
 	/**
@@ -1057,7 +1292,9 @@ class Settings {
 	 * @return string The webhook URL.
 	 */
 	private static function get_webhook_url(): string {
-		$endpoint_type = Options_API::get_option( 'webhook_endpoint_type', 'rest' );
+		// Avoid recursive defaults resolution while settings are being registered.
+		$settings      = get_option( Options_API::SETTINGS_OPTION, array() );
+		$endpoint_type = isset( $settings['webhook_endpoint_type'] ) ? (string) $settings['webhook_endpoint_type'] : 'rest';
 
 		if ( 'rest' === $endpoint_type ) {
 			$webhook_url = home_url( '/wp-json/glue-link/v1/webhook' );

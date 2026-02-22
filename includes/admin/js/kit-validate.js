@@ -43,7 +43,7 @@ jQuery(document).ready(function ($) {
 				}
 			},
 			error: function () {
-				$status.html('<span style="color: #a60000;">' + glue_link_admin.strings.api_validation_error + '</span>');
+				$status.html('<span style="color: #a60000;">' + GlueLinkAdmin.strings.api_validation_error + '</span>');
 			},
 			complete: function () {
 				config.$button.prop('disabled', false);
@@ -68,6 +68,38 @@ jQuery(document).ready(function ($) {
 			fieldName: 'kit_api_secret',
 			action: 'glue_link_validate_api_secret',
 			$button: $(this)
+		});
+	});
+
+	// Handle connection test.
+	$('.test-kit-connection').on('click', function (e) {
+		e.preventDefault();
+		var $button = $(this);
+		var $status = $button.siblings('.kit-connection-status');
+
+		$button.prop('disabled', true);
+		$status.html('<span class="spinner is-active" style="float: none; margin: 0;"></span>');
+
+		$.ajax({
+			url: ajaxurl,
+			type: 'POST',
+			data: {
+				action: 'glue_link_test_kit_connection',
+				nonce: GlueLinkAdmin.nonce
+			},
+			success: function (response) {
+				if (response.success) {
+					$status.html('<span style="color: green;">' + response.data.message + '</span>');
+				} else {
+					$status.html('<span style="color: #a60000;">' + response.data.message + '</span>');
+				}
+			},
+			error: function () {
+				$status.html('<span style="color: #a60000;">' + GlueLinkAdmin.strings.api_validation_error + '</span>');
+			},
+			complete: function () {
+				$button.prop('disabled', false);
+			}
 		});
 	});
 });

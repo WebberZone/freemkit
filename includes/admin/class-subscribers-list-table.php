@@ -312,7 +312,7 @@ class Subscribers_List_Table extends \WP_List_Table {
 	 *
 	 * @return \WP_Error|bool Response.
 	 */
-	public function process_bulk_action(): \WP_Error|bool {
+	public function process_bulk_action() {
 		$action = $this->current_action();
 
 		if ( empty( $action ) ) {

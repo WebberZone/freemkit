@@ -28,10 +28,12 @@ class Webhook_Handler {
 	 *         @type string $slug         Plugin slug.
 	 *         @type string $public_key   Public key for the plugin.
 	 *         @type string $secret_key   Secret key for the plugin.
-	 *         @type int    $free_form_ids Form ID for free subscribers.
-	 *         @type int    $free_tag_ids  Tag ID for free subscribers.
-	 *         @type int    $paid_form_ids Form ID for paid subscribers.
-	 *         @type int    $paid_tag_ids  Tag ID for paid subscribers.
+	 *         @type int    $free_form_ids     Form ID for free subscribers.
+	 *         @type int    $free_tag_ids      Tag ID for free subscribers.
+	 *         @type string $free_event_types  Comma-separated webhook events for free mapping.
+	 *         @type int    $paid_form_ids     Form ID for paid subscribers.
+	 *         @type int    $paid_tag_ids      Tag ID for paid subscribers.
+	 *         @type string $paid_event_types  Comma-separated webhook events for paid mapping.
 	 *     }
 	 * }
 	 */
@@ -65,10 +67,12 @@ class Webhook_Handler {
 	 *         @type string $slug         Plugin slug.
 	 *         @type string $public_key   Public key for the plugin.
 	 *         @type string $secret_key   Secret key for the plugin.
-	 *         @type int    $free_form_ids Form ID for free subscribers.
-	 *         @type int    $free_tag_ids  Tag ID for free subscribers.
-	 *         @type int    $paid_form_ids Form ID for paid subscribers.
-	 *         @type int    $paid_tag_ids  Tag ID for paid subscribers.
+	 *         @type int    $free_form_ids     Form ID for free subscribers.
+	 *         @type int    $free_tag_ids      Tag ID for free subscribers.
+	 *         @type string $free_event_types  Comma-separated webhook events for free mapping.
+	 *         @type int    $paid_form_ids     Form ID for paid subscribers.
+	 *         @type int    $paid_tag_ids      Tag ID for paid subscribers.
+	 *         @type string $paid_event_types  Comma-separated webhook events for paid mapping.
 	 *     }
 	 * }
 	 * @param Kit_API  $api      ConvertKit API instance.
@@ -180,69 +184,40 @@ class Webhook_Handler {
 			}
 		}
 
-		// Select the form ID.
+		// Resolve form/tag IDs with fallback to global settings when plugin-level values are empty.
 		$forms         = array();
-		$kit_form_id   = Options_API::get_option( 'kit_form_id' );
 		$plugin_config = $this->plugin_configs[ $plugin_id ];
-		$free_form_ids = $plugin_config['free_form_ids'] ?? $kit_form_id;
-		$free_form_ids = wp_parse_list( $free_form_ids );
-		$paid_form_ids = $plugin_config['paid_form_ids'] ?? $kit_form_id;
-		$paid_form_ids = wp_parse_list( $paid_form_ids );
+		$kit_form_id   = Options_API::get_option( 'kit_form_id' );
+		$kit_tag_id    = Options_API::get_option( 'kit_tag_id' );
+
+		$free_form_ids    = $this->resolve_list_config( $plugin_config, 'free_form_ids', $kit_form_id );
+		$paid_form_ids    = $this->resolve_list_config( $plugin_config, 'paid_form_ids', $kit_form_id );
+		$free_tag_ids     = $this->resolve_list_config( $plugin_config, 'free_tag_ids', $kit_tag_id );
+		$paid_tag_ids     = $this->resolve_list_config( $plugin_config, 'paid_tag_ids', $kit_tag_id );
+		$free_event_types = $this->resolve_list_config( $plugin_config, 'free_event_types', '', array( 'install.installed', 'install.activated' ) );
+		$paid_event_types = $this->resolve_list_config( $plugin_config, 'paid_event_types', '', array( 'license.created', 'subscription.created', 'payment.created' ) );
 
 		// Check if type property exists.
 		if ( ! isset( $fs_event->type ) ) {
 			return new \WP_Error( 'invalid_event', 'Missing event type in request.' );
 		}
 
-		// Handle different event types.
-		switch ( $fs_event->type ) {
-			case 'install.installed':
-				// Subscribe to free form/sequence.
-				$api_result = null;
-				foreach ( $free_form_ids as $free_form_id ) {
-					if ( empty( $free_form_id ) ) {
-						continue;
-					}
-					$api_result = $this->api->subscribe_to_form(
-						(int) $free_form_id,
-						$email,
-						$first_name,
-						$fields
-					);
-					if ( is_wp_error( $api_result ) ) {
-						break;
-					}
-				}
-				break;
+		$event_type = (string) $fs_event->type;
+		$api_result = null;
 
-			case 'license.created':
-				// Subscribe to paid form/sequence.
-				$api_result = null;
-				foreach ( $paid_form_ids as $paid_form_id ) {
-					if ( empty( $paid_form_id ) ) {
-						continue;
-					}
-					$api_result = $this->api->subscribe_to_form(
-						(int) $paid_form_id,
-						$email,
-						$first_name,
-						$fields
-					);
-					if ( is_wp_error( $api_result ) ) {
-						break;
-					}
-				}
-				break;
-
-			default:
-				return new \WP_Error( 'event_not_handled', 'Event type not handled.' );
+		if ( in_array( $event_type, $free_event_types, true ) ) {
+			$api_result = $this->subscribe_to_forms( $free_form_ids, $email, $first_name, $fields, $free_tag_ids );
+		} elseif ( in_array( $event_type, $paid_event_types, true ) ) {
+			$api_result = $this->subscribe_to_forms( $paid_form_ids, $email, $first_name, $fields, $paid_tag_ids );
+		} else {
+			return new \WP_Error( 'event_not_handled', 'Event type not handled.' );
 		}
 
 		if ( isset( $api_result ) && is_wp_error( $api_result ) ) {
 			// Log the error using WordPress debug log if enabled.
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[Glue Link] ConvertKit API Error: %s', $api_result->get_error_message() ) );
+				error_log( sprintf( '[Glue Link] Kit API Error: %s', $api_result->get_error_message() ) );
 			}
 			return new \WP_Error( 'api_error', 'Processed with API errors' );
 		}
@@ -260,6 +235,10 @@ class Webhook_Handler {
 				'forms'      => array(
 					'free' => $free_form_ids,
 					'paid' => $paid_form_ids,
+				),
+				'tags'       => array(
+					'free' => $free_tag_ids,
+					'paid' => $paid_tag_ids,
 				),
 			)
 		);
@@ -285,6 +264,60 @@ class Webhook_Handler {
 			'status'  => 'success',
 			'message' => 'Webhook processed successfully',
 		);
+	}
+
+	/**
+	 * Resolve a plugin configuration list with optional fallback and defaults.
+	 *
+	 * @param array              $plugin_config Plugin configuration.
+	 * @param string             $key           Setting key.
+	 * @param string|array|mixed $fallback      Fallback source value.
+	 * @param array              $defaults      Default list when everything else is empty.
+	 * @return array
+	 */
+	private function resolve_list_config( array $plugin_config, string $key, $fallback = '', array $defaults = array() ): array {
+		$list = wp_parse_list( $plugin_config[ $key ] ?? '' );
+		if ( empty( $list ) ) {
+			$list = wp_parse_list( $fallback );
+		}
+		if ( empty( $list ) && ! empty( $defaults ) ) {
+			$list = wp_parse_list( $defaults );
+		}
+
+		return $list;
+	}
+
+	/**
+	 * Subscribe a user to each form in a list with optional tags.
+	 *
+	 * @param array  $form_ids   Form IDs.
+	 * @param string $email      Subscriber email.
+	 * @param string $first_name Subscriber first name.
+	 * @param array  $fields     Custom fields.
+	 * @param array  $tag_ids    Tag IDs.
+	 * @return array|\WP_Error|null
+	 */
+	private function subscribe_to_forms( array $form_ids, string $email, string $first_name, array $fields, array $tag_ids ) {
+		$result = null;
+
+		foreach ( $form_ids as $form_id ) {
+			if ( empty( $form_id ) ) {
+				continue;
+			}
+
+			$result = $this->api->subscribe_to_form(
+				(int) $form_id,
+				$email,
+				$first_name,
+				$fields,
+				$tag_ids
+			);
+			if ( is_wp_error( $result ) ) {
+				break;
+			}
+		}
+
+		return $result;
 	}
 
 	/**

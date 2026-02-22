@@ -868,18 +868,24 @@ class Settings_Form {
 			var index = <?php echo esc_js( (string) count( $value ) ); ?>;
 
 			// Add Item
-			wrapper.on('click', '.add-item', function() {
-				var template = wrapper.find('.repeater-template').html();
-				template = template.replace(/{{INDEX}}/g, index);
-				itemsContainer.append(template);
-				index++;
+				wrapper.on('click', '.add-item', function() {
+					var template = wrapper.find('.repeater-template').html();
+					template = template.replace(/{{INDEX}}/g, index);
+					itemsContainer.append(template);
+					index++;
+					var newItem = itemsContainer.find('.wz-repeater-item:last');
 
-				// Ensure the toggle icon for the new item is set to the collapsed state (▲)
-				itemsContainer.find('.repeater-item-header:last .toggle-icon').text('▲');
+					// Ensure the toggle icon for the new item is set to the collapsed state (▲)
+					itemsContainer.find('.repeater-item-header:last .toggle-icon').text('▲');
 
-				// Ensure that .repeater-item-content is set to display:block
-				itemsContainer.find('.repeater-item-content:last').css('display', 'block');
-			});
+					// Ensure that .repeater-item-content is set to display:block
+					itemsContainer.find('.repeater-item-content:last').css('display', 'block');
+
+					if (window.WZInitTomSelect) {
+						window.WZInitTomSelect(newItem.get(0));
+					}
+					document.dispatchEvent(new CustomEvent('wz:repeater-item-added', { detail: { container: newItem.get(0) } }));
+				});
 
 			// Remove Item
 			wrapper.on('click', '.remove-item', function() {

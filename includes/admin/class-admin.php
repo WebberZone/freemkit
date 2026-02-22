@@ -41,6 +41,22 @@ class Admin {
 	public $subscribers_list;
 
 	/**
+	 * Admin notices API object.
+	 *
+	 * @since 1.0.0
+	 * @var Admin_Notices_API|null
+	 */
+	public static ?Admin_Notices_API $notices_api = null;
+
+	/**
+	 * Admin banner API object.
+	 *
+	 * @since 1.0.0
+	 * @var Admin_Banner|null
+	 */
+	public ?Admin_Banner $admin_banner = null;
+
+	/**
 	 * Database instance.
 	 *
 	 * @since 1.0.0
@@ -56,7 +72,37 @@ class Admin {
 	 * @param Database $database Database instance.
 	 */
 	public function __construct( Database $database ) {
-		$this->database = $database;
+		$this->database     = $database;
+		self::$notices_api  = new Admin_Notices_API();
+		$this->admin_banner = new Admin_Banner(
+			array(
+				'capability' => 'manage_options',
+				'prefix'     => 'glue-link',
+				'strings'    => array(
+					'region_label' => __( 'Glue Link admin navigation', 'glue-link' ),
+					'nav_label'    => __( 'Glue Link sections', 'glue-link' ),
+					'eyebrow'      => __( 'WebberZone', 'glue-link' ),
+					'title'        => __( 'Glue for Freemius and Kit', 'glue-link' ),
+					'text'         => __( 'Manage integration settings and subscribers.', 'glue-link' ),
+				),
+				'sections'   => array(
+					'settings'    => array(
+						'label'      => __( 'Settings', 'glue-link' ),
+						'url'        => admin_url( 'options-general.php?page=glue_link_options_page' ),
+						'type'       => 'primary',
+						'page_slugs' => array( 'glue_link_options_page' ),
+						'screen_ids' => array( 'settings_page_glue_link_options_page' ),
+					),
+					'subscribers' => array(
+						'label'      => __( 'Subscribers', 'glue-link' ),
+						'url'        => admin_url( 'users.php?page=glue_link_subscribers' ),
+						'type'       => 'secondary',
+						'page_slugs' => array( 'glue_link_subscribers' ),
+						'screen_ids' => array( 'users_page_glue_link_subscribers' ),
+					),
+				),
+			)
+		);
 
 		// Initialize settings.
 		$this->settings = new Settings();
@@ -66,9 +112,6 @@ class Admin {
 
 		// Add admin menu.
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-
-		// Add admin notices.
-		add_action( 'admin_notices', array( $this, 'admin_notices' ) );
 	}
 
 	/**
@@ -83,34 +126,6 @@ class Admin {
 	}
 
 	/**
-	 * Display admin notices.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @return void
-	 */
-	public function admin_notices(): void {
-		// Get any stored notices.
-		$notices = get_transient( 'glue_link_admin_notices' );
-
-		if ( false === $notices ) {
-			return;
-		}
-
-		foreach ( $notices as $notice ) {
-			$notice_class = isset( $notice['class'] ) ? $notice['class'] : 'notice-info';
-			printf(
-				'<div class="notice %1$s is-dismissible"><p>%2$s</p></div>',
-				esc_attr( $notice_class ),
-				wp_kses_post( $notice['message'] )
-			);
-		}
-
-		// Clear the notices.
-		delete_transient( 'glue_link_admin_notices' );
-	}
-
-	/**
 	 * Add an admin notice.
 	 *
 	 * @since 1.0.0
@@ -120,15 +135,28 @@ class Admin {
 	 * @return void
 	 */
 	public static function add_notice( $message, $notice_class = 'notice-info' ): void {
-		$notices = get_transient( 'glue_link_admin_notices' );
-		if ( false === $notices ) {
-			$notices = array();
+		if ( ! self::$notices_api instanceof Admin_Notices_API ) {
+			self::$notices_api = new Admin_Notices_API();
 		}
-		$notices[] = array(
-			'message' => $message,
-			'class'   => $notice_class,
-		);
 
-		set_transient( 'glue_link_admin_notices', $notices, HOUR_IN_SECONDS );
+		$type = 'info';
+		if ( false !== strpos( (string) $notice_class, 'warning' ) ) {
+			$type = 'warning';
+		} elseif ( false !== strpos( (string) $notice_class, 'success' ) ) {
+			$type = 'success';
+		} elseif ( false !== strpos( (string) $notice_class, 'error' ) ) {
+			$type = 'error';
+		}
+
+		self::$notices_api->register_notice(
+			array(
+				'id'          => 'glue_link_' . md5( (string) $message . '|' . microtime( true ) ),
+				'message'     => '<p>' . wp_kses_post( (string) $message ) . '</p>',
+				'type'        => $type,
+				'dismissible' => true,
+				'screens'     => array(),
+				'capability'  => 'manage_options',
+			)
+		);
 	}
 }

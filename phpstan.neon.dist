@@ -5,6 +5,8 @@ parameters:
     scanFiles:
         - glue-link.php
         - uninstall.php
+        - vendor/convertkit/convertkit-wordpress-libraries/src/class-convertkit-api-traits.php
+        - vendor/convertkit/convertkit-wordpress-libraries/src/class-convertkit-api-v4.php
     scanDirectories:
         - includes
     paths:
