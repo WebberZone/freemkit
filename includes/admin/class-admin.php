@@ -41,6 +41,14 @@ class Admin {
 	public $subscribers_list;
 
 	/**
+	 * Settings wizard object.
+	 *
+	 * @since 1.0.0
+	 * @var Settings_Wizard|null
+	 */
+	public ?Settings_Wizard $settings_wizard = null;
+
+	/**
 	 * Admin notices API object.
 	 *
 	 * @since 1.0.0
@@ -93,6 +101,13 @@ class Admin {
 						'page_slugs' => array( 'glue_link_options_page' ),
 						'screen_ids' => array( 'settings_page_glue_link_options_page' ),
 					),
+					'wizard'      => array(
+						'label'      => __( 'Setup Wizard', 'glue-link' ),
+						'url'        => admin_url( 'options-general.php?page=glue_link_setup_wizard' ),
+						'type'       => 'secondary',
+						'page_slugs' => array( 'glue_link_setup_wizard' ),
+						'screen_ids' => array( 'settings_page_glue_link_setup_wizard' ),
+					),
 					'subscribers' => array(
 						'label'      => __( 'Subscribers', 'glue-link' ),
 						'url'        => admin_url( 'users.php?page=glue_link_subscribers' ),
@@ -106,6 +121,9 @@ class Admin {
 
 		// Initialize settings.
 		$this->settings = new Settings();
+
+		// Initialize setup wizard.
+		$this->settings_wizard = new Settings_Wizard();
 
 		// Initialize subscribers list.
 		$this->subscribers_list = new Subscribers_List( $database );

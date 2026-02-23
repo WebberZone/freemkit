@@ -116,5 +116,12 @@ class Runtime {
 				)
 			);
 		}
+
+		// Trigger setup wizard on next admin page load.
+		delete_option( 'glue_link_wizard_completed' );
+		delete_option( 'glue_link_wizard_completed_date' );
+		update_option( 'glue_link_wizard_current_step', 1 );
+		update_option( 'glue_link_show_wizard', true );
+		set_transient( 'glue_link_show_wizard_activation_redirect', true, HOUR_IN_SECONDS );
 	}
 }

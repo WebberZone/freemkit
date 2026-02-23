@@ -33,27 +33,17 @@ class Kit_Credential_Hooks {
 	}
 
 	/**
-	 * Delete OAuth credentials when an access token becomes invalid.
+	 * Legacy handler for invalid access tokens.
+	 *
+	 * Auto-disconnect is intentionally disabled. Credentials remain stored
+	 * until an administrator explicitly disconnects from Kit.
 	 *
 	 * @param \WP_Error $error     API error.
 	 * @param string    $client_id OAuth client ID.
 	 * @return void
 	 */
 	public function maybe_delete_credentials( $error, $client_id ): void {
-		if ( ! defined( 'GLUE_LINK_KIT_OAUTH_CLIENT_ID' ) || GLUE_LINK_KIT_OAUTH_CLIENT_ID !== $client_id ) {
-			return;
-		}
-
-		if ( ! $error instanceof \WP_Error ) {
-			return;
-		}
-
-		if ( (int) $error->get_error_data( 'api_error' ) !== 401 && (int) $error->get_error_data() !== 401 ) {
-			return;
-		}
-
-		$settings = new Kit_Settings();
-		$settings->delete_credentials();
+		unset( $error, $client_id );
 	}
 
 	/**

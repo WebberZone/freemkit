@@ -50,7 +50,14 @@
 
             const prefix = element.getAttribute('data-wp-prefix') || 'WZ';
             const settingsKey = `${prefix}TomSelectSettings`;
-            const settings = window[settingsKey] || WZTomSelectSettings;
+            const settings = window[settingsKey]
+                || window.WZTomSelectSettings
+                || window.glue_linkTomSelectSettings
+                || {};
+
+            if (!settings || typeof settings !== 'object') {
+                return;
+            }
 
             const action = element.getAttribute('data-wp-action') || settings.action;
             const nonce = element.getAttribute('data-wp-nonce') || settings.nonce;

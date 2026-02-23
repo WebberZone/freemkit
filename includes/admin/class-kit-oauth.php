@@ -84,16 +84,20 @@ class Kit_OAuth {
 	/**
 	 * Build HTML for OAuth connection status on settings screen.
 	 *
-	 * @param string $menu_slug Settings page slug.
+	 * @param string $menu_slug  Settings page slug.
+	 * @param array  $query_args Optional query args for OAuth callback and button URLs.
 	 * @return string
 	 */
-	public static function get_status_html( string $menu_slug ): string {
+	public static function get_status_html( string $menu_slug, array $query_args = array() ): string {
 		$api          = new Kit_API();
 		$settings     = new Kit_Settings();
 		$settings_url = add_query_arg(
-			array(
-				'page' => $menu_slug,
-				'tab'  => 'kit',
+			array_merge(
+				array(
+					'page' => $menu_slug,
+					'tab'  => 'kit',
+				),
+				$query_args
 			),
 			admin_url( 'admin.php' )
 		);
@@ -127,10 +131,9 @@ class Kit_OAuth {
 				);
 			}
 
-			$settings->delete_credentials();
-
 			return sprintf(
-				'<p>%1$s</p><p><a class="button button-primary" href="%2$s">%3$s</a></p>',
+				'<p>%1$s</p><p>%2$s</p><p><a class="button button-primary" href="%3$s">%4$s</a></p>',
+				esc_html__( 'Kit is connected, but we could not verify the account right now.', 'glue-link' ),
 				esc_html( $account->get_error_message() ),
 				esc_url( $oauth_url ),
 				esc_html__( 'Reconnect to Kit', 'glue-link' )
@@ -150,10 +153,13 @@ class Kit_OAuth {
 
 		$disconnect_url = wp_nonce_url(
 			add_query_arg(
-				array(
-					'page'                       => $menu_slug,
-					'tab'                        => 'kit',
-					'glue_link_oauth_disconnect' => 1,
+				array_merge(
+					array(
+						'page'                       => $menu_slug,
+						'tab'                        => 'kit',
+						'glue_link_oauth_disconnect' => 1,
+					),
+					$query_args
 				),
 				admin_url( 'admin.php' )
 			),
@@ -191,13 +197,20 @@ class Kit_OAuth {
 	 * @return string
 	 */
 	private function get_settings_url(): string {
-		return add_query_arg(
-			array(
-				'page' => $this->menu_slug,
-				'tab'  => 'kit',
-			),
-			admin_url( 'admin.php' )
+		$args = array(
+			'page' => $this->menu_slug,
+			'tab'  => 'kit',
 		);
+
+		// Preserve wizard step, if present, so OAuth callbacks return to the intended step.
+		if ( isset( $_GET['step'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$step = absint( wp_unslash( $_GET['step'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( $step > 0 ) {
+				$args['step'] = $step;
+			}
+		}
+
+		return add_query_arg( $args, admin_url( 'admin.php' ) );
 	}
 
 	/**

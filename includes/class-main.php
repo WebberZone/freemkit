@@ -69,7 +69,6 @@ class Main {
 		add_action( 'init', array( $this->runtime, 'init_admin' ) );
 		add_action( 'glue_link_api_get_access_token', array( $this->credential_hooks, 'maybe_update_credentials' ), 10, 2 );
 		add_action( 'glue_link_api_refresh_token', array( $this->credential_hooks, 'maybe_update_credentials' ), 10, 2 );
-		add_action( 'glue_link_api_access_token_invalid', array( $this->credential_hooks, 'maybe_delete_credentials' ), 10, 2 );
 		add_action( Kit_Settings::CRON_REFRESH_HOOK, array( $this->credential_hooks, 'refresh_kit_access_token' ) );
 	}
 

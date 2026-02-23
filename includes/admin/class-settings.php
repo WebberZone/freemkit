@@ -83,11 +83,12 @@ class Settings {
 		add_action( 'admin_menu', array( $this, 'initialise_settings' ) );
 		add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 11, 2 );
 		add_filter( 'plugin_action_links_' . plugin_basename( GLUE_LINK_PLUGIN_FILE ), array( $this, 'plugin_actions_links' ) );
-		add_filter( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ), 99 );
+		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ), 99 );
 
 		// Add filters for settings page customization.
 		add_filter( self::$prefix . '_after_setting_output', array( $this, 'add_connection_test_button' ), 10, 2 );
 		add_filter( self::$prefix . '_settings_form_buttons', array( $this, 'add_cache_clear_button' ), 10 );
+		add_action( self::$prefix . '_settings_form_buttons', array( $this, 'render_wizard_button' ), 20 );
 		add_filter( self::$prefix . '_settings_sanitize', array( $this, 'change_settings_on_save' ), 99 );
 
 		// Add AJAX handlers for Kit resources and connection testing.
@@ -530,6 +531,7 @@ class Settings {
 		return array_merge(
 			array(
 				'settings' => '<a href="' . admin_url( 'admin.php?page=' . $this->menu_slug ) . '">' . esc_html__( 'Settings', 'glue-link' ) . '</a>',
+				'wizard'   => '<a href="' . admin_url( 'options-general.php?page=glue_link_setup_wizard' ) . '">' . esc_html__( 'Setup Wizard', 'glue-link' ) . '</a>',
 			),
 			$links
 		);
@@ -631,7 +633,10 @@ class Settings {
 	 * @param string $hook The current admin page hook.
 	 */
 	public function admin_enqueue_scripts( $hook ) {
-		if ( false === strpos( $hook, $this->menu_slug ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only check for current admin page.
+		$page = isset( $_GET['page'] ) ? sanitize_key( (string) wp_unslash( $_GET['page'] ) ) : '';
+
+		if ( false === strpos( $hook, $this->menu_slug ) && $page !== $this->menu_slug ) {
 			return;
 		}
 
@@ -651,21 +656,24 @@ class Settings {
 			array( 'jquery' )
 		);
 
-		wp_localize_script(
-			'glue-link-admin',
-			'GlueLinkAdmin',
-			array(
-				'prefix'        => self::$prefix,
-				'thumb_default' => plugins_url( 'images/default.png', __FILE__ ),
-				'ajax_url'      => admin_url( 'admin-ajax.php' ),
-				'nonce'         => wp_create_nonce( self::$prefix . '_admin_nonce' ),
-				'strings'       => array(
-					'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'glue-link' ),
-					'cache_error'          => esc_html__( 'Error clearing cache: ', 'glue-link' ),
-					'api_validation_error' => esc_html__( 'Error validating API credentials.', 'glue-link' ),
-				),
-			)
-		);
+			wp_localize_script(
+				'glue-link-admin',
+				'GlueLinkAdmin',
+				array(
+					'prefix'        => self::$prefix,
+					'thumb_default' => plugins_url( 'images/default.png', __FILE__ ),
+					'ajax_url'      => admin_url( 'admin-ajax.php' ),
+					'nonce'         => wp_create_nonce( self::$prefix . '_admin_nonce' ),
+					'webhook_urls'  => self::get_webhook_urls(),
+					'strings'       => array(
+						'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'glue-link' ),
+						'cache_error'          => esc_html__( 'Error clearing cache: ', 'glue-link' ),
+						'api_validation_error' => esc_html__( 'Error validating API credentials.', 'glue-link' ),
+						'copy_success'         => esc_html__( 'Webhook URL copied.', 'glue-link' ),
+						'copy_failed'          => esc_html__( 'Copy failed. Select and copy manually.', 'glue-link' ),
+					),
+				)
+			);
 
 		// Tom Select variables.
 			wp_localize_script(
@@ -676,10 +684,10 @@ class Settings {
 					'nonce'           => wp_create_nonce( self::$prefix . '_kit_search' ),
 					'action'          => self::$prefix . '_kit_search',
 					'endpoint'        => '',
-					'forms'           => $this->get_localized_kit_data( 'forms' ),
-					'tags'            => $this->get_localized_kit_data( 'tags' ),
-					'custom_fields'   => $this->get_localized_kit_data( 'custom_fields' ),
-					'freemius_events' => $this->get_localized_kit_data( 'freemius_events' ),
+					'forms'           => self::get_localized_kit_data( 'forms' ),
+					'tags'            => self::get_localized_kit_data( 'tags' ),
+					'custom_fields'   => self::get_localized_kit_data( 'custom_fields' ),
+					'freemius_events' => self::get_localized_kit_data( 'freemius_events' ),
 					'strings'         => array(
 						/* translators: %s: search term */
 						'no_results' => esc_html__( 'No results found for %s', 'glue-link' ),
@@ -698,11 +706,14 @@ class Settings {
 	 * @param array  $deps   Array of script dependencies.
 	 */
 	private function enqueue_admin_script( string $handle, string $path, array $deps = array() ) {
+		$script_file = __DIR__ . $path;
+		$version     = file_exists( $script_file ) ? (string) filemtime( $script_file ) : GLUE_LINK_VERSION;
+
 		wp_enqueue_script(
 			'glue-link-' . $handle,
 			plugins_url( $path, __FILE__ ),
 			$deps,
-			GLUE_LINK_VERSION,
+			$version,
 			true
 		);
 	}
@@ -768,7 +779,7 @@ class Settings {
 					$data = $this->get_kit_custom_fields( $query );
 					break;
 				case 'freemius_events':
-					$data = $this->get_freemius_events( $query );
+					$data = self::get_freemius_events( $query );
 					break;
 				default:
 					$data = array();
@@ -934,7 +945,7 @@ class Settings {
 	 * @param string $search Optional search term.
 	 * @return array|\WP_Error Array of items or WP_Error on failure.
 	 */
-	private function get_kit_data( string $type, string $search = '' ) {
+	public static function get_kit_data( string $type, string $search = '' ) {
 		$transient_key = self::$prefix . "_kit_{$type}";
 		$items         = get_transient( $transient_key );
 
@@ -974,7 +985,7 @@ class Settings {
 				$items = array();
 			}
 
-			$items = $this->normalize_kit_items( $items, $type );
+			$items = self::normalize_kit_items( $items, $type );
 
 			if ( ! empty( $items ) ) {
 				set_transient( $transient_key, $items, DAY_IN_SECONDS );
@@ -1002,12 +1013,12 @@ class Settings {
 	 * @param string $type Resource type.
 	 * @return array
 	 */
-	private function get_localized_kit_data( string $type ): array {
+	public static function get_localized_kit_data( string $type ): array {
 		if ( 'freemius_events' === $type ) {
-			return $this->get_freemius_events();
+			return self::get_freemius_events();
 		}
 
-		$data = $this->get_kit_data( $type );
+		$data = self::get_kit_data( $type );
 		return is_wp_error( $data ) ? array() : $data;
 	}
 
@@ -1017,7 +1028,7 @@ class Settings {
 	 * @param string $search Optional search text.
 	 * @return array<int,array<string,string>>
 	 */
-	private function get_freemius_events( string $search = '' ): array {
+	public static function get_freemius_events( string $search = '' ): array {
 		$events = array(
 			'install.installed',
 			'install.activated',
@@ -1088,7 +1099,7 @@ class Settings {
 	 * @param string $type  Resource type.
 	 * @return array
 	 */
-	private function normalize_kit_items( array $items, string $type ): array {
+	private static function normalize_kit_items( array $items, string $type ): array {
 		$normalized = array();
 
 		foreach ( $items as $item ) {
@@ -1132,7 +1143,7 @@ class Settings {
 	 * @return array|\WP_Error Array of forms.
 	 */
 	private function get_kit_forms( $search = '' ) {
-		return $this->get_kit_data( 'forms', $search );
+		return self::get_kit_data( 'forms', $search );
 	}
 
 	/**
@@ -1144,7 +1155,7 @@ class Settings {
 	 * @return array|\WP_Error Array of tags.
 	 */
 	private function get_kit_tags( $search = '' ) {
-		return $this->get_kit_data( 'tags', $search );
+		return self::get_kit_data( 'tags', $search );
 	}
 
 	/**
@@ -1156,7 +1167,7 @@ class Settings {
 	 * @return array|\WP_Error Array of custom fields.
 	 */
 	private function get_kit_custom_fields( $search = '' ) {
-		return $this->get_kit_data( 'custom_fields', $search );
+		return self::get_kit_data( 'custom_fields', $search );
 	}
 
 	/**
@@ -1285,6 +1296,43 @@ class Settings {
 	}
 
 	/**
+	 * Add Setup Wizard button on the settings page.
+	 *
+	 * @return void
+	 */
+	public function render_wizard_button(): void {
+		printf(
+			'<br /><a aria-label="%1$s" class="button button-secondary" href="%2$s" title="%1$s" style="margin-top: 10px;">%3$s</a>',
+			esc_attr__( 'Start Setup Wizard', 'glue-link' ),
+			esc_url(
+				wp_nonce_url(
+					add_query_arg(
+						array(
+							'page'          => 'glue_link_setup_wizard',
+							'wizard_action' => 'restart',
+						),
+						admin_url( 'options-general.php' )
+					),
+					'glue_link_restart_wizard'
+				)
+			),
+			esc_html__( 'Start Setup Wizard', 'glue-link' )
+		);
+	}
+
+	/**
+	 * Return webhook URLs for both endpoint types.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function get_webhook_urls(): array {
+		return array(
+			'rest'  => home_url( '/wp-json/glue-link/v1/webhook' ),
+			'query' => add_query_arg( 'glue_webhook', '1', home_url() ),
+		);
+	}
+
+	/**
 	 * Get the webhook URL.
 	 *
 	 * @since 1.0.0
@@ -1292,23 +1340,23 @@ class Settings {
 	 * @return string The webhook URL.
 	 */
 	private static function get_webhook_url(): string {
+		$urls      = self::get_webhook_urls();
+		$rest_url  = $urls['rest'];
+		$query_url = $urls['query'];
+
 		// Avoid recursive defaults resolution while settings are being registered.
 		$settings      = get_option( Options_API::SETTINGS_OPTION, array() );
 		$endpoint_type = isset( $settings['webhook_endpoint_type'] ) ? (string) $settings['webhook_endpoint_type'] : 'rest';
+		$webhook_url   = 'query' === $endpoint_type ? $query_url : $rest_url;
 
-		if ( 'rest' === $endpoint_type ) {
-			$webhook_url = home_url( '/wp-json/glue-link/v1/webhook' );
-		} else {
-			$webhook_url = add_query_arg( 'glue_webhook', '1', home_url() );
-		}
-
-		$string = sprintf(
-			'<div class="webhook-url-container">' .
-			'<p>' . esc_html__( 'Copy the following URL to your Freemius dashboard:', 'glue-link' ) . '</p>' .
-			'<p><code>' . esc_url( $webhook_url ) . '</code></p>' .
-			'<p class="description">' . esc_html__( 'This URL is based on your selected webhook endpoint type.', 'glue-link' ) . '</p>' .
-			'</div>'
-		);
+		$string  = '<div class="webhook-url-container" data-rest-url="' . esc_attr( $rest_url ) . '" data-query-url="' . esc_attr( $query_url ) . '">';
+		$string .= '<p>' . esc_html__( 'Copy the following URL to your Freemius dashboard:', 'glue-link' ) . '</p>';
+		$string .= '<p><input type="text" class="regular-text glue-link-webhook-url-input" readonly value="' . esc_attr( $webhook_url ) . '" /></p>';
+		$string .= '<p><button type="button" class="button button-secondary glue-link-webhook-copy">' . esc_html__( 'Copy URL', 'glue-link' ) . '</button></p>';
+		$string .= '<p class="description glue-link-webhook-copy-status" aria-live="polite"></p>';
+		$string .= '<p><code class="glue-link-webhook-url-code" title="' . esc_attr__( 'Click to copy URL', 'glue-link' ) . '" style="cursor:pointer;">' . esc_html( $webhook_url ) . '</code></p>';
+		$string .= '<p class="description">' . esc_html__( 'This URL updates automatically based on your selected endpoint type.', 'glue-link' ) . '</p>';
+		$string .= '</div>';
 
 		return $string;
 	}
