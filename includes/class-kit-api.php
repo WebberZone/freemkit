@@ -2,11 +2,11 @@
 /**
  * Kit API wrapper class.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  * @since 1.0.0
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
 /**
  * Class Kit_API
@@ -37,8 +37,8 @@ class Kit_API extends \ConvertKit_API_V4 {
 	 */
 	public function __construct( string $access_token = '', string $refresh_token = '' ) {
 		$settings              = new Kit_Settings();
-		$client_id             = defined( 'GLUE_LINK_KIT_OAUTH_CLIENT_ID' ) ? (string) GLUE_LINK_KIT_OAUTH_CLIENT_ID : '';
-		$redirect_uri          = defined( 'GLUE_LINK_KIT_OAUTH_REDIRECT_URI' ) ? (string) GLUE_LINK_KIT_OAUTH_REDIRECT_URI : '';
+		$client_id             = defined( 'FREEMKIT_KIT_OAUTH_CLIENT_ID' ) ? (string) FREEMKIT_KIT_OAUTH_CLIENT_ID : '';
+		$redirect_uri          = defined( 'FREEMKIT_KIT_OAUTH_REDIRECT_URI' ) ? (string) FREEMKIT_KIT_OAUTH_REDIRECT_URI : '';
 		$resolved_access_token = $access_token ? $access_token : $settings->get_access_token();
 		$resolved_refresh      = $refresh_token ? $refresh_token : $settings->get_refresh_token();
 
@@ -71,7 +71,7 @@ class Kit_API extends \ConvertKit_API_V4 {
 			return true;
 		}
 
-		return new \WP_Error( self::ERROR_NO_CONNECTION, esc_html__( 'Connect to Kit using OAuth to continue.', 'glue-link' ) );
+		return new \WP_Error( self::ERROR_NO_CONNECTION, esc_html__( 'Connect to Kit using OAuth to continue.', 'freemkit' ) );
 	}
 
 	/**
@@ -84,11 +84,11 @@ class Kit_API extends \ConvertKit_API_V4 {
 		$result = parent::get_access_token( $authorization_code );
 
 		if ( is_wp_error( $result ) ) {
-			do_action( 'glue_link_api_get_access_token_error', $result, $this->client_id );
+			do_action( 'freemkit_api_get_access_token_error', $result, $this->client_id );
 			return $result;
 		}
 
-		do_action( 'glue_link_api_get_access_token', $result, $this->client_id );
+		do_action( 'freemkit_api_get_access_token', $result, $this->client_id );
 		return $result;
 	}
 
@@ -103,11 +103,11 @@ class Kit_API extends \ConvertKit_API_V4 {
 		$result                 = parent::refresh_token();
 
 		if ( is_wp_error( $result ) ) {
-			do_action( 'glue_link_api_refresh_token_error', $result, $this->client_id );
+			do_action( 'freemkit_api_refresh_token_error', $result, $this->client_id );
 			return $result;
 		}
 
-		do_action( 'glue_link_api_refresh_token', $result, $this->client_id, $previous_access_token, $previous_refresh_token );
+		do_action( 'freemkit_api_refresh_token', $result, $this->client_id, $previous_access_token, $previous_refresh_token );
 		return $result;
 	}
 
@@ -118,7 +118,7 @@ class Kit_API extends \ConvertKit_API_V4 {
 	 */
 	public function get_account() {
 		if ( ! $this->has_access_and_refresh_token() ) {
-			return new \WP_Error( self::ERROR_NO_CONNECTION, esc_html__( 'Connect to Kit using OAuth to continue.', 'glue-link' ) );
+			return new \WP_Error( self::ERROR_NO_CONNECTION, esc_html__( 'Connect to Kit using OAuth to continue.', 'freemkit' ) );
 		}
 
 		return parent::get_account();
@@ -147,7 +147,7 @@ class Kit_API extends \ConvertKit_API_V4 {
 
 		$subscriber_id = isset( $subscriber['subscriber']['id'] ) ? (int) $subscriber['subscriber']['id'] : 0;
 		if ( $subscriber_id <= 0 ) {
-			return new \WP_Error( self::ERROR_API_ERROR, esc_html__( 'Unable to determine subscriber ID.', 'glue-link' ) );
+			return new \WP_Error( self::ERROR_API_ERROR, esc_html__( 'Unable to determine subscriber ID.', 'freemkit' ) );
 		}
 
 		$result = parent::add_subscriber_to_form( $form_id, $subscriber_id );
@@ -175,11 +175,11 @@ class Kit_API extends \ConvertKit_API_V4 {
 	 */
 	private function validate_email( string $email ) {
 		if ( empty( $email ) ) {
-			return new \WP_Error( self::ERROR_NO_EMAIL, esc_html__( 'Email address is required.', 'glue-link' ) );
+			return new \WP_Error( self::ERROR_NO_EMAIL, esc_html__( 'Email address is required.', 'freemkit' ) );
 		}
 
 		if ( ! is_email( $email ) ) {
-			return new \WP_Error( self::ERROR_NO_EMAIL, sprintf( esc_html__( 'Invalid email address format: %s', 'glue-link' ), $email ) );
+			return new \WP_Error( self::ERROR_NO_EMAIL, sprintf( esc_html__( 'Invalid email address format: %s', 'freemkit' ), $email ) );
 		}
 
 		return true;

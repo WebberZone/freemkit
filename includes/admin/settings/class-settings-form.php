@@ -7,7 +7,7 @@
  * @package WebberZone\Better_External_Links
  */
 
-namespace WebberZone\Glue_Link\Admin\Settings;
+namespace WebberZone\FreemKit\Admin\Settings;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {

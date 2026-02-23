@@ -1,8 +1,8 @@
 <?php
 /**
- * Uninstall Glue Link
+ * Uninstall FreemKit
  *
- * @package    Glue_Link
+ * @package    FreemKit
  */
 
 // If uninstall is not called from WordPress, exit.
@@ -15,13 +15,13 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
  *
  * @param int $site_id Site ID. 0 for current site.
  */
-function glue_link_delete_site_options( int $site_id = 0 ): void {
+function freemkit_delete_site_options( int $site_id = 0 ): void {
 	global $wpdb;
 
 	$option_names = array(
-		'glue_link_settings',
-		'glue_link_network_settings',
-		'glue_link_db_version',
+		'freemkit_settings',
+		'freemkit_network_settings',
+		'freemkit_db_version',
 	);
 
 	if ( $site_id > 0 ) {
@@ -32,10 +32,10 @@ function glue_link_delete_site_options( int $site_id = 0 ): void {
 		delete_option( $option_name );
 	}
 
-	if ( defined( 'GLUE_LINK_DELETE_DATA' ) && GLUE_LINK_DELETE_DATA ) {
+	if ( defined( 'FREEMKIT_DELETE_DATA' ) && FREEMKIT_DELETE_DATA ) {
 
 		// Delete the subscribers table.
-		$table_name = $wpdb->prefix . 'glue_link_subscribers';
+		$table_name = $wpdb->prefix . 'freemkit_subscribers';
 		$wpdb->query( "DROP TABLE IF EXISTS {$table_name}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
@@ -54,13 +54,13 @@ if ( is_multisite() ) {
 	);
 
 	foreach ( (array) $sites as $site_id ) {
-		glue_link_delete_site_options( $site_id );
+		freemkit_delete_site_options( $site_id );
 	}
 
 	// Delete network options.
 	$option_names = array(
-		'glue_link_settings',
-		'glue_link_network_settings',
+		'freemkit_settings',
+		'freemkit_network_settings',
 	);
 
 	foreach ( $option_names as $option_name ) {
@@ -68,5 +68,5 @@ if ( is_multisite() ) {
 	}
 } else {
 	// Delete options for single site.
-	glue_link_delete_site_options();
+	freemkit_delete_site_options();
 }

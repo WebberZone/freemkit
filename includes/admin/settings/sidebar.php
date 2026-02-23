@@ -2,7 +2,7 @@
 /**
  * Sidebar template.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
 ?>

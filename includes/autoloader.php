@@ -2,15 +2,15 @@
 /**
  * Autoloader for plugin classes
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Autoloader for WebberZone\Glue_Link classes.
+ * Autoloader for WebberZone\FreemKit classes.
  *
  * @param string $class_name The name of the class to load.
  * @return void

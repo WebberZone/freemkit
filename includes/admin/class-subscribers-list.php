@@ -2,27 +2,27 @@
 /**
  * Top 10 Display statistics page.
  *
- * @package   Glue_Link
- * @subpackage  Glue_Link_Statistics
+ * @package   FreemKit
+ * @subpackage  FreemKit_Statistics
  */
 
-namespace WebberZone\Glue_Link\Admin;
+namespace WebberZone\FreemKit\Admin;
 
-use WebberZone\Glue_Link\Database;
+use WebberZone\FreemKit\Database;
 
 if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
 /**
- * Glue_Link_Statistics class.
+ * FreemKit_Statistics class.
  */
 class Subscribers_List {
 
 	/**
 	 * WP_List_Table object.
 	 *
-	 * @var \WebberZone\Glue_Link\Admin\Subscribers_List_Table
+	 * @var \WebberZone\FreemKit\Admin\Subscribers_List_Table
 	 */
 	public $subscribers_table;
 
@@ -40,7 +40,7 @@ class Subscribers_List {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @var \WebberZone\Glue_Link\Database
+	 * @var \WebberZone\FreemKit\Database
 	 */
 	public $database;
 
@@ -63,10 +63,10 @@ class Subscribers_List {
 	 */
 	public function admin_menu() {
 		$this->parent_id = add_users_page(
-			__( 'Glue for Freemius and Kit - Subscribers', 'glue-link' ),
-			__( 'Subscribers', 'glue-link' ),
+			__( 'FreemKit - Subscribers', 'freemkit' ),
+			__( 'Subscribers', 'freemkit' ),
 			'manage_options',
-			'glue_link_subscribers',
+			'freemkit_subscribers',
 			array( $this, 'render_page' )
 		);
 
@@ -96,9 +96,9 @@ class Subscribers_List {
 		}
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Glue for Freemius and Kit - Subscribers', 'glue-link' ); ?></h1>
-			<a href="<?php echo esc_url( admin_url( 'options-general.php?page=glue_link_options_page' ) ); ?>" class="page-title-action"><?php esc_html_e( 'View Settings', 'glue-link' ); ?></a>
-			<?php do_action( 'glue_link_subscribers_page_header' ); ?>
+			<h1><?php esc_html_e( 'FreemKit - Subscribers', 'freemkit' ); ?></h1>
+			<a href="<?php echo esc_url( admin_url( 'options-general.php?page=freemkit_options_page' ) ); ?>" class="page-title-action"><?php esc_html_e( 'View Settings', 'freemkit' ); ?></a>
+			<?php do_action( 'freemkit_subscribers_page_header' ); ?>
 
 			<div id="poststuff">
 				<div id="post-body" class="metabox-holder columns-2">
@@ -108,7 +108,7 @@ class Subscribers_List {
 								<input type="hidden" name="page" value="<?php echo esc_attr( $page ); ?>" />
 								<?php
 								$this->subscribers_table->prepare_items();
-								$this->subscribers_table->search_box( __( 'Search Subscribers', 'glue-link' ), 'glue-link' );
+								$this->subscribers_table->search_box( __( 'Search Subscribers', 'freemkit' ), 'freemkit' );
 								$this->subscribers_table->display();
 								?>
 							</form>
@@ -132,7 +132,7 @@ class Subscribers_List {
 	public function screen_option() {
 		$option = 'per_page';
 		$args   = array(
-			'label'   => __( 'Subscribers', 'glue-link' ),
+			'label'   => __( 'Subscribers', 'freemkit' ),
 			'default' => 50,
 			'option'  => 'subscribers_per_page',
 		);

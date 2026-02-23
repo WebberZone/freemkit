@@ -1,14 +1,14 @@
 <?php
 /**
- * Settings Wizard for Glue Link.
+ * Settings Wizard for FreemKit.
  *
- * @package WebberZone\Glue_Link\Admin
+ * @package WebberZone\FreemKit\Admin
  */
 
-namespace WebberZone\Glue_Link\Admin;
+namespace WebberZone\FreemKit\Admin;
 
-use WebberZone\Glue_Link\Admin\Settings\Settings_Wizard_API;
-use WebberZone\Glue_Link\Util\Hook_Registry;
+use WebberZone\FreemKit\Admin\Settings\Settings_Wizard_API;
+use WebberZone\FreemKit\Util\Hook_Registry;
 
 if ( ! defined( 'WPINC' ) ) {
 	die;
@@ -22,7 +22,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 	/**
 	 * Wizard page slug.
 	 */
-	private const PAGE_SLUG = 'glue_link_setup_wizard';
+	private const PAGE_SLUG = 'freemkit_setup_wizard';
 
 	/**
 	 * Settings page URL.
@@ -35,10 +35,10 @@ class Settings_Wizard extends Settings_Wizard_API {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$settings_key = 'glue_link_settings';
-		$prefix       = 'glue_link';
+		$settings_key = 'freemkit_settings';
+		$prefix       = 'freemkit';
 
-		$this->settings_page_url = admin_url( 'options-general.php?page=glue_link_options_page' );
+		$this->settings_page_url = admin_url( 'options-general.php?page=freemkit_options_page' );
 
 		$args = array(
 			'steps'               => $this->get_wizard_steps(),
@@ -97,13 +97,13 @@ class Settings_Wizard extends Settings_Wizard_API {
 
 		$steps = array(
 			'welcome'        => array(
-				'title'       => __( 'Welcome', 'glue-link' ),
-				'description' => __( 'This wizard helps you complete the essential setup for Glue Link.', 'glue-link' ),
+				'title'       => __( 'Welcome', 'freemkit' ),
+				'description' => __( 'This wizard helps you complete the essential setup for FreemKit.', 'freemkit' ),
 				'settings'    => array(),
 			),
 			'kit_connection' => array(
-				'title'       => __( 'Connect Kit', 'glue-link' ),
-				'description' => __( 'Connect your Kit account via OAuth. After authorization, you return directly to the mapping step.', 'glue-link' ),
+				'title'       => __( 'Connect Kit', 'freemkit' ),
+				'description' => __( 'Connect your Kit account via OAuth. After authorization, you return directly to the mapping step.', 'freemkit' ),
 				'settings'    => $this->build_step_settings(
 					array(
 						'kit_oauth_status',
@@ -112,8 +112,8 @@ class Settings_Wizard extends Settings_Wizard_API {
 				),
 			),
 			'kit_mapping'    => array(
-				'title'       => __( 'Kit Mapping', 'glue-link' ),
-				'description' => __( 'Select default forms/tags and field mappings used for subscriber sync.', 'glue-link' ),
+				'title'       => __( 'Kit Mapping', 'freemkit' ),
+				'description' => __( 'Select default forms/tags and field mappings used for subscriber sync.', 'freemkit' ),
 				'settings'    => $this->build_step_settings(
 					array(
 						'kit_form_id',
@@ -125,8 +125,8 @@ class Settings_Wizard extends Settings_Wizard_API {
 				),
 			),
 			'freemius'       => array(
-				'title'       => __( 'Freemius Webhook', 'glue-link' ),
-				'description' => __( 'Configure webhook handling and add one or more Freemius plugin mappings.', 'glue-link' ),
+				'title'       => __( 'Freemius Webhook', 'freemkit' ),
+				'description' => __( 'Configure webhook handling and add one or more Freemius plugin mappings.', 'freemkit' ),
 				'settings'    => $this->build_step_settings(
 					array(
 						'webhook_endpoint_type',
@@ -143,7 +143,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 		 *
 		 * @param array $steps Wizard steps.
 		 */
-		return apply_filters( 'glue_link_wizard_steps', $steps );
+		return apply_filters( 'freemkit_wizard_steps', $steps );
 	}
 
 	/**
@@ -172,23 +172,23 @@ class Settings_Wizard extends Settings_Wizard_API {
 	 */
 	public function get_translation_strings(): array {
 		return array(
-			'page_title'            => __( 'Glue Link Setup Wizard', 'glue-link' ),
-			'menu_title'            => __( 'Setup Wizard', 'glue-link' ),
-			'wizard_title'          => __( 'Glue Link Setup Wizard', 'glue-link' ),
-			'next_step'             => __( 'Next Step', 'glue-link' ),
-			'previous_step'         => __( 'Previous Step', 'glue-link' ),
-			'finish_setup'          => __( 'Finish Setup', 'glue-link' ),
-			'skip_wizard'           => __( 'Skip Wizard', 'glue-link' ),
+			'page_title'            => __( 'FreemKit Setup Wizard', 'freemkit' ),
+			'menu_title'            => __( 'Setup Wizard', 'freemkit' ),
+			'wizard_title'          => __( 'FreemKit Setup Wizard', 'freemkit' ),
+			'next_step'             => __( 'Next Step', 'freemkit' ),
+			'previous_step'         => __( 'Previous Step', 'freemkit' ),
+			'finish_setup'          => __( 'Finish Setup', 'freemkit' ),
+			'skip_wizard'           => __( 'Skip Wizard', 'freemkit' ),
 			/* translators: %s: Search query. */
-			'tom_select_no_results' => __( 'No results found for "%s"', 'glue-link' ),
-			'repeater_new_item'     => __( 'New Item', 'glue-link' ),
-			'required_label'        => __( 'Required', 'glue-link' ),
-			'steps_nav_aria_label'  => __( 'Setup Wizard Steps', 'glue-link' ),
+			'tom_select_no_results' => __( 'No results found for "%s"', 'freemkit' ),
+			'repeater_new_item'     => __( 'New Item', 'freemkit' ),
+			'required_label'        => __( 'Required', 'freemkit' ),
+			'steps_nav_aria_label'  => __( 'Setup Wizard Steps', 'freemkit' ),
 			/* translators: %1$d: Current step number, %2$d: Total number of steps. */
-			'step_of'               => __( 'Step %1$d of %2$d', 'glue-link' ),
-			'wizard_complete'       => __( 'Setup Complete!', 'glue-link' ),
-			'setup_complete'        => __( 'Glue Link is ready. You can continue in the full settings screen at any time.', 'glue-link' ),
-			'go_to_settings'        => __( 'Go to Settings', 'glue-link' ),
+			'step_of'               => __( 'Step %1$d of %2$d', 'freemkit' ),
+			'wizard_complete'       => __( 'Setup Complete!', 'freemkit' ),
+			'setup_complete'        => __( 'FreemKit is ready. You can continue in the full settings screen at any time.', 'freemkit' ),
+			'go_to_settings'        => __( 'Go to Settings', 'freemkit' ),
 		);
 	}
 
@@ -204,12 +204,12 @@ class Settings_Wizard extends Settings_Wizard_API {
 
 		Admin::$notices_api->register_notice(
 			array(
-				'id'          => 'glue_link_wizard_notice',
+				'id'          => 'freemkit_wizard_notice',
 				'message'     => sprintf(
 					'<p>%s</p><p><a href="%s" class="button button-primary">%s</a></p>',
-					esc_html__( 'Welcome to Glue Link. Run the setup wizard to complete the initial configuration.', 'glue-link' ),
+					esc_html__( 'Welcome to FreemKit. Run the setup wizard to complete the initial configuration.', 'freemkit' ),
 					esc_url( $this->get_wizard_url() ),
-					esc_html__( 'Run Setup Wizard', 'glue-link' )
+					esc_html__( 'Run Setup Wizard', 'freemkit' )
 				),
 				'type'        => 'info',
 				'dismissible' => true,
@@ -220,8 +220,8 @@ class Settings_Wizard extends Settings_Wizard_API {
 						$page = isset( $_GET['page'] ) ? sanitize_key( (string) wp_unslash( $_GET['page'] ) ) : '';
 
 						return ! $this->is_wizard_completed()
-							&& ! get_option( 'glue_link_wizard_notice_dismissed', false )
-							&& ( get_transient( 'glue_link_show_wizard_activation_redirect' ) || get_option( 'glue_link_show_wizard', false ) )
+							&& ! get_option( 'freemkit_wizard_notice_dismissed', false )
+							&& ( get_transient( 'freemkit_show_wizard_activation_redirect' ) || get_option( 'freemkit_show_wizard', false ) )
 							&& $this->page_slug !== $page;
 					},
 				),
@@ -253,11 +253,11 @@ class Settings_Wizard extends Settings_Wizard_API {
 			return;
 		}
 
-		if ( ! get_transient( 'glue_link_show_wizard_activation_redirect' ) ) {
+		if ( ! get_transient( 'freemkit_show_wizard_activation_redirect' ) ) {
 			return;
 		}
 
-		delete_transient( 'glue_link_show_wizard_activation_redirect' );
+		delete_transient( 'freemkit_show_wizard_activation_redirect' );
 
 		wp_safe_redirect( $this->get_wizard_url() );
 		exit;
@@ -285,21 +285,21 @@ class Settings_Wizard extends Settings_Wizard_API {
 		}
 
 		$nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( (string) wp_unslash( $_GET['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( $nonce, 'glue_link_restart_wizard' ) ) {
+		if ( ! wp_verify_nonce( $nonce, 'freemkit_restart_wizard' ) ) {
 			return;
 		}
 
 		$this->reset_wizard();
 		$this->trigger_wizard();
 		update_option( "{$this->prefix}_wizard_current_step", 1 );
-		delete_transient( 'glue_link_show_wizard_activation_redirect' );
+		delete_transient( 'freemkit_show_wizard_activation_redirect' );
 
 		wp_safe_redirect( $this->get_wizard_url( array( 'step' => 1 ) ) );
 		exit;
 	}
 
 	/**
-	 * Localize Glue Link Tom Select data on wizard pages.
+	 * Localize FreemKit Tom Select data on wizard pages.
 	 *
 	 * @param string $hook Current admin page hook.
 	 * @return void
@@ -311,9 +311,9 @@ class Settings_Wizard extends Settings_Wizard_API {
 
 		wp_localize_script(
 			'wz-' . $this->prefix . '-tom-select-init',
-			'GlueLinkTomSelectSettings',
+			'FreemKitTomSelectSettings',
 			array(
-				'prefix'          => 'GlueLink',
+				'prefix'          => 'FreemKit',
 				'nonce'           => wp_create_nonce( $this->prefix . '_kit_search' ),
 				'action'          => $this->prefix . '_kit_search',
 				'endpoint'        => '',
@@ -323,7 +323,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 				'freemius_events' => Settings::get_localized_kit_data( 'freemius_events' ),
 				'strings'         => array(
 					/* translators: %s: search term */
-					'no_results' => esc_html__( 'No results found for %s', 'glue-link' ),
+					'no_results' => esc_html__( 'No results found for %s', 'freemkit' ),
 				),
 			)
 		);
@@ -346,11 +346,11 @@ class Settings_Wizard extends Settings_Wizard_API {
 
 		$admin_file    = __DIR__ . $admin_path;
 		$kit_file      = __DIR__ . $kit_path;
-		$admin_version = file_exists( $admin_file ) ? (string) filemtime( $admin_file ) : GLUE_LINK_VERSION;
-		$kit_version   = file_exists( $kit_file ) ? (string) filemtime( $kit_file ) : GLUE_LINK_VERSION;
+		$admin_version = file_exists( $admin_file ) ? (string) filemtime( $admin_file ) : FREEMKIT_VERSION;
+		$kit_version   = file_exists( $kit_file ) ? (string) filemtime( $kit_file ) : FREEMKIT_VERSION;
 
 		wp_enqueue_script(
-			'glue-link-admin',
+			'freemkit-admin',
 			plugins_url( $admin_path, __FILE__ ),
 			array( 'jquery' ),
 			$admin_version,
@@ -358,7 +358,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 		);
 
 		wp_enqueue_script(
-			'glue-link-kit-validate',
+			'freemkit-kit-validate',
 			plugins_url( $kit_path, __FILE__ ),
 			array( 'jquery' ),
 			$kit_version,
@@ -366,8 +366,8 @@ class Settings_Wizard extends Settings_Wizard_API {
 		);
 
 		wp_localize_script(
-			'glue-link-admin',
-			'GlueLinkAdmin',
+			'freemkit-admin',
+			'FreemKitAdmin',
 			array(
 				'prefix'        => $this->prefix,
 				'thumb_default' => plugins_url( 'images/default.png', __FILE__ ),
@@ -375,11 +375,11 @@ class Settings_Wizard extends Settings_Wizard_API {
 				'nonce'         => wp_create_nonce( $this->prefix . '_admin_nonce' ),
 				'webhook_urls'  => Settings::get_webhook_urls(),
 				'strings'       => array(
-					'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'glue-link' ),
-					'cache_error'          => esc_html__( 'Error clearing cache: ', 'glue-link' ),
-					'api_validation_error' => esc_html__( 'Error validating API credentials.', 'glue-link' ),
-					'copy_success'         => esc_html__( 'Webhook URL copied.', 'glue-link' ),
-					'copy_failed'          => esc_html__( 'Copy failed. Select and copy manually.', 'glue-link' ),
+					'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'freemkit' ),
+					'cache_error'          => esc_html__( 'Error clearing cache: ', 'freemkit' ),
+					'api_validation_error' => esc_html__( 'Error validating API credentials.', 'freemkit' ),
+					'copy_success'         => esc_html__( 'Webhook URL copied.', 'freemkit' ),
+					'copy_failed'          => esc_html__( 'Copy failed. Select and copy manually.', 'freemkit' ),
 				),
 			)
 		);
@@ -408,9 +408,9 @@ class Settings_Wizard extends Settings_Wizard_API {
 						'wizard_action' => 'restart',
 					)
 				),
-				'glue_link_restart_wizard'
+				'freemkit_restart_wizard'
 			),
-			'text'    => __( 'Run Wizard Again', 'glue-link' ),
+			'text'    => __( 'Run Wizard Again', 'freemkit' ),
 			'primary' => false,
 		);
 

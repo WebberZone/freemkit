@@ -4,13 +4,13 @@
  *
  * @since 1.0.0
  *
- * @package WebberZone\Glue_Link\Admin
+ * @package WebberZone\FreemKit\Admin
  */
 
-namespace WebberZone\Glue_Link\Admin;
+namespace WebberZone\FreemKit\Admin;
 
-use WebberZone\Glue_Link\Admin\Settings\Settings_API;
-use WebberZone\Glue_Link\Options_API;
+use WebberZone\FreemKit\Admin\Settings\Settings_API;
+use WebberZone\FreemKit\Options_API;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -66,9 +66,9 @@ class Settings {
 	 * @since 1.0.0
 	 */
 	public function __construct() {
-		$this->settings_key = 'glue_link_settings';
-		self::$prefix       = 'glue_link';
-		$this->menu_slug    = 'glue_link_options_page';
+		$this->settings_key = 'freemkit_settings';
+		self::$prefix       = 'freemkit';
+		$this->menu_slug    = 'freemkit_options_page';
 		new Kit_OAuth( $this->menu_slug );
 
 		$this->register_hooks();
@@ -82,7 +82,7 @@ class Settings {
 	public function register_hooks() {
 		add_action( 'admin_menu', array( $this, 'initialise_settings' ) );
 		add_filter( 'plugin_row_meta', array( $this, 'plugin_row_meta' ), 11, 2 );
-		add_filter( 'plugin_action_links_' . plugin_basename( GLUE_LINK_PLUGIN_FILE ), array( $this, 'plugin_actions_links' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( FREEMKIT_PLUGIN_FILE ), array( $this, 'plugin_actions_links' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ), 99 );
 
 		// Add filters for settings page customization.
@@ -130,9 +130,9 @@ class Settings {
 	 */
 	public static function get_settings_sections(): array {
 		$settings_sections = array(
-			'kit'         => __( 'Kit', 'glue-link' ),
-			'freemius'    => __( 'Freemius', 'glue-link' ),
-			'subscribers' => __( 'Subscribers', 'glue-link' ),
+			'kit'         => __( 'Kit', 'freemkit' ),
+			'freemius'    => __( 'Freemius', 'freemkit' ),
+			'subscribers' => __( 'Subscribers', 'freemkit' ),
 		);
 
 		/**
@@ -142,7 +142,7 @@ class Settings {
 		 *
 		 * @param array $settings_sections Settings array
 		 */
-		$settings_sections = apply_filters( 'glue_link_settings_sections', $settings_sections );
+		$settings_sections = apply_filters( 'freemkit_settings_sections', $settings_sections );
 
 		return $settings_sections;
 	}
@@ -156,13 +156,13 @@ class Settings {
 	 */
 	public function get_translation_strings(): array {
 		$strings = array(
-			'page_header'          => esc_html__( 'Glue for Freemius and Kit Settings', 'glue-link' ),
-			'reset_message'        => esc_html__( 'Settings have been reset to their default values. Reload this page to view the updated settings.', 'glue-link' ),
-			'success_message'      => esc_html__( 'Settings updated.', 'glue-link' ),
-			'save_changes'         => esc_html__( 'Save Changes', 'glue-link' ),
-			'reset_settings'       => esc_html__( 'Reset all settings', 'glue-link' ),
-			'reset_button_confirm' => esc_html__( 'Do you really want to reset all these settings to their default values?', 'glue-link' ),
-			'checkbox_modified'    => esc_html__( 'Modified from default setting', 'glue-link' ),
+			'page_header'          => esc_html__( 'FreemKit Settings', 'freemkit' ),
+			'reset_message'        => esc_html__( 'Settings have been reset to their default values. Reload this page to view the updated settings.', 'freemkit' ),
+			'success_message'      => esc_html__( 'Settings updated.', 'freemkit' ),
+			'save_changes'         => esc_html__( 'Save Changes', 'freemkit' ),
+			'reset_settings'       => esc_html__( 'Reset all settings', 'freemkit' ),
+			'reset_button_confirm' => esc_html__( 'Do you really want to reset all these settings to their default values?', 'freemkit' ),
+			'checkbox_modified'    => esc_html__( 'Modified from default setting', 'freemkit' ),
 		);
 
 		/**
@@ -187,8 +187,8 @@ class Settings {
 		$menus[] = array(
 			'settings_page' => true,
 			'type'          => 'options',
-			'page_title'    => esc_html__( 'Glue for Freemius and Kit Settings', 'glue-link' ),
-			'menu_title'    => esc_html__( 'WZ Glue', 'glue-link' ),
+			'page_title'    => esc_html__( 'FreemKit Settings', 'freemkit' ),
+			'menu_title'    => esc_html__( 'FreemKit', 'freemkit' ),
 			'menu_slug'     => $this->menu_slug,
 		);
 
@@ -224,7 +224,7 @@ class Settings {
 		 *
 		 * @since 1.0.0
 		 *
-		 * @param array $glue_link_setings Settings array
+		 * @param array $freemkit_setings Settings array
 		 */
 		$settings = apply_filters( self::$prefix . '_registered_settings', $settings );
 		$running  = false;
@@ -243,30 +243,30 @@ class Settings {
 		$settings = array(
 			'freemius'              => array(
 				'id'   => 'freemius',
-				'name' => __( 'Freemius', 'glue-link' ),
-				'desc' => __( 'Configure your Freemius plugins in this tab by entering required identifiers and keys. Plugin name, ID, public and secret keys are mandatory. Form and tags are optional and default to settings in the Kit tab if left blank.', 'glue-link' ),
+				'name' => __( 'Freemius', 'freemkit' ),
+				'desc' => __( 'Configure your Freemius plugins in this tab by entering required identifiers and keys. Plugin name, ID, public and secret keys are mandatory. Form and tags are optional and default to settings in the Kit tab if left blank.', 'freemkit' ),
 				'type' => 'header',
 			),
 			'webhook_endpoint_type' => array(
 				'id'      => 'webhook_endpoint_type',
-				'name'    => __( 'Webhook Endpoint Type', 'glue-link' ),
-				'desc'    => __( 'Select the method for registering the webhook endpoint. REST API is recommended for better security and standardization. For Query Variable, use: yourdomain.com/?glue_webhook', 'glue-link' ),
+				'name'    => __( 'Webhook Endpoint Type', 'freemkit' ),
+				'desc'    => __( 'Select the method for registering the webhook endpoint. REST API is recommended for better security and standardization. For Query Variable, use: yourdomain.com/?freemkit_webhook', 'freemkit' ),
 				'type'    => 'select',
 				'options' => array(
-					'rest'  => __( 'REST API', 'glue-link' ),
-					'query' => __( 'Query Variable', 'glue-link' ),
+					'rest'  => __( 'REST API', 'freemkit' ),
+					'query' => __( 'Query Variable', 'freemkit' ),
 				),
 				'default' => 'rest',
 			),
 			'webhook_url'           => array(
 				'id'   => 'webhook_url',
-				'name' => __( 'Webhook URL', 'glue-link' ),
+				'name' => __( 'Webhook URL', 'freemkit' ),
 				'desc' => self::get_webhook_url(),
 				'type' => 'header',
 			),
 			'plugins'               => array(
 				'id'                => 'plugins',
-				'name'              => __( 'Freemius Plugins', 'glue-link' ),
+				'name'              => __( 'Freemius Plugins', 'freemkit' ),
 				'desc'              => '',
 				'type'              => 'repeater',
 				'live_update_field' => 'name',
@@ -275,40 +275,40 @@ class Settings {
 				'fields'            => array(
 					array(
 						'id'      => 'name',
-						'name'    => __( 'Plugin Name', 'glue-link' ),
-						'desc'    => __( 'Enter the name of your plugin', 'glue-link' ),
+						'name'    => __( 'Plugin Name', 'freemkit' ),
+						'desc'    => __( 'Enter the name of your plugin', 'freemkit' ),
 						'type'    => 'text',
 						'default' => '',
 						'size'    => 'large',
 					),
 					array(
 						'id'      => 'id',
-						'name'    => __( 'Plugin ID', 'glue-link' ),
-						'desc'    => __( 'Enter your Freemius plugin ID', 'glue-link' ),
+						'name'    => __( 'Plugin ID', 'freemkit' ),
+						'desc'    => __( 'Enter your Freemius plugin ID', 'freemkit' ),
 						'type'    => 'text',
 						'default' => '',
 						'size'    => 'large',
 					),
 					array(
 						'id'      => 'public_key',
-						'name'    => __( 'Public Key', 'glue-link' ),
-						'desc'    => __( 'Enter your Freemius public key', 'glue-link' ),
+						'name'    => __( 'Public Key', 'freemkit' ),
+						'desc'    => __( 'Enter your Freemius public key', 'freemkit' ),
 						'type'    => 'text',
 						'default' => '',
 						'size'    => 'large',
 					),
 					array(
 						'id'      => 'secret_key',
-						'name'    => __( 'Secret Key', 'glue-link' ),
-						'desc'    => __( 'Enter your Freemius secret key. Once saved, this will be securely stored and masked.', 'glue-link' ),
+						'name'    => __( 'Secret Key', 'freemkit' ),
+						'desc'    => __( 'Enter your Freemius secret key. Once saved, this will be securely stored and masked.', 'freemkit' ),
 						'type'    => 'sensitive',
 						'default' => '',
 						'size'    => 'large',
 					),
 					array(
 						'id'               => 'free_form_ids',
-						'name'             => __( 'Free Form', 'glue-link' ),
-						'desc'             => __( 'Choose the form(s) for free subscribers. Begin typing to search.', 'glue-link' ),
+						'name'             => __( 'Free Form', 'freemkit' ),
+						'desc'             => __( 'Choose the form(s) for free subscribers. Begin typing to search.', 'freemkit' ),
 						'type'             => 'text',
 						'default'          => '',
 						'size'             => 'large',
@@ -317,8 +317,8 @@ class Settings {
 					),
 					array(
 						'id'               => 'free_event_types',
-						'name'             => __( 'Free Trigger Events', 'glue-link' ),
-						'desc'             => __( 'Choose Freemius webhook event(s) that should add users to the Free form/tag mapping.', 'glue-link' ),
+						'name'             => __( 'Free Trigger Events', 'freemkit' ),
+						'desc'             => __( 'Choose Freemius webhook event(s) that should add users to the Free form/tag mapping.', 'freemkit' ),
 						'type'             => 'text',
 						'default'          => 'install.installed,install.activated',
 						'size'             => 'large',
@@ -327,8 +327,8 @@ class Settings {
 					),
 					array(
 						'id'               => 'free_tag_ids',
-						'name'             => __( 'Free Tag', 'glue-link' ),
-						'desc'             => __( 'Optionally, choose the tag(s) for free subscribers. Begin typing to search.', 'glue-link' ),
+						'name'             => __( 'Free Tag', 'freemkit' ),
+						'desc'             => __( 'Optionally, choose the tag(s) for free subscribers. Begin typing to search.', 'freemkit' ),
 						'type'             => 'text',
 						'default'          => '',
 						'size'             => 'large',
@@ -337,8 +337,8 @@ class Settings {
 					),
 					array(
 						'id'               => 'paid_form_ids',
-						'name'             => __( 'Paid Form', 'glue-link' ),
-						'desc'             => __( 'Choose the form(s) for paid subscribers. Begin typing to search.', 'glue-link' ),
+						'name'             => __( 'Paid Form', 'freemkit' ),
+						'desc'             => __( 'Choose the form(s) for paid subscribers. Begin typing to search.', 'freemkit' ),
 						'type'             => 'text',
 						'default'          => '',
 						'size'             => 'large',
@@ -347,8 +347,8 @@ class Settings {
 					),
 					array(
 						'id'               => 'paid_event_types',
-						'name'             => __( 'Paid Trigger Events', 'glue-link' ),
-						'desc'             => __( 'Choose Freemius webhook event(s) that should add users to the Paid form/tag mapping.', 'glue-link' ),
+						'name'             => __( 'Paid Trigger Events', 'freemkit' ),
+						'desc'             => __( 'Choose Freemius webhook event(s) that should add users to the Paid form/tag mapping.', 'freemkit' ),
 						'type'             => 'text',
 						'default'          => 'license.created,subscription.created,payment.created',
 						'size'             => 'large',
@@ -357,8 +357,8 @@ class Settings {
 					),
 					array(
 						'id'               => 'paid_tag_ids',
-						'name'             => __( 'Paid Tag', 'glue-link' ),
-						'desc'             => __( 'Choose the tag(s) for paid subscribers. Begin typing to search.', 'glue-link' ),
+						'name'             => __( 'Paid Tag', 'freemkit' ),
+						'desc'             => __( 'Choose the tag(s) for paid subscribers. Begin typing to search.', 'freemkit' ),
 						'type'             => 'text',
 						'default'          => '',
 						'size'             => 'large',
@@ -390,20 +390,20 @@ class Settings {
 		$settings = array(
 			'kit'              => array(
 				'id'   => 'kit',
-				'name' => __( 'Kit', 'glue-link' ),
-				'desc' => __( 'Connect to Kit using OAuth (API v4)', 'glue-link' ),
+				'name' => __( 'Kit', 'freemkit' ),
+				'desc' => __( 'Connect to Kit using OAuth (API v4)', 'freemkit' ),
 				'type' => 'header',
 			),
 			'kit_oauth_status' => array(
 				'id'   => 'kit_oauth_status',
-				'name' => __( 'Connection', 'glue-link' ),
-				'desc' => Kit_OAuth::get_status_html( 'glue_link_options_page' ),
+				'name' => __( 'Connection', 'freemkit' ),
+				'desc' => Kit_OAuth::get_status_html( 'freemkit_options_page' ),
 				'type' => 'header',
 			),
 			'kit_form_id'      => array(
 				'id'               => 'kit_form_id',
-				'name'             => __( 'Global Form ID', 'glue-link' ),
-				'desc'             => __( 'Select the Kit form to add subscribers to. Start typing to search. This is used if the form ID is not set for a specific plugin.', 'glue-link' ),
+				'name'             => __( 'Global Form ID', 'freemkit' ),
+				'desc'             => __( 'Select the Kit form to add subscribers to. Start typing to search. This is used if the form ID is not set for a specific plugin.', 'freemkit' ),
 				'type'             => 'text',
 				'default'          => '',
 				'size'             => 'large',
@@ -412,8 +412,8 @@ class Settings {
 			),
 			'kit_tag_id'       => array(
 				'id'               => 'kit_tag_id',
-				'name'             => __( 'Tag ID', 'glue-link' ),
-				'desc'             => __( 'Select the Kit tag to apply (optional). Start typing to search. This is used if the tag ID is not set for a specific plugin.', 'glue-link' ),
+				'name'             => __( 'Tag ID', 'freemkit' ),
+				'desc'             => __( 'Select the Kit tag to apply (optional). Start typing to search. This is used if the tag ID is not set for a specific plugin.', 'freemkit' ),
 				'type'             => 'text',
 				'default'          => '',
 				'size'             => 'large',
@@ -429,7 +429,7 @@ class Settings {
 		 *
 		 * @param array $settings Kit settings array
 		 */
-		return apply_filters( 'glue_link_settings_kit', $settings );
+		return apply_filters( 'freemkit_settings_kit', $settings );
 	}
 
 	/**
@@ -443,14 +443,14 @@ class Settings {
 		$settings = array(
 			'subscribers'     => array(
 				'id'   => 'subscribers',
-				'name' => __( 'Subscribers', 'glue-link' ),
-				'desc' => __( 'Configure your subscribers settings in this tab.', 'glue-link' ),
+				'name' => __( 'Subscribers', 'freemkit' ),
+				'desc' => __( 'Configure your subscribers settings in this tab.', 'freemkit' ),
 				'type' => 'header',
 			),
 			'last_name_field' => array(
 				'id'               => 'last_name_field',
-				'name'             => __( 'Last Name field', 'glue-link' ),
-				'desc'             => __( 'Select the field name for mapping the last name in Kit. Note: Kit lacks a default last name field; a custom field must be created in your account first.', 'glue-link' ),
+				'name'             => __( 'Last Name field', 'freemkit' ),
+				'desc'             => __( 'Select the field name for mapping the last name in Kit. Note: Kit lacks a default last name field; a custom field must be created in your account first.', 'freemkit' ),
 				'type'             => 'text',
 				'default'          => '',
 				'field_class'      => 'ts_autocomplete',
@@ -458,7 +458,7 @@ class Settings {
 			),
 			'custom_fields'   => array(
 				'id'                => 'custom_fields',
-				'name'              => __( 'Custom Fields', 'glue-link' ),
+				'name'              => __( 'Custom Fields', 'freemkit' ),
 				'desc'              => '',
 				'type'              => 'repeater',
 				'live_update_field' => 'local_name',
@@ -466,15 +466,15 @@ class Settings {
 				'fields'            => array(
 					array(
 						'id'      => 'local_name',
-						'name'    => __( 'Field Local Name', 'glue-link' ),
-						'desc'    => __( 'Enter the name of your field that will be used locally in the database on this site.', 'glue-link' ),
+						'name'    => __( 'Field Local Name', 'freemkit' ),
+						'desc'    => __( 'Enter the name of your field that will be used locally in the database on this site.', 'freemkit' ),
 						'type'    => 'text',
 						'default' => '',
 					),
 					array(
 						'id'               => 'remote_name',
-						'name'             => __( 'Field name on Kit', 'glue-link' ),
-						'desc'             => __( 'Enter the name of your custom field that is used on the Kit.', 'glue-link' ),
+						'name'             => __( 'Field name on Kit', 'freemkit' ),
+						'desc'             => __( 'Enter the name of your custom field that is used on the Kit.', 'freemkit' ),
 						'type'             => 'text',
 						'default'          => '',
 						'field_class'      => 'ts_autocomplete',
@@ -491,7 +491,7 @@ class Settings {
 		 *
 		 * @param array $settings Subscribers settings array
 		 */
-		return apply_filters( 'glue_link_settings_subscribers', $settings );
+		return apply_filters( 'freemkit_settings_subscribers', $settings );
 	}
 
 	/**
@@ -505,7 +505,7 @@ class Settings {
 	 */
 	private static function get_kit_search_field_attributes( string $endpoint, array $ts_config = array() ): array {
 		$attributes = array(
-			'data-wp-prefix'   => 'GlueLink',
+			'data-wp-prefix'   => 'FreemKit',
 			'data-wp-action'   => self::$prefix . '_kit_search',
 			'data-wp-nonce'    => wp_create_nonce( self::$prefix . '_kit_search' ),
 			'data-wp-endpoint' => $endpoint,
@@ -530,8 +530,8 @@ class Settings {
 
 		return array_merge(
 			array(
-				'settings' => '<a href="' . admin_url( 'admin.php?page=' . $this->menu_slug ) . '">' . esc_html__( 'Settings', 'glue-link' ) . '</a>',
-				'wizard'   => '<a href="' . admin_url( 'options-general.php?page=glue_link_setup_wizard' ) . '">' . esc_html__( 'Setup Wizard', 'glue-link' ) . '</a>',
+				'settings' => '<a href="' . admin_url( 'admin.php?page=' . $this->menu_slug ) . '">' . esc_html__( 'Settings', 'freemkit' ) . '</a>',
+				'wizard'   => '<a href="' . admin_url( 'options-general.php?page=freemkit_setup_wizard' ) . '">' . esc_html__( 'Setup Wizard', 'freemkit' ) . '</a>',
 			),
 			$links
 		);
@@ -548,9 +548,9 @@ class Settings {
 	 */
 	public function plugin_row_meta( array $links, string $file ): array {
 
-		if ( false !== strpos( $file, 'glue-link.php' ) ) {
+		if ( false !== strpos( $file, 'freemkit.php' ) ) {
 			$new_links = array(
-				'support' => '<a href = "https://webberzone.com/support/">' . esc_html__( 'Support', 'glue-link' ) . '</a>',
+				'support' => '<a href = "https://webberzone.com/support/">' . esc_html__( 'Support', 'freemkit' ) . '</a>',
 			);
 
 			$links = array_merge( $links, $new_links );
@@ -566,7 +566,7 @@ class Settings {
 	public function get_help_sidebar() {
 		$help_sidebar =
 			/* translators: 1: Plugin support site link. */
-			'<p>' . sprintf( __( 'For more information or how to get support visit the <a href="%s">support site</a>.', 'glue-link' ), esc_url( 'https://webberzone.com/support/' ) ) . '</p>';
+			'<p>' . sprintf( __( 'For more information or how to get support visit the <a href="%s">support site</a>.', 'freemkit' ), esc_url( 'https://webberzone.com/support/' ) ) . '</p>';
 
 		/**
 		 * Filter to modify the help sidebar content.
@@ -586,18 +586,18 @@ class Settings {
 	public function get_help_tabs() {
 		$help_tabs = array(
 			array(
-				'id'      => 'glue_link-settings-general-help',
-				'title'   => esc_html__( 'Freemius Plugins', 'glue-link' ),
+				'id'      => 'freemkit-settings-general-help',
+				'title'   => esc_html__( 'Freemius Plugins', 'freemkit' ),
 				'content' =>
-				'<p><strong>' . esc_html__( 'This tab allows you to add or remove plugins that you have added on Freemius', 'glue-link' ) . '</strong></p>' .
-					'<p>' . esc_html__( 'You must click the Save Changes button at the bottom of the screen for new settings to take effect.', 'glue-link' ) . '</p>',
+				'<p><strong>' . esc_html__( 'This tab allows you to add or remove plugins that you have added on Freemius', 'freemkit' ) . '</strong></p>' .
+					'<p>' . esc_html__( 'You must click the Save Changes button at the bottom of the screen for new settings to take effect.', 'freemkit' ) . '</p>',
 			),
 			array(
-				'id'      => 'glue_link-settings-kit-help',
-				'title'   => esc_html__( 'Kit', 'glue-link' ),
+				'id'      => 'freemkit-settings-kit-help',
+				'title'   => esc_html__( 'Kit', 'freemkit' ),
 				'content' =>
-				'<p><strong>' . esc_html__( 'This tab provides the settings for configuring the integration with Kit. OAuth (API v4) is recommended; API key/secret can be used as fallback.', 'glue-link' ) . '</strong></p>' .
-					'<p>' . esc_html__( 'You must click the Save Changes button at the bottom of the screen for new settings to take effect.', 'glue-link' ) . '</p>',
+				'<p><strong>' . esc_html__( 'This tab provides the settings for configuring the integration with Kit. OAuth (API v4) is recommended; API key/secret can be used as fallback.', 'freemkit' ) . '</strong></p>' .
+					'<p>' . esc_html__( 'You must click the Save Changes button at the bottom of the screen for new settings to take effect.', 'freemkit' ) . '</p>',
 			),
 		);
 
@@ -619,8 +619,8 @@ class Settings {
 	public static function get_admin_footer_text() {
 		return sprintf(
 			/* translators: 1: Opening achor tag with Plugin page link, 2: Closing anchor tag. */
-			__( 'Thank you for using %1$sGlue for Freemius and Kit%2$s!', 'glue-link' ),
-			'<a href="https://webberzone.com/plugins/glue-link/" target="_blank">',
+			__( 'Thank you for using %1$sFreemKit%2$s!', 'freemkit' ),
+			'<a href="https://webberzone.com/plugins/freemkit/" target="_blank">',
 			'</a>'
 		);
 	}
@@ -657,8 +657,8 @@ class Settings {
 		);
 
 			wp_localize_script(
-				'glue-link-admin',
-				'GlueLinkAdmin',
+				'freemkit-admin',
+				'FreemKitAdmin',
 				array(
 					'prefix'        => self::$prefix,
 					'thumb_default' => plugins_url( 'images/default.png', __FILE__ ),
@@ -666,11 +666,11 @@ class Settings {
 					'nonce'         => wp_create_nonce( self::$prefix . '_admin_nonce' ),
 					'webhook_urls'  => self::get_webhook_urls(),
 					'strings'       => array(
-						'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'glue-link' ),
-						'cache_error'          => esc_html__( 'Error clearing cache: ', 'glue-link' ),
-						'api_validation_error' => esc_html__( 'Error validating API credentials.', 'glue-link' ),
-						'copy_success'         => esc_html__( 'Webhook URL copied.', 'glue-link' ),
-						'copy_failed'          => esc_html__( 'Copy failed. Select and copy manually.', 'glue-link' ),
+						'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'freemkit' ),
+						'cache_error'          => esc_html__( 'Error clearing cache: ', 'freemkit' ),
+						'api_validation_error' => esc_html__( 'Error validating API credentials.', 'freemkit' ),
+						'copy_success'         => esc_html__( 'Webhook URL copied.', 'freemkit' ),
+						'copy_failed'          => esc_html__( 'Copy failed. Select and copy manually.', 'freemkit' ),
 					),
 				)
 			);
@@ -678,9 +678,9 @@ class Settings {
 		// Tom Select variables.
 			wp_localize_script(
 				'wz-' . self::$prefix . '-tom-select-init',
-				'GlueLinkTomSelectSettings',
+				'FreemKitTomSelectSettings',
 				array(
-					'prefix'          => 'GlueLink',
+					'prefix'          => 'FreemKit',
 					'nonce'           => wp_create_nonce( self::$prefix . '_kit_search' ),
 					'action'          => self::$prefix . '_kit_search',
 					'endpoint'        => '',
@@ -690,7 +690,7 @@ class Settings {
 					'freemius_events' => self::get_localized_kit_data( 'freemius_events' ),
 					'strings'         => array(
 						/* translators: %s: search term */
-						'no_results' => esc_html__( 'No results found for %s', 'glue-link' ),
+						'no_results' => esc_html__( 'No results found for %s', 'freemkit' ),
 					),
 				)
 			);
@@ -701,16 +701,16 @@ class Settings {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param string $handle Script handle without the 'glue-link-' prefix.
+	 * @param string $handle Script handle without the 'freemkit-' prefix.
 	 * @param string $path   Path to the script relative to the admin directory.
 	 * @param array  $deps   Array of script dependencies.
 	 */
 	private function enqueue_admin_script( string $handle, string $path, array $deps = array() ) {
 		$script_file = __DIR__ . $path;
-		$version     = file_exists( $script_file ) ? (string) filemtime( $script_file ) : GLUE_LINK_VERSION;
+		$version     = file_exists( $script_file ) ? (string) filemtime( $script_file ) : FREEMKIT_VERSION;
 
 		wp_enqueue_script(
-			'glue-link-' . $handle,
+			'freemkit-' . $handle,
 			plugins_url( $path, __FILE__ ),
 			$deps,
 			$version,
@@ -739,7 +739,7 @@ class Settings {
 		if ( ! isset( $_REQUEST['endpoint'] ) || ! isset( $_REQUEST['nonce'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			wp_send_json_error(
 				(object) array(
-					'message' => __( 'Invalid request parameters', 'glue-link' ),
+					'message' => __( 'Invalid request parameters', 'freemkit' ),
 					'items'   => array(),
 				)
 			);
@@ -759,7 +759,7 @@ class Settings {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error(
 				array(
-					'message' => __( 'Insufficient permissions', 'glue-link' ),
+					'message' => __( 'Insufficient permissions', 'freemkit' ),
 					'items'   => array(),
 				)
 			);
@@ -828,7 +828,7 @@ class Settings {
 		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
 
 		foreach ( array( 'forms', 'tags', 'sequences', 'custom_fields' ) as $transient ) {
-			delete_transient( 'glue_link_kit_' . $transient );
+			delete_transient( 'freemkit_kit_' . $transient );
 		}
 
 		wp_send_json_success();
@@ -844,23 +844,23 @@ class Settings {
 		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'glue-link' ) ) );
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'freemkit' ) ) );
 		}
 
 		$api_key = isset( $_POST['kit_api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['kit_api_key'] ) ) : '';
 
 		if ( empty( $api_key ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'API key is empty.', 'glue-link' ) ) );
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'API key is empty.', 'freemkit' ) ) );
 		}
 
-		$api    = new \WebberZone\Glue_Link\Kit_API();
+		$api    = new \WebberZone\FreemKit\Kit_API();
 		$result = $api->validate_api_credentials();
 
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( (object) array( 'message' => $result->get_error_message() ) );
 		}
 
-		wp_send_json_success( (object) array( 'message' => esc_html__( 'API key is valid.', 'glue-link' ) ) );
+		wp_send_json_success( (object) array( 'message' => esc_html__( 'API key is valid.', 'freemkit' ) ) );
 	}
 
 	/**
@@ -873,7 +873,7 @@ class Settings {
 		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'glue-link' ) ) );
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'freemkit' ) ) );
 		}
 
 		$secret_input = isset( $_POST['kit_api_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['kit_api_secret'] ) ) : '';
@@ -887,21 +887,21 @@ class Settings {
 		}
 
 		if ( empty( $api_secret ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'API secret is empty.', 'glue-link' ) ) );
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'API secret is empty.', 'freemkit' ) ) );
 		}
 
 		if ( strpos( $api_secret, '*' ) !== false ) {
 			$api_secret = Options_API::decrypt_api_key( Options_API::get_option( 'kit_api_secret' ) );
 		}
 
-		$api    = new \WebberZone\Glue_Link\Kit_API();
+		$api    = new \WebberZone\FreemKit\Kit_API();
 		$result = $api->get_account();
 
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( (object) array( 'message' => $result->get_error_message() ) );
 		}
 
-		wp_send_json_success( (object) array( 'message' => esc_html__( 'API secret is valid!', 'glue-link' ) ) );
+		wp_send_json_success( (object) array( 'message' => esc_html__( 'API secret is valid!', 'freemkit' ) ) );
 	}
 
 	/**
@@ -914,10 +914,10 @@ class Settings {
 		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'glue-link' ) ) );
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'freemkit' ) ) );
 		}
 
-		$api    = new \WebberZone\Glue_Link\Kit_API();
+		$api    = new \WebberZone\FreemKit\Kit_API();
 		$result = $api->get_account();
 
 		if ( is_wp_error( $result ) ) {
@@ -928,10 +928,10 @@ class Settings {
 		$message      = $account_name
 			? sprintf(
 				/* translators: %s: Kit account name. */
-				esc_html__( 'Connection successful. Account: %s', 'glue-link' ),
+				esc_html__( 'Connection successful. Account: %s', 'freemkit' ),
 				$account_name
 			)
-			: esc_html__( 'Connection successful.', 'glue-link' );
+			: esc_html__( 'Connection successful.', 'freemkit' );
 
 		wp_send_json_success( (object) array( 'message' => $message ) );
 	}
@@ -950,7 +950,7 @@ class Settings {
 		$items         = get_transient( $transient_key );
 
 		if ( false === $items ) {
-			$api = new \WebberZone\Glue_Link\Kit_API();
+			$api = new \WebberZone\FreemKit\Kit_API();
 			$has = $api->validate_api_credentials();
 
 			if ( is_wp_error( $has ) ) {
@@ -968,7 +968,7 @@ class Settings {
 					$response = $api->get_custom_fields();
 					break;
 				default:
-					$response = new \WP_Error( 'invalid_type', __( 'Invalid type specified.', 'glue-link' ) );
+					$response = new \WP_Error( 'invalid_type', __( 'Invalid type specified.', 'freemkit' ) );
 					break;
 			}
 
@@ -1182,11 +1182,11 @@ class Settings {
 	public function add_api_validation_button( string $desc, array $args ): string {
 		// Only add button after API key field.
 		if ( 'kit_api_key' === $args['id'] ) {
-			$desc .= ' <button type="button" class="button button-secondary validate-api-key">' . esc_html__( 'Validate API Key', 'glue-link' ) . '</button>';
+			$desc .= ' <button type="button" class="button button-secondary validate-api-key">' . esc_html__( 'Validate API Key', 'freemkit' ) . '</button>';
 			$desc .= '<span class="api-validation-status" style="margin-left: 10px;"></span>';
 		}
 		if ( 'kit_api_secret' === $args['id'] ) {
-			$desc .= ' <button type="button" class="button button-secondary validate-api-secret">' . esc_html__( 'Validate API Secret', 'glue-link' ) . '</button>';
+			$desc .= ' <button type="button" class="button button-secondary validate-api-secret">' . esc_html__( 'Validate API Secret', 'freemkit' ) . '</button>';
 			$desc .= '<span class="api-validation-status" style="margin-left: 10px;"></span>';
 		}
 		return $desc;
@@ -1206,7 +1206,7 @@ class Settings {
 			return $html;
 		}
 
-		$html .= '<p><button type="button" class="button button-secondary test-kit-connection">' . esc_html__( 'Test Connection', 'glue-link' ) . '</button>';
+		$html .= '<p><button type="button" class="button button-secondary test-kit-connection">' . esc_html__( 'Test Connection', 'freemkit' ) . '</button>';
 		$html .= '<span class="kit-connection-status" style="margin-left: 10px;"></span></p>';
 
 		return $html;
@@ -1273,13 +1273,13 @@ class Settings {
 	public function add_subscribers_link() {
 		$url = add_query_arg(
 			array(
-				'page' => 'glue_link_subscribers',
+				'page' => 'freemkit_subscribers',
 			),
 			admin_url( 'users.php' )
 		);
 		?>
 
-		<a href="<?php echo esc_url( $url ); ?>" class="page-title-action"><?php esc_html_e( 'View Subscribers', 'glue-link' ); ?></a>
+		<a href="<?php echo esc_url( $url ); ?>" class="page-title-action"><?php esc_html_e( 'View Subscribers', 'freemkit' ); ?></a>
 		<?php
 	}
 
@@ -1290,8 +1290,8 @@ class Settings {
 	 */
 	public static function add_cache_clear_button() {
 		printf(
-			'<button type="button" name="wp_ajax_glue_link_refresh_cache" id="wp_ajax_glue_link_refresh_cache" class="button button-secondary glue_link_cache_clear" aria-label="%1$s">%1$s</button>',
-			esc_html__( 'Clear cache', 'glue-link' )
+			'<button type="button" name="wp_ajax_freemkit_refresh_cache" id="wp_ajax_freemkit_refresh_cache" class="button button-secondary freemkit_cache_clear" aria-label="%1$s">%1$s</button>',
+			esc_html__( 'Clear cache', 'freemkit' )
 		);
 	}
 
@@ -1303,20 +1303,20 @@ class Settings {
 	public function render_wizard_button(): void {
 		printf(
 			'<br /><a aria-label="%1$s" class="button button-secondary" href="%2$s" title="%1$s" style="margin-top: 10px;">%3$s</a>',
-			esc_attr__( 'Start Setup Wizard', 'glue-link' ),
+			esc_attr__( 'Start Setup Wizard', 'freemkit' ),
 			esc_url(
 				wp_nonce_url(
 					add_query_arg(
 						array(
-							'page'          => 'glue_link_setup_wizard',
+							'page'          => 'freemkit_setup_wizard',
 							'wizard_action' => 'restart',
 						),
 						admin_url( 'options-general.php' )
 					),
-					'glue_link_restart_wizard'
+					'freemkit_restart_wizard'
 				)
 			),
-			esc_html__( 'Start Setup Wizard', 'glue-link' )
+			esc_html__( 'Start Setup Wizard', 'freemkit' )
 		);
 	}
 
@@ -1327,8 +1327,8 @@ class Settings {
 	 */
 	public static function get_webhook_urls(): array {
 		return array(
-			'rest'  => home_url( '/wp-json/glue-link/v1/webhook' ),
-			'query' => add_query_arg( 'glue_webhook', '1', home_url() ),
+			'rest'  => home_url( '/wp-json/freemkit/v1/webhook' ),
+			'query' => add_query_arg( 'freemkit_webhook', '1', home_url() ),
 		);
 	}
 
@@ -1350,12 +1350,12 @@ class Settings {
 		$webhook_url   = 'query' === $endpoint_type ? $query_url : $rest_url;
 
 		$string  = '<div class="webhook-url-container" data-rest-url="' . esc_attr( $rest_url ) . '" data-query-url="' . esc_attr( $query_url ) . '">';
-		$string .= '<p>' . esc_html__( 'Copy the following URL to your Freemius dashboard:', 'glue-link' ) . '</p>';
-		$string .= '<p><input type="text" class="regular-text glue-link-webhook-url-input" readonly value="' . esc_attr( $webhook_url ) . '" /></p>';
-		$string .= '<p><button type="button" class="button button-secondary glue-link-webhook-copy">' . esc_html__( 'Copy URL', 'glue-link' ) . '</button></p>';
-		$string .= '<p class="description glue-link-webhook-copy-status" aria-live="polite"></p>';
-		$string .= '<p><code class="glue-link-webhook-url-code" title="' . esc_attr__( 'Click to copy URL', 'glue-link' ) . '" style="cursor:pointer;">' . esc_html( $webhook_url ) . '</code></p>';
-		$string .= '<p class="description">' . esc_html__( 'This URL updates automatically based on your selected endpoint type.', 'glue-link' ) . '</p>';
+		$string .= '<p>' . esc_html__( 'Copy the following URL to your Freemius dashboard:', 'freemkit' ) . '</p>';
+		$string .= '<p><input type="text" class="regular-text freemkit-webhook-url-input" readonly value="' . esc_attr( $webhook_url ) . '" /></p>';
+		$string .= '<p><button type="button" class="button button-secondary freemkit-webhook-copy">' . esc_html__( 'Copy URL', 'freemkit' ) . '</button></p>';
+		$string .= '<p class="description freemkit-webhook-copy-status" aria-live="polite"></p>';
+		$string .= '<p><code class="freemkit-webhook-url-code" title="' . esc_attr__( 'Click to copy URL', 'freemkit' ) . '" style="cursor:pointer;">' . esc_html( $webhook_url ) . '</code></p>';
+		$string .= '<p class="description">' . esc_html__( 'This URL updates automatically based on your selected endpoint type.', 'freemkit' ) . '</p>';
 		$string .= '</div>';
 
 		return $string;

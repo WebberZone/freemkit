@@ -2,11 +2,11 @@
 /**
  * Subscriber class file
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  * @since 1.0.0
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
 /**
  * Class representing a subscriber.
@@ -162,7 +162,7 @@ class Subscriber {
 	private function init_by_data( array $data ) {
 		// Ensure email exists and is valid.
 		if ( empty( $data['email'] ) || ! filter_var( $data['email'], FILTER_VALIDATE_EMAIL ) ) {
-			return new \WP_Error( 'invalid_email', __( 'Invalid subscriber email.', 'glue-link' ) );
+			return new \WP_Error( 'invalid_email', __( 'Invalid subscriber email.', 'freemkit' ) );
 		}
 
 		foreach ( get_object_vars( $this ) as $key => $value ) {
@@ -262,7 +262,7 @@ class Subscriber {
 	 */
 	public function delete() {
 		if ( ! $this->id ) {
-			return new \WP_Error( 'no_subscriber', __( 'No subscriber found to delete.', 'glue-link' ) );
+			return new \WP_Error( 'no_subscriber', __( 'No subscriber found to delete.', 'freemkit' ) );
 		}
 
 		return $this->db->delete_subscriber( $this->id );

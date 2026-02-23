@@ -1,11 +1,11 @@
 <?php
 /**
- * Runtime initialization for Glue Link.
+ * Runtime initialization for FreemKit.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
 if ( ! defined( 'WPINC' ) ) {
 	die;
@@ -26,7 +26,7 @@ class Runtime {
 	/**
 	 * Database object.
 	 *
-	 * @var \WebberZone\Glue_Link\Database
+	 * @var \WebberZone\FreemKit\Database
 	 */
 	private Database $database;
 
@@ -110,7 +110,7 @@ class Runtime {
 		if ( is_wp_error( $result ) ) {
 			wp_die(
 				esc_html( $result->get_error_message() ),
-				esc_html__( 'Plugin Activation Error', 'glue-link' ),
+				esc_html__( 'Plugin Activation Error', 'freemkit' ),
 				array(
 					'back_link' => true,
 				)
@@ -118,10 +118,10 @@ class Runtime {
 		}
 
 		// Trigger setup wizard on next admin page load.
-		delete_option( 'glue_link_wizard_completed' );
-		delete_option( 'glue_link_wizard_completed_date' );
-		update_option( 'glue_link_wizard_current_step', 1 );
-		update_option( 'glue_link_show_wizard', true );
-		set_transient( 'glue_link_show_wizard_activation_redirect', true, HOUR_IN_SECONDS );
+		delete_option( 'freemkit_wizard_completed' );
+		delete_option( 'freemkit_wizard_completed_date' );
+		update_option( 'freemkit_wizard_current_step', 1 );
+		update_option( 'freemkit_show_wizard', true );
+		set_transient( 'freemkit_show_wizard_activation_redirect', true, HOUR_IN_SECONDS );
 	}
 }

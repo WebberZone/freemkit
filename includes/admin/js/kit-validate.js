@@ -1,7 +1,7 @@
 /**
  * ConvertKit API validation script.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
 jQuery(document).ready(function ($) {
@@ -15,7 +15,7 @@ jQuery(document).ready(function ($) {
 	 */
 	function validateApiField(config) {
 		var $status = config.$button.siblings('.api-validation-status');
-		var $input = $('input[name="glue_link_settings[' + config.fieldName + ']"]');
+		var $input = $('input[name="freemkit_settings[' + config.fieldName + ']"]');
 
 		if (!$input.length) {
 			$status.html('<span style="color: #a60000;">Field not found.</span>');
@@ -27,7 +27,7 @@ jQuery(document).ready(function ($) {
 
 		var data = {
 			action: config.action,
-			nonce: GlueLinkAdmin.nonce
+			nonce: FreemKitAdmin.nonce
 		};
 		data[config.fieldName] = $input.val();
 
@@ -43,7 +43,7 @@ jQuery(document).ready(function ($) {
 				}
 			},
 			error: function () {
-				$status.html('<span style="color: #a60000;">' + GlueLinkAdmin.strings.api_validation_error + '</span>');
+				$status.html('<span style="color: #a60000;">' + FreemKitAdmin.strings.api_validation_error + '</span>');
 			},
 			complete: function () {
 				config.$button.prop('disabled', false);
@@ -56,7 +56,7 @@ jQuery(document).ready(function ($) {
 		e.preventDefault();
 		validateApiField({
 			fieldName: 'kit_api_key',
-			action: 'glue_link_validate_api',
+			action: 'freemkit_validate_api',
 			$button: $(this)
 		});
 	});
@@ -66,7 +66,7 @@ jQuery(document).ready(function ($) {
 		e.preventDefault();
 		validateApiField({
 			fieldName: 'kit_api_secret',
-			action: 'glue_link_validate_api_secret',
+			action: 'freemkit_validate_api_secret',
 			$button: $(this)
 		});
 	});
@@ -84,8 +84,8 @@ jQuery(document).ready(function ($) {
 			url: ajaxurl,
 			type: 'POST',
 			data: {
-				action: 'glue_link_test_kit_connection',
-				nonce: GlueLinkAdmin.nonce
+				action: 'freemkit_test_kit_connection',
+				nonce: FreemKitAdmin.nonce
 			},
 			success: function (response) {
 				if (response.success) {
@@ -95,7 +95,7 @@ jQuery(document).ready(function ($) {
 				}
 			},
 			error: function () {
-				$status.html('<span style="color: #a60000;">' + GlueLinkAdmin.strings.api_validation_error + '</span>');
+				$status.html('<span style="color: #a60000;">' + FreemKitAdmin.strings.api_validation_error + '</span>');
 			},
 			complete: function () {
 				$button.prop('disabled', false);

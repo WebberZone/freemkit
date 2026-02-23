@@ -5,13 +5,13 @@
  * @link  https://webberzone.com
  * @since 1.0.0
  *
- * @package WebberZone\Glue_Link\Admin
+ * @package WebberZone\FreemKit\Admin
  */
 
-namespace WebberZone\Glue_Link\Admin;
+namespace WebberZone\FreemKit\Admin;
 
-use WebberZone\Glue_Link\Database;
-use WebberZone\Glue_Link\Subscriber;
+use WebberZone\FreemKit\Database;
+use WebberZone\FreemKit\Subscriber;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -66,14 +66,14 @@ class Subscribers_List_Table extends \WP_List_Table {
 	public function get_columns(): array {
 		$columns = array(
 			'cb'         => '<input type="checkbox" />',
-			'email'      => __( 'Email', 'glue-link' ),
-			'first_name' => __( 'First Name', 'glue-link' ),
-			'last_name'  => __( 'Last Name', 'glue-link' ),
-			'status'     => __( 'Status', 'glue-link' ),
-			'created'    => __( 'Created', 'glue-link' ),
-			'fields'     => __( 'Fields', 'glue-link' ),
-			'tags'       => __( 'Tags', 'glue-link' ),
-			'forms'      => __( 'Forms', 'glue-link' ),
+			'email'      => __( 'Email', 'freemkit' ),
+			'first_name' => __( 'First Name', 'freemkit' ),
+			'last_name'  => __( 'Last Name', 'freemkit' ),
+			'status'     => __( 'Status', 'freemkit' ),
+			'created'    => __( 'Created', 'freemkit' ),
+			'fields'     => __( 'Fields', 'freemkit' ),
+			'tags'       => __( 'Tags', 'freemkit' ),
+			'forms'      => __( 'Forms', 'freemkit' ),
 		);
 
 		return $columns;
@@ -228,7 +228,7 @@ class Subscribers_List_Table extends \WP_List_Table {
 						'edit_subscriber_' . $item->id
 					)
 				),
-				esc_html__( 'Edit', 'glue-link' )
+				esc_html__( 'Edit', 'freemkit' )
 			),
 			'delete' => sprintf(
 				'<a href="%s">%s</a>',
@@ -245,7 +245,7 @@ class Subscribers_List_Table extends \WP_List_Table {
 						'delete_subscriber_' . $item->id
 					)
 				),
-				esc_html__( 'Delete', 'glue-link' )
+				esc_html__( 'Delete', 'freemkit' )
 			),
 		);
 
@@ -268,9 +268,9 @@ class Subscribers_List_Table extends \WP_List_Table {
 		$current = isset( $_REQUEST['status'] ) ? sanitize_key( $_REQUEST['status'] ) : 'all'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		$statuses = array(
-			'all'      => __( 'All', 'glue-link' ),
-			'active'   => __( 'Active', 'glue-link' ),
-			'inactive' => __( 'Inactive', 'glue-link' ),
+			'all'      => __( 'All', 'freemkit' ),
+			'active'   => __( 'Active', 'freemkit' ),
+			'inactive' => __( 'Inactive', 'freemkit' ),
 		);
 
 		$counts = $this->database->get_subscriber_counts();
@@ -301,7 +301,7 @@ class Subscribers_List_Table extends \WP_List_Table {
 	 */
 	public function get_bulk_actions(): array {
 		return array(
-			'delete' => __( 'Delete', 'glue-link' ),
+			'delete' => __( 'Delete', 'freemkit' ),
 		);
 	}
 
@@ -320,22 +320,22 @@ class Subscribers_List_Table extends \WP_List_Table {
 		}
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			return new \WP_Error( 'insufficient_permissions', __( 'You do not have permission to perform this action.', 'glue-link' ) );
+			return new \WP_Error( 'insufficient_permissions', __( 'You do not have permission to perform this action.', 'freemkit' ) );
 		}
 
 		// Security check.
 		if ( ! isset( $_REQUEST['_wpnonce'] ) ) {
-			return new \WP_Error( 'missing_nonce', __( 'Security check failed.', 'glue-link' ) );
+			return new \WP_Error( 'missing_nonce', __( 'Security check failed.', 'freemkit' ) );
 		}
 
 		if ( 'delete' === $action ) {
 			$nonce = sanitize_key( wp_unslash( $_REQUEST['_wpnonce'] ) );
 			if ( ! wp_verify_nonce( $nonce, 'bulk-subscribers' ) ) {
-				return new \WP_Error( 'invalid_nonce', __( 'Security check failed.', 'glue-link' ) );
+				return new \WP_Error( 'invalid_nonce', __( 'Security check failed.', 'freemkit' ) );
 			}
 
 			if ( empty( $_REQUEST['subscriber'] ) || ! is_array( $_REQUEST['subscriber'] ) ) {
-				return new \WP_Error( 'no_items_selected', __( 'No subscribers selected.', 'glue-link' ) );
+				return new \WP_Error( 'no_items_selected', __( 'No subscribers selected.', 'freemkit' ) );
 			}
 
 			$subscriber_ids = array_map( 'absint', $_REQUEST['subscriber'] );
@@ -375,7 +375,7 @@ class Subscribers_List_Table extends \WP_List_Table {
 		printf(
 			'<div class="alignleft actions"><a href="%s" class="button">%s</a></div>',
 			esc_url( $export_url ),
-			esc_html__( 'Export CSV', 'glue-link' )
+			esc_html__( 'Export CSV', 'freemkit' )
 		);
 	}
 
@@ -388,13 +388,13 @@ class Subscribers_List_Table extends \WP_List_Table {
 		$this->prepare_items();
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Subscribers', 'glue-link' ); ?></h1>
-			<a href="<?php echo esc_url( admin_url( 'admin.php?page=glue_link_options_page' ) ); ?>" class="page-title-action"><?php esc_html_e( 'Back to Settings', 'glue-link' ); ?></a>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Subscribers', 'freemkit' ); ?></h1>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=freemkit_options_page' ) ); ?>" class="page-title-action"><?php esc_html_e( 'Back to Settings', 'freemkit' ); ?></a>
 
 			<form method="post">
 				<?php
-				$this->search_box( esc_html__( 'Search Subscribers', 'glue-link' ), 'subscriber-search' );
-				wp_nonce_field( 'glue_link_subscribers', 'glue_link_subscribers_nonce' );
+				$this->search_box( esc_html__( 'Search Subscribers', 'freemkit' ), 'subscriber-search' );
+				wp_nonce_field( 'freemkit_subscribers', 'freemkit_subscribers_nonce' );
 				$this->display();
 				?>
 			</form>

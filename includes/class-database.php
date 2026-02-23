@@ -2,12 +2,12 @@
 /**
  * Database management class.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
-use WebberZone\Glue_Link\Subscriber;
+use WebberZone\FreemKit\Subscriber;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -45,7 +45,7 @@ class Database {
 	public function __construct() {
 		global $wpdb;
 
-		$this->table_name = $wpdb->prefix . 'glue_link_subscribers';
+		$this->table_name = $wpdb->prefix . 'freemkit_subscribers';
 	}
 
 	/**
@@ -85,13 +85,13 @@ class Database {
 				'database_creation_error',
 				sprintf(
 					/* translators: 1: Database error */
-					__( 'Error creating database table: %s', 'glue-link' ),
+					__( 'Error creating database table: %s', 'freemkit' ),
 					$wpdb->last_error
 				)
 			);
 		}
 
-		add_option( 'glue_link_db_version', $this->db_version );
+		add_option( 'freemkit_db_version', $this->db_version );
 
 		return true;
 	}
@@ -104,7 +104,7 @@ class Database {
 	 * @return bool True if update is required, false otherwise.
 	 */
 	public function needs_update() {
-		$current_version = get_option( 'glue_link_db_version', '0' );
+		$current_version = get_option( 'freemkit_db_version', '0' );
 		return version_compare( $current_version, $this->db_version, '<' );
 	}
 
@@ -128,9 +128,9 @@ class Database {
 	 */
 	public function clear_subscriber_cache( $identifier ) {
 		if ( is_int( $identifier ) ) {
-			wp_cache_delete( 'glue_link_subscriber_' . $identifier, 'glue_link' );
+			wp_cache_delete( 'freemkit_subscriber_' . $identifier, 'freemkit' );
 		} elseif ( is_string( $identifier ) ) {
-			wp_cache_delete( 'glue_link_subscriber_email_' . md5( $identifier ), 'glue_link' );
+			wp_cache_delete( 'freemkit_subscriber_email_' . md5( $identifier ), 'freemkit' );
 		}
 	}
 
@@ -145,8 +145,8 @@ class Database {
 	public function get_subscriber( $id ) {
 		global $wpdb;
 
-		$cache_key  = 'glue_link_subscriber_' . $id;
-		$subscriber = wp_cache_get( $cache_key, 'glue_link' );
+		$cache_key  = 'freemkit_subscriber_' . $id;
+		$subscriber = wp_cache_get( $cache_key, 'freemkit' );
 
 		if ( false === $subscriber ) {
 			$table = $this->get_table_name();
@@ -161,11 +161,11 @@ class Database {
 			if ( null === $subscriber ) {
 				return new \WP_Error(
 					'subscriber_not_found',
-					__( 'Subscriber not found.', 'glue-link' )
+					__( 'Subscriber not found.', 'freemkit' )
 				);
 			}
 
-			wp_cache_set( $cache_key, $subscriber, 'glue_link' );
+			wp_cache_set( $cache_key, $subscriber, 'freemkit' );
 		}
 
 		return new Subscriber( (array) $subscriber );
@@ -182,8 +182,8 @@ class Database {
 	public function get_subscriber_by_email( $email ) {
 		global $wpdb;
 
-		$cache_key  = 'glue_link_subscriber_email_' . md5( $email );
-		$subscriber = wp_cache_get( $cache_key, 'glue_link' );
+		$cache_key  = 'freemkit_subscriber_email_' . md5( $email );
+		$subscriber = wp_cache_get( $cache_key, 'freemkit' );
 
 		if ( false === $subscriber ) {
 			$table = $this->get_table_name();
@@ -198,11 +198,11 @@ class Database {
 			if ( ! $subscriber ) {
 				return new \WP_Error(
 					'subscriber_not_found',
-					__( 'Subscriber not found.', 'glue-link' )
+					__( 'Subscriber not found.', 'freemkit' )
 				);
 			}
 
-			wp_cache_set( $cache_key, $subscriber, 'glue_link' );
+			wp_cache_set( $cache_key, $subscriber, 'freemkit' );
 		}
 
 		return new Subscriber( (array) $subscriber );
@@ -223,7 +223,7 @@ class Database {
 		if ( empty( $subscriber->email ) ) {
 			return new \WP_Error(
 				'missing_email',
-				__( 'Email is required.', 'glue-link' )
+				__( 'Email is required.', 'freemkit' )
 			);
 		}
 
@@ -241,7 +241,7 @@ class Database {
 		if ( $existing ) {
 			return new \WP_Error(
 				'subscriber_exists',
-				__( 'Subscriber already exists.', 'glue-link' )
+				__( 'Subscriber already exists.', 'freemkit' )
 			);
 		}
 
@@ -257,7 +257,7 @@ class Database {
 		if ( false === $result ) {
 			return new \WP_Error(
 				'db_insert_error',
-				__( 'Could not add subscriber.', 'glue-link' )
+				__( 'Could not add subscriber.', 'freemkit' )
 			);
 		}
 
@@ -272,7 +272,7 @@ class Database {
 		 * @param int        $subscriber_id The ID of the subscriber.
 		 * @param Subscriber $subscriber    The subscriber object.
 		 */
-		do_action( 'glue_link_after_add_subscriber', $subscriber_id, $subscriber );
+		do_action( 'freemkit_after_add_subscriber', $subscriber_id, $subscriber );
 
 		return $subscriber_id;
 	}
@@ -295,7 +295,7 @@ class Database {
 		if ( empty( $subscriber->email ) ) {
 			return new \WP_Error(
 				'missing_email',
-				__( 'Email is required.', 'glue-link' )
+				__( 'Email is required.', 'freemkit' )
 			);
 		}
 
@@ -318,7 +318,7 @@ class Database {
 		if ( $email_exists ) {
 			return new \WP_Error(
 				'email_exists',
-				__( 'Email is already taken by another subscriber.', 'glue-link' )
+				__( 'Email is already taken by another subscriber.', 'freemkit' )
 			);
 		}
 
@@ -337,7 +337,7 @@ class Database {
 		if ( false === $result && ! empty( $wpdb->last_error ) ) {
 			return new \WP_Error(
 				'db_update_error',
-				__( 'Could not update subscriber.', 'glue-link' )
+				__( 'Could not update subscriber.', 'freemkit' )
 			);
 		}
 
@@ -357,7 +357,7 @@ class Database {
 		 * @param Subscriber $subscriber    The updated subscriber object.
 		 * @param Subscriber $existing      The original subscriber object.
 		 */
-		do_action( 'glue_link_after_update_subscriber', $subscriber->id, $subscriber, $existing );
+		do_action( 'freemkit_after_update_subscriber', $subscriber->id, $subscriber, $existing );
 
 		return $subscriber->id;
 	}
@@ -464,7 +464,7 @@ class Database {
 		if ( false === $result ) {
 			return new \WP_Error(
 				'db_delete_error',
-				__( 'Could not delete subscriber.', 'glue-link' )
+				__( 'Could not delete subscriber.', 'freemkit' )
 			);
 		}
 
@@ -479,7 +479,7 @@ class Database {
 		 * @param int       $id         Subscriber ID.
 		 * @param Subscriber $subscriber Subscriber object.
 		 */
-		do_action( 'glue_link_delete_subscriber', $id, $subscriber );
+		do_action( 'freemkit_delete_subscriber', $id, $subscriber );
 
 		return true;
 	}
@@ -585,8 +585,8 @@ class Database {
 	public function get_subscriber_counts() {
 		global $wpdb;
 
-		$cache_key = 'glue_link_subscriber_counts';
-		$counts    = wp_cache_get( $cache_key, 'glue_link' );
+		$cache_key = 'freemkit_subscriber_counts';
+		$counts    = wp_cache_get( $cache_key, 'freemkit' );
 
 		if ( false === $counts ) {
 			$table = $this->get_table_name();
@@ -599,7 +599,7 @@ class Database {
 					'db_query_error',
 					sprintf(
 						/* translators: %s: Database error */
-						__( 'Could not get subscriber counts: %s', 'glue-link' ),
+						__( 'Could not get subscriber counts: %s', 'freemkit' ),
 						$wpdb->last_error
 					)
 				);
@@ -610,7 +610,7 @@ class Database {
 				$counts[ $row->status ] = (int) $row->count;
 			}
 
-			wp_cache_set( $cache_key, $counts, 'glue_link', HOUR_IN_SECONDS );
+			wp_cache_set( $cache_key, $counts, 'freemkit', HOUR_IN_SECONDS );
 		}
 
 		return $counts;
@@ -630,7 +630,7 @@ class Database {
 		if ( empty( $ids ) ) {
 			return new \WP_Error(
 				'invalid_ids',
-				__( 'No subscriber IDs provided.', 'glue-link' )
+				__( 'No subscriber IDs provided.', 'freemkit' )
 			);
 		}
 
@@ -640,7 +640,7 @@ class Database {
 		if ( empty( $ids ) ) {
 			return new \WP_Error(
 				'invalid_ids',
-				__( 'No valid subscriber IDs provided.', 'glue-link' )
+				__( 'No valid subscriber IDs provided.', 'freemkit' )
 			);
 		}
 
@@ -654,7 +654,7 @@ class Database {
 				'db_delete_error',
 				sprintf(
 					/* translators: %s: Database error */
-					__( 'Could not delete subscribers: %s', 'glue-link' ),
+					__( 'Could not delete subscribers: %s', 'freemkit' ),
 					$wpdb->last_error
 				)
 			);

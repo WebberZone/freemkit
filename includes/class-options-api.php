@@ -1,13 +1,13 @@
 <?php
 /**
- * Glue Link Options API.
+ * FreemKit Options API.
  *
  * @since 1.0.0
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
 if ( ! defined( 'WPINC' ) ) {
 	die;
@@ -26,7 +26,7 @@ class Options_API {
 	 * @since 1.0.0
 	 * @var string
 	 */
-	const SETTINGS_OPTION = 'glue_link_settings';
+	const SETTINGS_OPTION = 'freemkit_settings';
 
 	/**
 	 * Filter prefix.
@@ -34,7 +34,7 @@ class Options_API {
 	 * @since 1.0.0
 	 * @var string
 	 */
-	const FILTER_PREFIX = 'glue_link';
+	const FILTER_PREFIX = 'freemkit';
 
 	/**
 	 * Settings array.
@@ -50,7 +50,7 @@ class Options_API {
 	 * Retrieves all plugin settings
 	 *
 	 * @since 1.0.0
-	 * @return array Glue Link settings
+	 * @return array FreemKit settings
 	 */
 	public static function get_settings() {
 		$settings = get_option( self::SETTINGS_OPTION );
@@ -159,7 +159,7 @@ class Options_API {
 	/**
 	 * Remove an option
 	 *
-	 * Removes a Glue Link setting value in both the db and the static variable.
+	 * Removes a FreemKit setting value in both the db and the static variable.
 	 *
 	 * @since 1.0.0
 	 *

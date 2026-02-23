@@ -5,12 +5,12 @@
  * @link  https://webberzone.com
  * @since 1.0.0
  *
- * @package WebberZone\Glue_Link\Admin
+ * @package WebberZone\FreemKit\Admin
  */
 
-namespace WebberZone\Glue_Link\Admin;
+namespace WebberZone\FreemKit\Admin;
 
-use WebberZone\Glue_Link\Database;
+use WebberZone\FreemKit\Database;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -85,35 +85,35 @@ class Admin {
 		$this->admin_banner = new Admin_Banner(
 			array(
 				'capability' => 'manage_options',
-				'prefix'     => 'glue-link',
+				'prefix'     => 'freemkit',
 				'strings'    => array(
-					'region_label' => __( 'Glue Link admin navigation', 'glue-link' ),
-					'nav_label'    => __( 'Glue Link sections', 'glue-link' ),
-					'eyebrow'      => __( 'WebberZone', 'glue-link' ),
-					'title'        => __( 'Glue for Freemius and Kit', 'glue-link' ),
-					'text'         => __( 'Manage integration settings and subscribers.', 'glue-link' ),
+					'region_label' => __( 'FreemKit admin navigation', 'freemkit' ),
+					'nav_label'    => __( 'FreemKit sections', 'freemkit' ),
+					'eyebrow'      => __( 'WebberZone', 'freemkit' ),
+					'title'        => __( 'FreemKit', 'freemkit' ),
+					'text'         => __( 'Manage integration settings and subscribers.', 'freemkit' ),
 				),
 				'sections'   => array(
 					'settings'    => array(
-						'label'      => __( 'Settings', 'glue-link' ),
-						'url'        => admin_url( 'options-general.php?page=glue_link_options_page' ),
+						'label'      => __( 'Settings', 'freemkit' ),
+						'url'        => admin_url( 'options-general.php?page=freemkit_options_page' ),
 						'type'       => 'primary',
-						'page_slugs' => array( 'glue_link_options_page' ),
-						'screen_ids' => array( 'settings_page_glue_link_options_page' ),
+						'page_slugs' => array( 'freemkit_options_page' ),
+						'screen_ids' => array( 'settings_page_freemkit_options_page' ),
 					),
 					'wizard'      => array(
-						'label'      => __( 'Setup Wizard', 'glue-link' ),
-						'url'        => admin_url( 'options-general.php?page=glue_link_setup_wizard' ),
+						'label'      => __( 'Setup Wizard', 'freemkit' ),
+						'url'        => admin_url( 'options-general.php?page=freemkit_setup_wizard' ),
 						'type'       => 'secondary',
-						'page_slugs' => array( 'glue_link_setup_wizard' ),
-						'screen_ids' => array( 'settings_page_glue_link_setup_wizard' ),
+						'page_slugs' => array( 'freemkit_setup_wizard' ),
+						'screen_ids' => array( 'settings_page_freemkit_setup_wizard' ),
 					),
 					'subscribers' => array(
-						'label'      => __( 'Subscribers', 'glue-link' ),
-						'url'        => admin_url( 'users.php?page=glue_link_subscribers' ),
+						'label'      => __( 'Subscribers', 'freemkit' ),
+						'url'        => admin_url( 'users.php?page=freemkit_subscribers' ),
 						'type'       => 'secondary',
-						'page_slugs' => array( 'glue_link_subscribers' ),
-						'screen_ids' => array( 'users_page_glue_link_subscribers' ),
+						'page_slugs' => array( 'freemkit_subscribers' ),
+						'screen_ids' => array( 'users_page_freemkit_subscribers' ),
 					),
 				),
 			)
@@ -168,7 +168,7 @@ class Admin {
 
 		self::$notices_api->register_notice(
 			array(
-				'id'          => 'glue_link_' . md5( (string) $message . '|' . microtime( true ) ),
+				'id'          => 'freemkit_' . md5( (string) $message . '|' . microtime( true ) ),
 				'message'     => '<p>' . wp_kses_post( (string) $message ) . '</p>',
 				'type'        => $type,
 				'dismissible' => true,

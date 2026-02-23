@@ -52,7 +52,7 @@
             const settingsKey = `${prefix}TomSelectSettings`;
             const settings = window[settingsKey]
                 || window.WZTomSelectSettings
-                || window.glue_linkTomSelectSettings
+                || window.freemkitTomSelectSettings
                 || {};
 
             if (!settings || typeof settings !== 'object') {

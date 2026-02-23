@@ -1,2 +1,2 @@
-# glue-link
-Glue for Freemius and Kit
+# freemkit
+FreemKit

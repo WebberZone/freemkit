@@ -1,7 +1,7 @@
 {
-    "name": "@webberzone/glue-link",
+    "name": "@webberzone/freemkit",
     "version": "1.0.0",
-    "description": "Glue for Freemius and Kit",
+    "description": "FreemKit",
     "author": "WebberZone",
     "license": "GPL-2.0-or-later",
     "main": "index.js",
@@ -21,7 +21,7 @@
         "uninstall.php",
         "index.php",
         "README.md",
-        "glue-link.php",
+        "freemkit.php",
         "phpcs.xml.dist",
         "phpstan.neon.dist",
         "phpstan-baseline.neon"

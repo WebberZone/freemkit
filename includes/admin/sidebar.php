@@ -4,44 +4,44 @@
  *
  * @since 1.0.0
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
 ?>
 <div class="postbox-container">
 	<div id="qlinksdiv" class="postbox meta-box-sortables">
-		<h2 class='hndle metabox-holder'><span><?php esc_html_e( 'Quick links', 'glue-link' ); ?></span></h2>
+		<h2 class='hndle metabox-holder'><span><?php esc_html_e( 'Quick links', 'freemkit' ); ?></span></h2>
 
 		<div class="inside">
 			<div id="quick-links">
 				<ul class="subsub">
 					<li>
-						<a href="https://webberzone.com/plugins/glue-link/" target="_blank"><?php esc_html_e( 'Glue for Freemius and Kit plugin homepage', 'glue-link' ); ?></a>
+						<a href="https://webberzone.com/plugins/freemkit/" target="_blank"><?php esc_html_e( 'FreemKit plugin homepage', 'freemkit' ); ?></a>
 					</li>
 					<li>
-						<a href="https://webberzone.com/support/product/glue-link/" target="_blank"><?php esc_html_e( 'Knowledge Base', 'glue-link' ); ?></a>
+						<a href="https://webberzone.com/support/product/freemkit/" target="_blank"><?php esc_html_e( 'Knowledge Base', 'freemkit' ); ?></a>
 					</li>
 					<li>
-						<a href="https://wordpress.org/plugins/glue-link/faq/" target="_blank"><?php esc_html_e( 'FAQ', 'glue-link' ); ?></a>
+						<a href="https://wordpress.org/plugins/freemkit/faq/" target="_blank"><?php esc_html_e( 'FAQ', 'freemkit' ); ?></a>
 					</li>
 					<li>
-						<a href="https://wordpress.org/support/plugin/glue-link/" target="_blank"><?php esc_html_e( 'Support', 'glue-link' ); ?></a>
+						<a href="https://wordpress.org/support/plugin/freemkit/" target="_blank"><?php esc_html_e( 'Support', 'freemkit' ); ?></a>
 					</li>
 					<li>
-						<a href="https://wordpress.org/support/plugin/glue-link/reviews/" target="_blank"><?php esc_html_e( 'Reviews', 'glue-link' ); ?></a>
+						<a href="https://wordpress.org/support/plugin/freemkit/reviews/" target="_blank"><?php esc_html_e( 'Reviews', 'freemkit' ); ?></a>
 					</li>
 					<li>
-						<a href="https://github.com/webberzone/glue-link" target="_blank"><?php esc_html_e( 'Github repository', 'glue-link' ); ?></a>
+						<a href="https://github.com/webberzone/freemkit" target="_blank"><?php esc_html_e( 'Github repository', 'freemkit' ); ?></a>
 					</li>
 					<li>
-						<a href="https://webberzone.com/" target="_blank"><?php esc_html_e( "Ajay's blog", 'glue-link' ); ?></a>
+						<a href="https://webberzone.com/" target="_blank"><?php esc_html_e( "Ajay's blog", 'freemkit' ); ?></a>
 					</li>
 				</ul>
 			</div>
 		</div><!-- /.inside -->
 	</div><!-- /.postbox -->
 	<div id="pluginsdiv" class="postbox meta-box-sortables">
-		<h2 class='hndle metabox-holder'><span><?php esc_html_e( 'WebberZone plugins', 'glue-link' ); ?></span></h2>
+		<h2 class='hndle metabox-holder'><span><?php esc_html_e( 'WebberZone plugins', 'freemkit' ); ?></span></h2>
 
 		<div class="inside">
 			<div id="quick-links">
@@ -63,7 +63,7 @@
 
 <div class="postbox-container">
 	<div id="followdiv" class="postbox meta-box-sortables">
-		<h2 class='hndle'><span><?php esc_html_e( 'Follow me', 'glue-link' ); ?></span></h2>
+		<h2 class='hndle'><span><?php esc_html_e( 'Follow me', 'freemkit' ); ?></span></h2>
 
 		<div class="inside" style="text-align: center">
 			<a href="https://x.com/webberzone/" target="_blank"><img src="<?php echo esc_url( plugins_url( 'images/x.png', __FILE__ ) ); ?>" width="100" height="100"></a>	

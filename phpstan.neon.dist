@@ -3,12 +3,12 @@ includes:
 parameters:
     level: 5
     scanFiles:
-        - glue-link.php
+        - freemkit.php
         - uninstall.php
         - vendor/convertkit/convertkit-wordpress-libraries/src/class-convertkit-api-traits.php
         - vendor/convertkit/convertkit-wordpress-libraries/src/class-convertkit-api-v4.php
     scanDirectories:
         - includes
     paths:
-        - glue-link.php
+        - freemkit.php
         - includes/

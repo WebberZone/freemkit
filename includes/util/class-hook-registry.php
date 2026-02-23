@@ -2,10 +2,10 @@
 /**
  * Hook Registry class.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
-namespace WebberZone\Glue_Link\Util;
+namespace WebberZone\FreemKit\Util;
 
 if ( ! defined( 'WPINC' ) ) {
 	exit;

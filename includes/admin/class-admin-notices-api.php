@@ -2,12 +2,12 @@
 /**
  * Admin notices API.
  *
- * @package WebberZone\Glue_Link\Admin
+ * @package WebberZone\FreemKit\Admin
  */
 
-namespace WebberZone\Glue_Link\Admin;
+namespace WebberZone\FreemKit\Admin;
 
-use WebberZone\Glue_Link\Util\Hook_Registry;
+use WebberZone\FreemKit\Util\Hook_Registry;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -37,7 +37,7 @@ class Admin_Notices_API {
 	 */
 	public function __construct() {
 		Hook_Registry::add_action( 'admin_notices', array( $this, 'display_notices' ) );
-		Hook_Registry::add_action( 'wp_ajax_glue_link_dismiss_notice', array( $this, 'handle_notice_dismissal' ) );
+		Hook_Registry::add_action( 'wp_ajax_freemkit_dismiss_notice', array( $this, 'handle_notice_dismissal' ) );
 	}
 
 	/**
@@ -148,10 +148,10 @@ class Admin_Notices_API {
 				var dismissTime = $notice.data('dismiss-time');
 
 				$.post(ajaxurl, {
-					action: 'glue_link_dismiss_notice',
+					action: 'freemkit_dismiss_notice',
 					notice_id: noticeId,
 					dismiss_time: dismissTime,
-					nonce: '<?php echo esc_js( wp_create_nonce( 'glue_link_dismiss_notice' ) ); ?>'
+					nonce: '<?php echo esc_js( wp_create_nonce( 'freemkit_dismiss_notice' ) ); ?>'
 				});
 			});
 		});
@@ -167,7 +167,7 @@ class Admin_Notices_API {
 	 * @since 4.1.0
 	 */
 	public function handle_notice_dismissal() {
-		check_ajax_referer( 'glue_link_dismiss_notice', 'nonce' );
+		check_ajax_referer( 'freemkit_dismiss_notice', 'nonce' );
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die();
@@ -181,9 +181,9 @@ class Admin_Notices_API {
 		}
 
 		if ( $dismiss_time ) {
-			set_transient( "glue_link_notice_dismissed_{$notice_id}", true, $dismiss_time );
+			set_transient( "freemkit_notice_dismissed_{$notice_id}", true, $dismiss_time );
 		} else {
-			update_user_meta( get_current_user_id(), "glue_link_notice_dismissed_{$notice_id}", true );
+			update_user_meta( get_current_user_id(), "freemkit_notice_dismissed_{$notice_id}", true );
 		}
 
 		wp_die();
@@ -205,9 +205,9 @@ class Admin_Notices_API {
 		}
 
 		if ( $notice['dismiss_time'] ) {
-			return (bool) get_transient( "glue_link_notice_dismissed_{$notice_id}" );
+			return (bool) get_transient( "freemkit_notice_dismissed_{$notice_id}" );
 		}
 
-		return (bool) get_user_meta( get_current_user_id(), "glue_link_notice_dismissed_{$notice_id}", true );
+		return (bool) get_user_meta( get_current_user_id(), "freemkit_notice_dismissed_{$notice_id}", true );
 	}
 }

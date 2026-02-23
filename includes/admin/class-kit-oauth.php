@@ -2,14 +2,14 @@
 /**
  * Kit OAuth admin controller.
  *
- * @package WebberZone\Glue_Link\Admin
+ * @package WebberZone\FreemKit\Admin
  * @since 1.0.0
  */
 
-namespace WebberZone\Glue_Link\Admin;
+namespace WebberZone\FreemKit\Admin;
 
-use WebberZone\Glue_Link\Kit_API;
-use WebberZone\Glue_Link\Kit_Settings;
+use WebberZone\FreemKit\Kit_API;
+use WebberZone\FreemKit\Kit_Settings;
 
 /**
  * Class Kit_OAuth
@@ -46,17 +46,17 @@ class Kit_OAuth {
 		$api      = new Kit_API();
 		$settings = new Kit_Settings();
 
-		if ( isset( $_GET['glue_link_oauth_disconnect'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			check_admin_referer( 'glue_link_oauth_disconnect' );
+		if ( isset( $_GET['freemkit_oauth_disconnect'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			check_admin_referer( 'freemkit_oauth_disconnect' );
 			if ( $settings->using_convertkit_credentials() ) {
-				Admin::add_notice( esc_html__( 'Connection is managed by the ConvertKit plugin. Disconnect it there if needed.', 'glue-link' ), 'notice-warning' );
+				Admin::add_notice( esc_html__( 'Connection is managed by the ConvertKit plugin. Disconnect it there if needed.', 'freemkit' ), 'notice-warning' );
 				wp_safe_redirect( $this->get_settings_url() );
 				exit;
 			}
 
 			$settings->delete_credentials();
 			$this->clear_kit_cache();
-			Admin::add_notice( esc_html__( 'Disconnected from Kit.', 'glue-link' ), 'notice-success' );
+			Admin::add_notice( esc_html__( 'Disconnected from Kit.', 'freemkit' ), 'notice-success' );
 			wp_safe_redirect( $this->get_settings_url() );
 			exit;
 		}
@@ -69,14 +69,14 @@ class Kit_OAuth {
 		$result             = $api->get_access_token( $authorization_code );
 
 		if ( is_wp_error( $result ) ) {
-			Admin::add_notice( sprintf( esc_html__( 'Kit OAuth failed: %s', 'glue-link' ), $result->get_error_message() ), 'notice-error' );
+			Admin::add_notice( sprintf( esc_html__( 'Kit OAuth failed: %s', 'freemkit' ), $result->get_error_message() ), 'notice-error' );
 			wp_safe_redirect( $this->get_settings_url() );
 			exit;
 		}
 
 		$settings->update_credentials( $result );
 		$this->clear_kit_cache();
-		Admin::add_notice( esc_html__( 'Successfully connected to Kit via OAuth.', 'glue-link' ), 'notice-success' );
+		Admin::add_notice( esc_html__( 'Successfully connected to Kit via OAuth.', 'freemkit' ), 'notice-success' );
 		wp_safe_redirect( $this->get_settings_url() );
 		exit;
 	}
@@ -113,9 +113,9 @@ class Kit_OAuth {
 		if ( ! $settings->has_access_and_refresh_token() ) {
 			return sprintf(
 				'<p>%1$s</p><p><a class="button button-primary" href="%2$s">%3$s</a></p>',
-				esc_html__( 'Not connected to Kit yet. Connect to use OAuth with Kit API v4.', 'glue-link' ),
+				esc_html__( 'Not connected to Kit yet. Connect to use OAuth with Kit API v4.', 'freemkit' ),
 				esc_url( $oauth_url ),
-				esc_html__( 'Connect to Kit', 'glue-link' )
+				esc_html__( 'Connect to Kit', 'freemkit' )
 			);
 		}
 
@@ -126,44 +126,44 @@ class Kit_OAuth {
 			if ( $settings->using_convertkit_credentials() ) {
 				return sprintf(
 					'<p>%1$s</p><p>%2$s</p>',
-					esc_html__( 'Kit plugin credentials were detected, but the API token could not be verified.', 'glue-link' ),
-					esc_html__( 'Reconnect in the Kit plugin to refresh that shared token.', 'glue-link' )
+					esc_html__( 'Kit plugin credentials were detected, but the API token could not be verified.', 'freemkit' ),
+					esc_html__( 'Reconnect in the Kit plugin to refresh that shared token.', 'freemkit' )
 				);
 			}
 
 			return sprintf(
 				'<p>%1$s</p><p>%2$s</p><p><a class="button button-primary" href="%3$s">%4$s</a></p>',
-				esc_html__( 'Kit is connected, but we could not verify the account right now.', 'glue-link' ),
+				esc_html__( 'Kit is connected, but we could not verify the account right now.', 'freemkit' ),
 				esc_html( $account->get_error_message() ),
 				esc_url( $oauth_url ),
-				esc_html__( 'Reconnect to Kit', 'glue-link' )
+				esc_html__( 'Reconnect to Kit', 'freemkit' )
 			);
 		}
 		$status = $account_name
 			? sprintf(
 				/* translators: %s: Kit account name. */
-				esc_html__( 'Connected to Kit account: %s', 'glue-link' ),
+				esc_html__( 'Connected to Kit account: %s', 'freemkit' ),
 				$account_name
 			)
-			: esc_html__( 'Connected to Kit.', 'glue-link' );
+			: esc_html__( 'Connected to Kit.', 'freemkit' );
 
 		if ( $settings->using_convertkit_credentials() ) {
-			$status .= ' ' . esc_html__( '(using ConvertKit plugin credentials)', 'glue-link' );
+			$status .= ' ' . esc_html__( '(using ConvertKit plugin credentials)', 'freemkit' );
 		}
 
 		$disconnect_url = wp_nonce_url(
 			add_query_arg(
 				array_merge(
 					array(
-						'page'                       => $menu_slug,
-						'tab'                        => 'kit',
-						'glue_link_oauth_disconnect' => 1,
+						'page'                      => $menu_slug,
+						'tab'                       => 'kit',
+						'freemkit_oauth_disconnect' => 1,
 					),
 					$query_args
 				),
 				admin_url( 'admin.php' )
 			),
-			'glue_link_oauth_disconnect'
+			'freemkit_oauth_disconnect'
 		);
 
 		if ( $settings->using_convertkit_credentials() ) {
@@ -174,7 +174,7 @@ class Kit_OAuth {
 			'<p>%1$s</p><p><a class="button button-secondary" href="%2$s">%3$s</a></p>',
 			esc_html( $status ),
 			esc_url( $disconnect_url ),
-			esc_html__( 'Disconnect', 'glue-link' )
+			esc_html__( 'Disconnect', 'freemkit' )
 		);
 	}
 
@@ -220,7 +220,7 @@ class Kit_OAuth {
 	 */
 	private function clear_kit_cache(): void {
 		foreach ( array( 'forms', 'tags', 'sequences', 'custom_fields' ) as $transient ) {
-			delete_transient( 'glue_link_kit_' . $transient );
+			delete_transient( 'freemkit_kit_' . $transient );
 		}
 	}
 }

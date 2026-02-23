@@ -8,10 +8,10 @@
  * @package WebberZone\Better_External_Links
  */
 
-namespace WebberZone\Glue_Link\Admin\Settings;
+namespace WebberZone\FreemKit\Admin\Settings;
 
-use WebberZone\Glue_Link\Admin\Settings\Settings_Sanitize;
-use WebberZone\Glue_Link\Admin\Settings\Settings_API;
+use WebberZone\FreemKit\Admin\Settings\Settings_Sanitize;
+use WebberZone\FreemKit\Admin\Settings\Settings_API;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {

@@ -2,11 +2,11 @@
 /**
  * Kit OAuth settings class.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  * @since 1.0.0
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
 /**
  * Class Kit_Settings
@@ -27,7 +27,7 @@ class Kit_Settings {
 	/**
 	 * Cron hook name.
 	 */
-	public const CRON_REFRESH_HOOK = 'glue_link_refresh_token';
+	public const CRON_REFRESH_HOOK = 'freemkit_refresh_token';
 
 	/**
 	 * Returns access token.
@@ -40,7 +40,7 @@ class Kit_Settings {
 			return (string) $convertkit['access_token'];
 		}
 
-		$settings = $this->get_glue_link_settings();
+		$settings = $this->get_freemkit_settings();
 		$value    = isset( $settings[ self::OPTION_ACCESS_TOKEN ] ) ? (string) $settings[ self::OPTION_ACCESS_TOKEN ] : '';
 		return Options_API::decrypt_api_key( $value );
 	}
@@ -56,7 +56,7 @@ class Kit_Settings {
 			return (string) $convertkit['refresh_token'];
 		}
 
-		$settings = $this->get_glue_link_settings();
+		$settings = $this->get_freemkit_settings();
 		$value    = isset( $settings[ self::OPTION_REFRESH_TOKEN ] ) ? (string) $settings[ self::OPTION_REFRESH_TOKEN ] : '';
 		return Options_API::decrypt_api_key( $value );
 	}
@@ -72,7 +72,7 @@ class Kit_Settings {
 			return (int) $convertkit['token_expires'];
 		}
 
-		$settings = $this->get_glue_link_settings();
+		$settings = $this->get_freemkit_settings();
 		return isset( $settings[ self::OPTION_TOKEN_EXPIRES ] ) ? (int) $settings[ self::OPTION_TOKEN_EXPIRES ] : 0;
 	}
 
@@ -194,11 +194,11 @@ class Kit_Settings {
 	}
 
 	/**
-	 * Return Glue Link raw settings from the wp option table.
+	 * Return FreemKit raw settings from the wp option table.
 	 *
 	 * @return array<string,mixed>
 	 */
-	private function get_glue_link_settings(): array {
+	private function get_freemkit_settings(): array {
 		$settings = get_option( Options_API::SETTINGS_OPTION, array() );
 		return is_array( $settings ) ? $settings : array();
 	}

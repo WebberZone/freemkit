@@ -1,6 +1,6 @@
 {
-    "name": "webberzone/glue-link",
-    "description": "Glue for Freemius and Kit",
+    "name": "webberzone/freemkit",
+    "description": "FreemKit",
     "type": "wordpress-plugin",
     "keywords": [
         "wordpress",

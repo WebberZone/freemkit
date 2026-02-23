@@ -1,16 +1,16 @@
 jQuery(document).ready(function($) {
     function adminData() {
-        return window.GlueLinkAdmin || {};
+        return window.FreemKitAdmin || {};
     }
 
-    function glueString(key, fallback) {
+    function freemkitString(key, fallback) {
         var strings = adminData().strings || {};
         return strings[key] || fallback;
     }
 
     function setStatus($container, ok) {
-        $container.find('.glue-link-webhook-copy-status')
-            .text(glueString(ok ? 'copy_success' : 'copy_failed', ok ? 'Webhook URL copied.' : 'Copy failed. Select and copy manually.'))
+        $container.find('.freemkit-webhook-copy-status')
+            .text(freemkitString(ok ? 'copy_success' : 'copy_failed', ok ? 'Webhook URL copied.' : 'Copy failed. Select and copy manually.'))
             .css('color', ok ? '#2271b1' : '#a60000');
     }
 
@@ -32,14 +32,14 @@ jQuery(document).ready(function($) {
     }
 
     function updateWebhookUrlPreview() {
-        var $select = $('select[name="glue_link_settings[webhook_endpoint_type]"]');
+        var $select = $('select[name="freemkit_settings[webhook_endpoint_type]"]');
         var $container = $('.webhook-url-container');
         if (!$select.length || !$container.length) {
             return;
         }
         var value = webhookUrlByType($select.val(), $container);
-        $container.find('.glue-link-webhook-url-input').val(value);
-        $container.find('.glue-link-webhook-url-code').text(value);
+        $container.find('.freemkit-webhook-url-input').val(value);
+        $container.find('.freemkit-webhook-url-code').text(value);
     }
 
     function fallbackExecCopy(value, $input) {
@@ -70,8 +70,8 @@ jQuery(document).ready(function($) {
     }
 
     function copyWebhookUrl($container) {
-        var $input = $container.find('.glue-link-webhook-url-input');
-        var value = String($input.val() || $container.find('.glue-link-webhook-url-code').text() || '').trim();
+        var $input = $container.find('.freemkit-webhook-url-input');
+        var value = String($input.val() || $container.find('.freemkit-webhook-url-code').text() || '').trim();
         if (!value) {
             return;
         }
@@ -99,21 +99,21 @@ jQuery(document).ready(function($) {
         onDone(fallbackExecCopy(value, $input));
     }
 
-    $(document).on('change', 'select[name="glue_link_settings[webhook_endpoint_type]"]', function() {
+    $(document).on('change', 'select[name="freemkit_settings[webhook_endpoint_type]"]', function() {
         updateWebhookUrlPreview();
     });
 
-    $(document).on('click', '.glue-link-webhook-copy', function(e) {
+    $(document).on('click', '.freemkit-webhook-copy', function(e) {
         e.preventDefault();
         copyWebhookUrl($(this).closest('.webhook-url-container'));
     });
 
-    $(document).on('click', '.glue-link-webhook-url-code', function(e) {
+    $(document).on('click', '.freemkit-webhook-url-code', function(e) {
         e.preventDefault();
         copyWebhookUrl($(this).closest('.webhook-url-container'));
     });
 
-    $(document).on('click focus', '.glue-link-webhook-url-input', function() {
+    $(document).on('click focus', '.freemkit-webhook-url-input', function() {
         var $input = $(this);
         selectInputText($input);
         copyWebhookUrl($input.closest('.webhook-url-container'));
@@ -121,25 +121,25 @@ jQuery(document).ready(function($) {
 
     updateWebhookUrlPreview();
 
-    $('.glue_link_cache_clear').on('click', function(e) {
+    $('.freemkit_cache_clear').on('click', function(e) {
         e.preventDefault();
         var $button = $(this);
         var originalText = $button.text();
-        var glueAdmin = adminData();
+        var freemkitAdmin = adminData();
 
         $button.prop('disabled', true).text('Clearing...');
 
         var data = {
-            'action': 'glue_link_refresh_lists',
-            'nonce': glueAdmin.nonce || ''
+            'action': 'freemkit_refresh_lists',
+            'nonce': freemkitAdmin.nonce || ''
         };
 
-        $.post(glueAdmin.ajax_url || ajaxurl, data, function(response) {
+        $.post(freemkitAdmin.ajax_url || ajaxurl, data, function(response) {
             if(response.success) {
-                alert((glueAdmin.strings && glueAdmin.strings['cache_cleared']) || 'Cache cleared successfully!');
+                alert((freemkitAdmin.strings && freemkitAdmin.strings['cache_cleared']) || 'Cache cleared successfully!');
             } else {
                 var message = (response && response.data && response.data.message) ? response.data.message : 'Unknown error';
-                alert(((glueAdmin.strings && glueAdmin.strings['cache_error']) || 'Error clearing cache: ') + ' ' + message);
+                alert(((freemkitAdmin.strings && freemkitAdmin.strings['cache_error']) || 'Error clearing cache: ') + ' ' + message);
             }
         }).always(function() {
             // Re-enable button and restore text

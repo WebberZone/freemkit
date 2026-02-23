@@ -2,12 +2,12 @@
 /**
  * Admin Banner helper.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
-namespace WebberZone\Glue_Link\Admin;
+namespace WebberZone\FreemKit\Admin;
 
-use WebberZone\Glue_Link\Util\Hook_Registry;
+use WebberZone\FreemKit\Util\Hook_Registry;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

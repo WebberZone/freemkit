@@ -2,10 +2,10 @@
 /**
  * Webhook Handler class
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -112,7 +112,7 @@ class Webhook_Handler {
 	 */
 	public function register_webhook_endpoint() {
 		register_rest_route(
-			'glue-link/v1',
+			'freemkit/v1',
 			'/webhook',
 			array(
 				'methods'             => 'POST',
@@ -217,7 +217,7 @@ class Webhook_Handler {
 			// Log the error using WordPress debug log if enabled.
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[Glue Link] Kit API Error: %s', $api_result->get_error_message() ) );
+				error_log( sprintf( '[FreemKit] Kit API Error: %s', $api_result->get_error_message() ) );
 			}
 			return new \WP_Error( 'api_error', 'Processed with API errors' );
 		}
@@ -255,7 +255,7 @@ class Webhook_Handler {
 			// Log the error using WordPress debug log if enabled.
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[Glue Link] Database Error: %s', $db_result->get_error_message() ) );
+				error_log( sprintf( '[FreemKit] Database Error: %s', $db_result->get_error_message() ) );
 			}
 			return new \WP_Error( 'db_error', 'Processed with database errors' );
 		}
@@ -369,7 +369,7 @@ class Webhook_Handler {
 		}
 
 		$query_string = sanitize_text_field( wp_unslash( $_SERVER['QUERY_STRING'] ) );
-		if ( false === strpos( $query_string, 'glue_webhook' ) ) {
+		if ( false === strpos( $query_string, 'freemkit_webhook' ) ) {
 			return;
 		}
 

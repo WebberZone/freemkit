@@ -2,10 +2,10 @@
 /**
  * Kit OAuth credential hook handlers.
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
 
-namespace WebberZone\Glue_Link;
+namespace WebberZone\FreemKit;
 
 if ( ! defined( 'WPINC' ) ) {
 	die;
@@ -24,7 +24,7 @@ class Kit_Credential_Hooks {
 	 * @return void
 	 */
 	public function maybe_update_credentials( $result, $client_id ): void {
-		if ( ! defined( 'GLUE_LINK_KIT_OAUTH_CLIENT_ID' ) || GLUE_LINK_KIT_OAUTH_CLIENT_ID !== $client_id ) {
+		if ( ! defined( 'FREEMKIT_KIT_OAUTH_CLIENT_ID' ) || FREEMKIT_KIT_OAUTH_CLIENT_ID !== $client_id ) {
 			return;
 		}
 

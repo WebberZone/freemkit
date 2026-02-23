@@ -1,4 +1,4 @@
-=== WebberZone Glue Link - Glue for Freemius and Kit ===
+=== WebberZone FreemKit - FreemKit ===
 Contributors: ajay, webberzone
 Tags: freemius, kit, email marketing, subscribers, newsletter
 Requires at least: 5.0
@@ -12,7 +12,7 @@ Seamlessly connect your Freemius software licensing with Kit email marketing to 
 
 == Description ==
 
-WebberZone's Glue Link bridges the gap between Freemius software licensing and Kit (formerly ConvertKit) email marketing platforms, enabling WordPress plugin and theme developers to automate subscription workflows and enhance customer communication.
+WebberZone's FreemKit bridges the gap between Freemius software licensing and Kit (formerly ConvertKit) email marketing platforms, enabling WordPress plugin and theme developers to automate subscription workflows and enhance customer communication.
 
 = Key Features =
 
@@ -42,9 +42,9 @@ WebberZone's Glue Link bridges the gap between Freemius software licensing and K
 
 == Installation ==
 
-1. Upload the `glue-link` folder to the `/wp-content/plugins/` directory.
+1. Upload the `freemkit` folder to the `/wp-content/plugins/` directory.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
-3. Navigate to Settings → Glue Link to configure your Freemius and Kit API credentials.
+3. Navigate to Settings → FreemKit to configure your Freemius and Kit API credentials.
 4. Set up your desired automation rules and field mappings.
 5. Test the integration using the built-in testing tools.
 
@@ -91,4 +91,4 @@ Yes! The plugin provides various WordPress filters and actions for developers to
 == Upgrade Notice ==
 
 = 1.0.0 =
-Initial release of Glue Link - Connect your Freemius and Kit accounts for automated marketing workflows.
+Initial release of FreemKit - Connect your Freemius and Kit accounts for automated marketing workflows.

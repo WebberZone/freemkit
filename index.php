@@ -2,5 +2,5 @@
 /**
  * Silence is golden
  *
- * @package WebberZone\Glue_Link
+ * @package WebberZone\FreemKit
  */
