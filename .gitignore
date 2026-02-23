@@ -1,6 +1,7 @@
-# Ignore entire vendor except Freemius
+# Ignore entire vendor except Freemius and ConvertKit
 /vendor/*
 !/vendor/freemius/
+!/vendor/convertkit/
 
 # Tooling
 /phpcompat-tools/
