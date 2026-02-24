@@ -959,7 +959,7 @@ class Settings_Form {
 	 * @param array|null $item  Item data if exists.
 	 * @return void
 	 */
-	private function render_repeater_item( $args, $index, $item = null ) {
+	public function render_repeater_item( $args, $index, $item = null ) {
 		if ( empty( $args['fields'] ) || ! is_array( $args['fields'] ) ) {
 			return;
 		}

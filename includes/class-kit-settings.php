@@ -122,11 +122,13 @@ class Kit_Settings {
 	 */
 	public function update_credentials( array $result ): void {
 		if ( empty( $result['access_token'] ) || empty( $result['refresh_token'] ) ) {
+			Kit_Audit_Log::add( 'credentials_update_skipped_missing_tokens', array(), 'warning' );
 			return;
 		}
 
 		// Keep ConvertKit credentials as the single source of truth when available.
 		if ( $this->using_convertkit_credentials() ) {
+			Kit_Audit_Log::add( 'credentials_update_skipped_convertkit_owned' );
 			return;
 		}
 
@@ -139,7 +141,19 @@ class Kit_Settings {
 
 		wp_clear_scheduled_hook( self::CRON_REFRESH_HOOK );
 		if ( $token_expiry > 0 ) {
-			wp_schedule_single_event( $token_expiry, self::CRON_REFRESH_HOOK );
+			// Refresh slightly before expiry with jitter to reduce race conditions and hard expiry refreshes.
+			$refresh_at = $token_expiry - $this->get_refresh_advance_seconds( $expires_in );
+			$refresh_at = max( time() + MINUTE_IN_SECONDS, $refresh_at );
+			wp_schedule_single_event( $refresh_at, self::CRON_REFRESH_HOOK );
+			Kit_Audit_Log::add(
+				'credentials_updated_local',
+				array(
+					'token_expiry' => (string) $token_expiry,
+					'refresh_at'   => (string) $refresh_at,
+				)
+			);
+		} else {
+			Kit_Audit_Log::add( 'credentials_updated_local_no_expiry' );
 		}
 	}
 
@@ -151,6 +165,7 @@ class Kit_Settings {
 	public function delete_credentials(): void {
 		// Do not remove credentials owned by the ConvertKit plugin.
 		if ( $this->using_convertkit_credentials() ) {
+			Kit_Audit_Log::add( 'credentials_delete_skipped_convertkit_owned' );
 			return;
 		}
 
@@ -158,6 +173,28 @@ class Kit_Settings {
 		Options_API::delete_option( self::OPTION_REFRESH_TOKEN );
 		Options_API::delete_option( self::OPTION_TOKEN_EXPIRES );
 		wp_clear_scheduled_hook( self::CRON_REFRESH_HOOK );
+		Kit_Audit_Log::add( 'credentials_deleted_local', array(), 'warning' );
+	}
+
+	/**
+	 * Determine how many seconds before expiry the refresh cron should run.
+	 *
+	 * @param int $expires_in Seconds until token expiry.
+	 * @return int
+	 */
+	public function get_refresh_advance_seconds( int $expires_in ): int {
+		$max_advance = min( 15 * MINUTE_IN_SECONDS, max( MINUTE_IN_SECONDS, (int) floor( $expires_in * 0.25 ) ) );
+		$min_advance = MINUTE_IN_SECONDS;
+		$advance     = $max_advance > $min_advance ? wp_rand( $min_advance, $max_advance ) : $min_advance;
+
+		/**
+		 * Filter how early token refresh is scheduled before expiry.
+		 *
+		 * @param int $advance    Seconds before expiry.
+		 * @param int $expires_in Token TTL.
+		 */
+		$advance = (int) apply_filters( 'freemkit_refresh_advance_seconds', $advance, $expires_in );
+		return max( MINUTE_IN_SECONDS, $advance );
 	}
 
 	/**
@@ -165,7 +202,7 @@ class Kit_Settings {
 	 *
 	 * @return array
 	 */
-	private function get_convertkit_settings(): array {
+	public function get_convertkit_settings(): array {
 		if ( ! $this->is_convertkit_plugin_active() ) {
 			return array();
 		}
@@ -179,7 +216,7 @@ class Kit_Settings {
 	 *
 	 * @return bool
 	 */
-	private function is_convertkit_plugin_active(): bool {
+	public function is_convertkit_plugin_active(): bool {
 		$active_plugins = (array) get_option( 'active_plugins', array() );
 		if ( in_array( self::CONVERTKIT_PLUGIN, $active_plugins, true ) ) {
 			return true;
@@ -198,7 +235,7 @@ class Kit_Settings {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private function get_freemkit_settings(): array {
+	public function get_freemkit_settings(): array {
 		$settings = get_option( Options_API::SETTINGS_OPTION, array() );
 		return is_array( $settings ) ? $settings : array();
 	}

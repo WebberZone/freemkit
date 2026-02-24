@@ -1,4 +1,4 @@
-=== WebberZone FreemKit - FreemKit ===
+=== FreemKit - Glue for Freemius and Kit ===
 Contributors: ajay, webberzone
 Tags: freemius, kit, email marketing, subscribers, newsletter
 Requires at least: 5.0

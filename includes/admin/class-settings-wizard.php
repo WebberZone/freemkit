@@ -423,7 +423,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 	 * @param array<string,mixed> $args Optional query args.
 	 * @return string
 	 */
-	private function get_wizard_url( array $args = array() ): string {
+	public function get_wizard_url( array $args = array() ): string {
 		$default = array(
 			'page' => $this->page_slug,
 		);

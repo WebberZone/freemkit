@@ -8,7 +8,7 @@
  * @link      https://webberzone.com
  *
  * @wordpress-plugin
- * Plugin Name: WebberZone FreemKit - Glue for Freemius and Kit
+ * Plugin Name: FreemKit - Glue for Freemius and Kit
  * Plugin URI:  https://webberzone.com/plugins/freemkit/
  * Description: Easily subscribe Freemius customers to Kit email lists.
  * Version:     1.0.0-beta1
@@ -124,27 +124,3 @@ if ( ! function_exists( __NAMESPACE__ . '\\freemkit' ) ) {
 		return $freemkit;
 	}
 }
-
-/**
- * Show plugin bootstrap errors in wp-admin.
- *
- * @since 1.0.0
- *
- * @return void
- */
-function show_boot_error_notice() {
-	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-
-	$error = get_option( 'freemkit_boot_error' );
-	if ( empty( $error ) ) {
-		return;
-	}
-
-	printf(
-		'<div class="notice notice-error"><p>%s</p></div>',
-		esc_html( (string) $error )
-	);
-}
-add_action( 'admin_notices', __NAMESPACE__ . '\\show_boot_error_notice' );

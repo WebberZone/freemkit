@@ -503,7 +503,7 @@ class Settings {
 	 * @param array  $ts_config  Optional TypeScript configuration.
 	 * @return array Field attributes array
 	 */
-	private static function get_kit_search_field_attributes( string $endpoint, array $ts_config = array() ): array {
+	public static function get_kit_search_field_attributes( string $endpoint, array $ts_config = array() ): array {
 		$attributes = array(
 			'data-wp-prefix'   => 'FreemKit',
 			'data-wp-action'   => self::$prefix . '_kit_search',
@@ -705,7 +705,7 @@ class Settings {
 	 * @param string $path   Path to the script relative to the admin directory.
 	 * @param array  $deps   Array of script dependencies.
 	 */
-	private function enqueue_admin_script( string $handle, string $path, array $deps = array() ) {
+	public function enqueue_admin_script( string $handle, string $path, array $deps = array() ) {
 		$script_file = __DIR__ . $path;
 		$version     = file_exists( $script_file ) ? (string) filemtime( $script_file ) : FREEMKIT_VERSION;
 
@@ -832,76 +832,6 @@ class Settings {
 		}
 
 		wp_send_json_success();
-	}
-
-	/**
-	 * AJAX handler to validate ConvertKit API credentials.
-	 *
-	 * @since 1.0.0
-	 * @return void
-	 */
-	public function ajax_validate_api() {
-		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'freemkit' ) ) );
-		}
-
-		$api_key = isset( $_POST['kit_api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['kit_api_key'] ) ) : '';
-
-		if ( empty( $api_key ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'API key is empty.', 'freemkit' ) ) );
-		}
-
-		$api    = new \WebberZone\FreemKit\Kit_API();
-		$result = $api->validate_api_credentials();
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( (object) array( 'message' => $result->get_error_message() ) );
-		}
-
-		wp_send_json_success( (object) array( 'message' => esc_html__( 'API key is valid.', 'freemkit' ) ) );
-	}
-
-	/**
-	 * AJAX handler to validate ConvertKit API secret.
-	 *
-	 * @since 1.0.0
-	 * @return void
-	 */
-	public function ajax_validate_api_secret() {
-		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'freemkit' ) ) );
-		}
-
-		$secret_input = isset( $_POST['kit_api_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['kit_api_secret'] ) ) : '';
-
-		// First try to use it as a raw value (when validating before saving).
-		if ( ! empty( $secret_input ) && strpos( $secret_input, '*' ) === false ) {
-			$api_secret = $secret_input;
-		} else {
-			// If it contains asterisks, it's likely from the database, so try to decrypt.
-			$api_secret = Options_API::decrypt_api_key( $secret_input );
-		}
-
-		if ( empty( $api_secret ) ) {
-			wp_send_json_error( (object) array( 'message' => esc_html__( 'API secret is empty.', 'freemkit' ) ) );
-		}
-
-		if ( strpos( $api_secret, '*' ) !== false ) {
-			$api_secret = Options_API::decrypt_api_key( Options_API::get_option( 'kit_api_secret' ) );
-		}
-
-		$api    = new \WebberZone\FreemKit\Kit_API();
-		$result = $api->get_account();
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( (object) array( 'message' => $result->get_error_message() ) );
-		}
-
-		wp_send_json_success( (object) array( 'message' => esc_html__( 'API secret is valid!', 'freemkit' ) ) );
 	}
 
 	/**
@@ -1099,7 +1029,7 @@ class Settings {
 	 * @param string $type  Resource type.
 	 * @return array
 	 */
-	private static function normalize_kit_items( array $items, string $type ): array {
+	public static function normalize_kit_items( array $items, string $type ): array {
 		$normalized = array();
 
 		foreach ( $items as $item ) {
@@ -1142,7 +1072,7 @@ class Settings {
 	 * @param string $search Optional search term.
 	 * @return array|\WP_Error Array of forms.
 	 */
-	private function get_kit_forms( $search = '' ) {
+	public function get_kit_forms( $search = '' ) {
 		return self::get_kit_data( 'forms', $search );
 	}
 
@@ -1154,7 +1084,7 @@ class Settings {
 	 * @param string $search Optional search term.
 	 * @return array|\WP_Error Array of tags.
 	 */
-	private function get_kit_tags( $search = '' ) {
+	public function get_kit_tags( $search = '' ) {
 		return self::get_kit_data( 'tags', $search );
 	}
 
@@ -1166,30 +1096,8 @@ class Settings {
 	 * @param string $search Optional search term.
 	 * @return array|\WP_Error Array of custom fields.
 	 */
-	private function get_kit_custom_fields( $search = '' ) {
+	public function get_kit_custom_fields( $search = '' ) {
 		return self::get_kit_data( 'custom_fields', $search );
-	}
-
-	/**
-	 * Add API validation button after API key settings.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param string $desc Description HTML.
-	 * @param array  $args Field arguments.
-	 * @return string Modified description HTML.
-	 */
-	public function add_api_validation_button( string $desc, array $args ): string {
-		// Only add button after API key field.
-		if ( 'kit_api_key' === $args['id'] ) {
-			$desc .= ' <button type="button" class="button button-secondary validate-api-key">' . esc_html__( 'Validate API Key', 'freemkit' ) . '</button>';
-			$desc .= '<span class="api-validation-status" style="margin-left: 10px;"></span>';
-		}
-		if ( 'kit_api_secret' === $args['id'] ) {
-			$desc .= ' <button type="button" class="button button-secondary validate-api-secret">' . esc_html__( 'Validate API Secret', 'freemkit' ) . '</button>';
-			$desc .= '<span class="api-validation-status" style="margin-left: 10px;"></span>';
-		}
-		return $desc;
 	}
 
 	/**
@@ -1339,7 +1247,7 @@ class Settings {
 	 *
 	 * @return string The webhook URL.
 	 */
-	private static function get_webhook_url(): string {
+	public static function get_webhook_url(): string {
 		$urls      = self::get_webhook_urls();
 		$rest_url  = $urls['rest'];
 		$query_url = $urls['query'];

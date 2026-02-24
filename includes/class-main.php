@@ -7,6 +7,8 @@
 
 namespace WebberZone\FreemKit;
 
+use WebberZone\FreemKit\Util\Hook_Registry;
+
 if ( ! defined( 'WPINC' ) ) {
 	die;
 }
@@ -21,21 +23,28 @@ class Main {
 	 *
 	 * @var Main|null
 	 */
-	private static ?Main $instance = null;
+	public static ?Main $instance = null;
 
 	/**
 	 * Runtime manager.
 	 *
 	 * @var Runtime
 	 */
-	private Runtime $runtime;
+	public Runtime $runtime;
 
 	/**
 	 * OAuth credential hooks.
 	 *
 	 * @var Kit_Credential_Hooks
 	 */
-	private Kit_Credential_Hooks $credential_hooks;
+	public Kit_Credential_Hooks $credential_hooks;
+
+	/**
+	 * Language handler.
+	 *
+	 * @var Language_Handler
+	 */
+	public Language_Handler $language;
 
 	/**
 	 * Returns the singleton instance.
@@ -53,9 +62,10 @@ class Main {
 	/**
 	 * Constructor.
 	 */
-	private function __construct() {
+	public function __construct() {
 		$this->runtime          = new Runtime();
 		$this->credential_hooks = new Kit_Credential_Hooks();
+		$this->language         = new Language_Handler();
 		$this->hooks();
 	}
 
@@ -64,12 +74,13 @@ class Main {
 	 *
 	 * @return void
 	 */
-	private function hooks(): void {
-		add_action( 'init', array( $this->runtime, 'init' ), 1 );
-		add_action( 'init', array( $this->runtime, 'init_admin' ) );
-		add_action( 'freemkit_api_get_access_token', array( $this->credential_hooks, 'maybe_update_credentials' ), 10, 2 );
-		add_action( 'freemkit_api_refresh_token', array( $this->credential_hooks, 'maybe_update_credentials' ), 10, 2 );
-		add_action( Kit_Settings::CRON_REFRESH_HOOK, array( $this->credential_hooks, 'refresh_kit_access_token' ) );
+	public function hooks(): void {
+		Hook_Registry::add_action( 'init', array( $this->runtime, 'init' ), 1 );
+		Hook_Registry::add_action( 'init', array( $this->runtime, 'init_admin' ) );
+		Hook_Registry::add_action( 'freemkit_api_get_access_token', array( $this->credential_hooks, 'maybe_update_credentials' ), 10, 2 );
+		Hook_Registry::add_action( 'freemkit_api_refresh_token', array( $this->credential_hooks, 'maybe_update_credentials' ), 10, 2 );
+		Hook_Registry::add_action( 'convertkit_api_access_token_invalid', array( $this->credential_hooks, 'maybe_delete_credentials' ), 10, 2 );
+		Hook_Registry::add_action( Kit_Settings::CRON_REFRESH_HOOK, array( $this->credential_hooks, 'refresh_kit_access_token' ) );
 	}
 
 	/**

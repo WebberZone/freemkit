@@ -42,7 +42,7 @@ class Options_API {
 	 * @since 1.0.0
 	 * @var array
 	 */
-	private static $settings;
+	public static $settings;
 
 	/**
 	 * Get Settings.

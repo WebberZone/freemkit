@@ -23,7 +23,7 @@ class Hook_Registry {
 	 *
 	 * @var array
 	 */
-	private static $hooks = array();
+	public static $hooks = array();
 
 	/**
 	 * Register a hook (action or filter).
@@ -220,7 +220,7 @@ class Hook_Registry {
 	 *
 	 * @return string Unique key.
 	 */
-	private static function create_hook_key( $hook_name, $callback, $priority, $closure_id = '' ) {
+	public static function create_hook_key( $hook_name, $callback, $priority, $closure_id = '' ) {
 		return md5( $hook_name . self::callback_to_string( $callback ) . $priority . $closure_id );
 	}
 
@@ -231,7 +231,7 @@ class Hook_Registry {
 	 *
 	 * @return string String representation of the callback.
 	 */
-	private static function callback_to_string( $callback ) {
+	public static function callback_to_string( $callback ) {
 		if ( is_string( $callback ) ) {
 			return $callback;
 		}

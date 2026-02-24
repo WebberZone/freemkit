@@ -9,7 +9,9 @@
 namespace WebberZone\FreemKit\Admin;
 
 use WebberZone\FreemKit\Kit_API;
+use WebberZone\FreemKit\Kit_Audit_Log;
 use WebberZone\FreemKit\Kit_Settings;
+use WebberZone\FreemKit\Util\Hook_Registry;
 
 /**
  * Class Kit_OAuth
@@ -21,7 +23,7 @@ class Kit_OAuth {
 	 *
 	 * @var string
 	 */
-	private string $menu_slug;
+	public string $menu_slug;
 
 	/**
 	 * Constructor.
@@ -30,7 +32,7 @@ class Kit_OAuth {
 	 */
 	public function __construct( string $menu_slug ) {
 		$this->menu_slug = $menu_slug;
-		add_action( 'admin_init', array( $this, 'maybe_handle_requests' ) );
+		Hook_Registry::add_action( 'admin_init', array( $this, 'maybe_handle_requests' ) );
 	}
 
 	/**
@@ -46,9 +48,18 @@ class Kit_OAuth {
 		$api      = new Kit_API();
 		$settings = new Kit_Settings();
 
+		// If ConvertKit plugin owns credentials, FreemKit stays read-only.
+		if ( $settings->using_convertkit_credentials() && isset( $_GET['code'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			Kit_Audit_Log::add( 'oauth_callback_skipped_convertkit_owned' );
+			Admin::add_notice( esc_html__( 'Connection is managed by the ConvertKit plugin. Reconnect from that plugin if needed.', 'freemkit' ), 'notice-warning' );
+			wp_safe_redirect( $this->get_settings_url() );
+			exit;
+		}
+
 		if ( isset( $_GET['freemkit_oauth_disconnect'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			check_admin_referer( 'freemkit_oauth_disconnect' );
 			if ( $settings->using_convertkit_credentials() ) {
+				Kit_Audit_Log::add( 'disconnect_skipped_convertkit_owned' );
 				Admin::add_notice( esc_html__( 'Connection is managed by the ConvertKit plugin. Disconnect it there if needed.', 'freemkit' ), 'notice-warning' );
 				wp_safe_redirect( $this->get_settings_url() );
 				exit;
@@ -56,6 +67,7 @@ class Kit_OAuth {
 
 			$settings->delete_credentials();
 			$this->clear_kit_cache();
+			Kit_Audit_Log::add( 'disconnect_local_success' );
 			Admin::add_notice( esc_html__( 'Disconnected from Kit.', 'freemkit' ), 'notice-success' );
 			wp_safe_redirect( $this->get_settings_url() );
 			exit;
@@ -69,6 +81,7 @@ class Kit_OAuth {
 		$result             = $api->get_access_token( $authorization_code );
 
 		if ( is_wp_error( $result ) ) {
+			Kit_Audit_Log::add( 'oauth_connect_failed', array( 'error' => $result->get_error_message() ), 'warning' );
 			Admin::add_notice( sprintf( esc_html__( 'Kit OAuth failed: %s', 'freemkit' ), $result->get_error_message() ), 'notice-error' );
 			wp_safe_redirect( $this->get_settings_url() );
 			exit;
@@ -76,6 +89,7 @@ class Kit_OAuth {
 
 		$settings->update_credentials( $result );
 		$this->clear_kit_cache();
+		Kit_Audit_Log::add( 'oauth_connect_success' );
 		Admin::add_notice( esc_html__( 'Successfully connected to Kit via OAuth.', 'freemkit' ), 'notice-success' );
 		wp_safe_redirect( $this->get_settings_url() );
 		exit;
@@ -183,7 +197,7 @@ class Kit_OAuth {
 	 *
 	 * @return bool
 	 */
-	private function is_settings_page(): bool {
+	public function is_settings_page(): bool {
 		if ( ! is_admin() || ! isset( $_GET['page'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return false;
 		}
@@ -196,7 +210,7 @@ class Kit_OAuth {
 	 *
 	 * @return string
 	 */
-	private function get_settings_url(): string {
+	public function get_settings_url(): string {
 		$args = array(
 			'page' => $this->menu_slug,
 			'tab'  => 'kit',
@@ -218,7 +232,7 @@ class Kit_OAuth {
 	 *
 	 * @return void
 	 */
-	private function clear_kit_cache(): void {
+	public function clear_kit_cache(): void {
 		foreach ( array( 'forms', 'tags', 'sequences', 'custom_fields' ) as $transient ) {
 			delete_transient( 'freemkit_kit_' . $transient );
 		}

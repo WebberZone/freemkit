@@ -28,7 +28,7 @@ class Admin_Notices_API {
 	 *
 	 * @var array Registered notices.
 	 */
-	private array $notices = array();
+	public array $notices = array();
 
 	/**
 	 * Constructor class.
@@ -132,7 +132,7 @@ class Admin_Notices_API {
 	 *
 	 * @since 4.1.0
 	 */
-	private function print_scripts() {
+	public function print_scripts() {
 		static $printed = false;
 
 		if ( $printed ) {
@@ -197,7 +197,7 @@ class Admin_Notices_API {
 	 * @param string $notice_id Notice ID.
 	 * @return bool Whether the notice has been dismissed.
 	 */
-	private function is_notice_dismissed( $notice_id ) {
+	public function is_notice_dismissed( $notice_id ) {
 		$notice = $this->notices[ $notice_id ] ?? null;
 
 		if ( ! $notice ) {

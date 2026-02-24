@@ -1170,7 +1170,7 @@ class Settings_API {
 	 * @param string $prefix Optional prefix for fallback key.
 	 * @return string The encryption key.
 	 */
-	private static function get_encryption_key( $prefix = '' ) {
+	public static function get_encryption_key( $prefix = '' ) {
 		$fallback = $prefix ? str_replace( '-', '_', $prefix ) . '_encryption_fallback' : 'settings_api_encryption_fallback';
 		return defined( 'AUTH_SALT' ) ? AUTH_SALT : ( defined( 'SECURE_AUTH_SALT' ) ? SECURE_AUTH_SALT : hash( 'sha256', __NAMESPACE__ . $fallback ) );
 	}

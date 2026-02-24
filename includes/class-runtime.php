@@ -21,14 +21,14 @@ class Runtime {
 	 *
 	 * @var bool
 	 */
-	private bool $initialized = false;
+	public bool $initialized = false;
 
 	/**
 	 * Database object.
 	 *
 	 * @var \WebberZone\FreemKit\Database
 	 */
-	private Database $database;
+	public Database $database;
 
 	/**
 	 * Constructor.
@@ -68,7 +68,7 @@ class Runtime {
 	 *
 	 * @return array<string,array<string,string>>
 	 */
-	private function get_plugin_configs(): array {
+	public function get_plugin_configs(): array {
 		$settings       = get_option( Options_API::SETTINGS_OPTION, array() );
 		$plugin_configs = array();
 

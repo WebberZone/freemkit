@@ -173,7 +173,7 @@ class Kit_API extends \ConvertKit_API_V4 {
 	 * @param string $email Email.
 	 * @return true|\WP_Error
 	 */
-	private function validate_email( string $email ) {
+	public function validate_email( string $email ) {
 		if ( empty( $email ) ) {
 			return new \WP_Error( self::ERROR_NO_EMAIL, esc_html__( 'Email address is required.', 'freemkit' ) );
 		}

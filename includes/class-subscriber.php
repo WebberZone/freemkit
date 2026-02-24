@@ -128,7 +128,7 @@ class Subscriber {
 	 *
 	 * @param int $id Subscriber ID.
 	 */
-	private function init( int $id ): void {
+	public function init( int $id ): void {
 		$subscriber = $this->db->get_subscriber( $id );
 
 		if ( ! is_wp_error( $subscriber ) ) {
@@ -143,7 +143,7 @@ class Subscriber {
 	 *
 	 * @param string $email Subscriber email.
 	 */
-	private function init_by_email( string $email ): void {
+	public function init_by_email( string $email ): void {
 		$subscriber = $this->db->get_subscriber_by_email( $email );
 
 		if ( ! is_wp_error( $subscriber ) ) {
@@ -159,7 +159,7 @@ class Subscriber {
 	 * @param array $data Subscriber data.
 	 * @return bool|\WP_Error True on success, WP_Error on failure.
 	 */
-	private function init_by_data( array $data ) {
+	public function init_by_data( array $data ) {
 		// Ensure email exists and is valid.
 		if ( empty( $data['email'] ) || ! filter_var( $data['email'], FILTER_VALIDATE_EMAIL ) ) {
 			return new \WP_Error( 'invalid_email', __( 'Invalid subscriber email.', 'freemkit' ) );

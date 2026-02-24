@@ -124,10 +124,9 @@ jQuery(document).ready(function($) {
     $('.freemkit_cache_clear').on('click', function(e) {
         e.preventDefault();
         var $button = $(this);
-        var originalText = $button.text();
         var freemkitAdmin = adminData();
 
-        $button.prop('disabled', true).text('Clearing...');
+        $button.prop('disabled', true).append(' <span class="spinner is-active"></span>');
 
         var data = {
             'action': 'freemkit_refresh_lists',
@@ -135,15 +134,14 @@ jQuery(document).ready(function($) {
         };
 
         $.post(freemkitAdmin.ajax_url || ajaxurl, data, function(response) {
-            if(response.success) {
+            if (response.success) {
                 alert((freemkitAdmin.strings && freemkitAdmin.strings['cache_cleared']) || 'Cache cleared successfully!');
             } else {
                 var message = (response && response.data && response.data.message) ? response.data.message : 'Unknown error';
                 alert(((freemkitAdmin.strings && freemkitAdmin.strings['cache_error']) || 'Error clearing cache: ') + ' ' + message);
             }
         }).always(function() {
-            // Re-enable button and restore text
-            $button.prop('disabled', false).text(originalText);
+            $button.prop('disabled', false).find('.spinner').remove();
         });
     });
 });

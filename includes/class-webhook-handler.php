@@ -37,21 +37,21 @@ class Webhook_Handler {
 	 *     }
 	 * }
 	 */
-	private $plugin_configs;
+	public $plugin_configs;
 
 	/**
 	 * ConvertKit API instance.
 	 *
 	 * @var Kit_API
 	 */
-	private $api;
+	public $api;
 
 	/**
 	 * Database instance.
 	 *
 	 * @var Database
 	 */
-	private $database;
+	public $database;
 
 	/**
 	 * Constructor.
@@ -130,7 +130,7 @@ class Webhook_Handler {
 	 * @param string $input Raw webhook input data.
 	 * @return array|\WP_Error Array of processed data or WP_Error on failure.
 	 */
-	private function process_webhook( string $input ) {
+	public function process_webhook( string $input ) {
 		// Decode the request.
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
@@ -275,7 +275,7 @@ class Webhook_Handler {
 	 * @param array              $defaults      Default list when everything else is empty.
 	 * @return array
 	 */
-	private function resolve_list_config( array $plugin_config, string $key, $fallback = '', array $defaults = array() ): array {
+	public function resolve_list_config( array $plugin_config, string $key, $fallback = '', array $defaults = array() ): array {
 		$list = wp_parse_list( $plugin_config[ $key ] ?? '' );
 		if ( empty( $list ) ) {
 			$list = wp_parse_list( $fallback );
@@ -297,7 +297,7 @@ class Webhook_Handler {
 	 * @param array  $tag_ids    Tag IDs.
 	 * @return array|\WP_Error|null
 	 */
-	private function subscribe_to_forms( array $form_ids, string $email, string $first_name, array $fields, array $tag_ids ) {
+	public function subscribe_to_forms( array $form_ids, string $email, string $first_name, array $fields, array $tag_ids ) {
 		$result = null;
 
 		foreach ( $form_ids as $form_id ) {
@@ -328,7 +328,7 @@ class Webhook_Handler {
 	 * @param \WP_REST_Request|null $request Optional request object for REST API.
 	 * @return string The signature or empty string if not found.
 	 */
-	private function get_signature( ?\WP_REST_Request $request = null ): string {
+	public function get_signature( ?\WP_REST_Request $request = null ): string {
 		$signature = '';
 
 		// Try to get from REST request if provided.
@@ -409,7 +409,7 @@ class Webhook_Handler {
 	 * @param string $signature Request signature.
 	 * @return true|\WP_Error True if validation passes, WP_Error otherwise.
 	 */
-	private function validate_webhook_signature( string $input, string $signature ) {
+	public function validate_webhook_signature( string $input, string $signature ) {
 		// Decode the request.
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {

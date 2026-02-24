@@ -27,7 +27,7 @@ class Database {
 	 * @since 1.0.0
 	 * @var string
 	 */
-	private $table_name;
+	public $table_name;
 
 	/**
 	 * Database version.
@@ -35,7 +35,7 @@ class Database {
 	 * @since 1.0.0
 	 * @var string
 	 */
-	private $db_version = '1.0.0';
+	public $db_version = '1.0.0';
 
 	/**
 	 * Constructor.
@@ -371,7 +371,7 @@ class Database {
 	 * @param bool       $is_new     Whether this is a new subscriber.
 	 * @return array Array with 'data' and 'format' keys.
 	 */
-	private function prepare_subscriber_data( $subscriber, $is_new = true ) {
+	public function prepare_subscriber_data( $subscriber, $is_new = true ) {
 		$data = array(
 			'email'      => sanitize_email( $subscriber->email ),
 			'first_name' => sanitize_text_field( $subscriber->first_name ),
@@ -405,7 +405,7 @@ class Database {
 	 * @param mixed $field Field value.
 	 * @return string Comma-separated unique values.
 	 */
-	private function prepare_array_field( $field ) {
+	public function prepare_array_field( $field ) {
 		if ( ! is_array( $field ) ) {
 			return (string) $field;
 		}
@@ -421,7 +421,7 @@ class Database {
 	 * @param Subscriber $new_subscriber      New subscriber data.
 	 * @return Subscriber
 	 */
-	private function merge_subscriber_data( $existing_subscriber, $new_subscriber ) {
+	public function merge_subscriber_data( $existing_subscriber, $new_subscriber ) {
 		$fields_to_merge = array( 'fields', 'tags', 'forms' );
 
 		foreach ( $fields_to_merge as $field ) {
