@@ -862,10 +862,12 @@ class Settings_Form {
 		</div>
 
 		<script>
-		jQuery(document).ready(function($) {
-			var wrapper = $('#<?php echo esc_js( $args['id'] ); ?>-wrapper');
-			var itemsContainer = wrapper.find('.<?php echo esc_js( $args['id'] ); ?>-items');
-			var index = <?php echo esc_js( (string) count( $value ) ); ?>;
+			jQuery(document).ready(function($) {
+				var wrapper = $('#<?php echo esc_js( $args['id'] ); ?>-wrapper');
+				var itemsContainer = wrapper.find('.<?php echo esc_js( $args['id'] ); ?>-items');
+				var index = <?php echo esc_js( (string) count( $value ) ); ?>;
+				var liveUpdateField = '<?php echo esc_js( ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name' ); ?>';
+				var fallbackTitle = '<?php echo esc_js( ! empty( $args['new_item_text'] ) ? $args['new_item_text'] : $this->translation_strings['repeater_new_item'] ); ?>';
 
 			// Add Item
 				wrapper.on('click', '.add-item', function() {
@@ -931,20 +933,28 @@ class Settings_Form {
 				}
 			});
 
-			// Reindex Items After Adding, Removing, or Moving
-			function reindexItems() {
-				itemsContainer.find('.wz-repeater-item').each(function(idx) {
+				// Reindex Items After Adding, Removing, or Moving
+				function reindexItems() {
+					itemsContainer.find('.wz-repeater-item').each(function(idx) {
 					$(this).find(':input').each(function() {
 						var name = $(this).attr('name');
-						if (name) {
-							name = name.replace(/\[\d+\]/, '[' + idx + ']');
-							$(this).attr('name', name);
-						}
+							if (name) {
+								name = name.replace(/\[\d+\](?=\[(?:fields|row_id)\])/, '[' + idx + ']');
+								$(this).attr('name', name);
+							}
+						});
 					});
+				}
+
+				// Live update repeater title when the specified field changes.
+				wrapper.on('input', '.wz-repeater-item :input[name$="[fields][' + liveUpdateField + ']"]', function() {
+					var $this = $(this);
+					var newName = $this.val();
+					var $repeaterTitle = $this.closest('.wz-repeater-item').find('.repeater-title');
+					$repeaterTitle.text(newName || fallbackTitle);
 				});
-			}
-		});
-		</script>
+			});
+			</script>
 		<?php
 		$html  = ob_get_clean();
 		$html .= $this->get_field_description( $args );
@@ -1050,22 +1060,7 @@ class Settings_Form {
 		</div>
 	</div>
 
-	<script>
-	jQuery(document).ready(function($) {
-		var wrapper = $('#<?php echo esc_js( $args['id'] ); ?>-wrapper');
-		var itemsContainer = wrapper.find('.<?php echo esc_js( $args['id'] ); ?>-items');
-
-		// Live update repeater title when the specified field changes
-		var liveUpdateField = '<?php echo esc_js( ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name' ); ?>';
-		wrapper.on('input', '.wz-repeater-item input[name$="[fields][' + liveUpdateField + ']"]', function() {
-			var $this = $(this);
-			var newName = $this.val();
-			var $repeaterTitle = $this.closest('.wz-repeater-item').find('.repeater-title');
-			$repeaterTitle.text(newName || '<?php echo esc_js( $fallback_title ); ?>'); // Update title or set default if empty
-			});
-		});
-		</script>
-		<?php
+			<?php
 	}
 
 
