@@ -982,7 +982,7 @@ class Settings_Form {
 
 		?>
 		<div class="wz-repeater-item" data-row-id="<?php echo esc_attr( $item_id ); ?>">
-			<input type="hidden" name="<?php echo esc_attr( $args['name'] ); ?>[<?php echo esc_attr( $index ); ?>][row_id]" value="<?php echo esc_attr( $item_id ); ?>" />
+			<input type="hidden" name="<?php echo esc_attr( $this->settings_key ); ?>[<?php echo esc_attr( $args['id'] ); ?>][<?php echo esc_attr( $index ); ?>][row_id]" value="<?php echo esc_attr( $item_id ); ?>" />
 			<div class="repeater-item-header">
 			<?php
 			$display_field = ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name';
