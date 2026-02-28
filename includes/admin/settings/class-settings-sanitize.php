@@ -298,9 +298,14 @@ class Settings_Sanitize {
 		}
 
 		$sanitized_value = array();
+		$existing_rows   = array();
 
 		// Get the subfields configuration.
 		$subfields = ! empty( $field['fields'] ) ? $field['fields'] : array();
+		if ( ! empty( $field['id'] ) ) {
+			$stored_value  = $this->get_option( $field['id'], array() );
+			$existing_rows = is_array( $stored_value ) ? $stored_value : array();
+		}
 
 		foreach ( $value as $index => $row ) {
 			// Ensure we have a valid row structure.
@@ -331,10 +336,22 @@ class Settings_Sanitize {
 				// Get the field type from the subfield configuration.
 				$field_type = isset( $field_config['type'] ) ? $field_config['type'] : 'text';
 
+				// Preserve existing encrypted sensitive values when form submits masked/empty value.
+				if ( 'sensitive' === $field_type && ( empty( $field_value ) || ( is_string( $field_value ) && false !== strpos( $field_value, '**' ) ) ) ) {
+					if ( isset( $existing_rows[ $index ]['fields'][ $field_key ] ) ) {
+						$sanitized_row['fields'][ $field_key ] = $existing_rows[ $index ]['fields'][ $field_key ];
+					}
+					continue;
+				}
+
 				// Call the appropriate sanitization method.
 				$sanitize_method = 'sanitize_' . $field_type . '_field';
 				if ( method_exists( $this, $sanitize_method ) ) {
-					$sanitized_row['fields'][ $field_key ] = $this->$sanitize_method( $field_value, $field_config );
+					if ( 'sensitive' === $field_type ) {
+						$sanitized_row['fields'][ $field_key ] = $this->$sanitize_method( $field_value, $field_key );
+					} else {
+						$sanitized_row['fields'][ $field_key ] = $this->$sanitize_method( $field_value, $field_config );
+					}
 				} else {
 					$sanitized_row['fields'][ $field_key ] = $this->sanitize_text_field( $field_value );
 				}

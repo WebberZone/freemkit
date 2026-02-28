@@ -866,6 +866,7 @@ class Settings_API {
 
 		// Get the various settings we've registered.
 		$settings       = get_option( $this->settings_key );
+		$settings       = is_array( $settings ) ? $settings : array();
 		$settings_types = $this->get_registered_settings_types();
 
 		// Get the tab. This is also our settings' section.
@@ -902,9 +903,9 @@ class Settings_API {
 				// If callback is set, call it.
 				if ( $sanitize_callback ) {
 					if ( 'sensitive' === $type ) {
-						$output[ $key ] = call_user_func( $sanitize_callback, $output[ $key ], $key );
+						$output[ $key ] = call_user_func( $sanitize_callback, $input[ $key ], $key );
 					} else {
-						$output[ $key ] = call_user_func( $sanitize_callback, $output[ $key ] );
+						$output[ $key ] = call_user_func( $sanitize_callback, $input[ $key ] );
 					}
 					continue;
 				}
