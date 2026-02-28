@@ -18,7 +18,7 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Settings API wrapper class
  *
- * @version 2.8.1
+ * @version 2.8.2
  */
 class Settings_API {
 
@@ -27,7 +27,7 @@ class Settings_API {
 	 *
 	 * @var   string
 	 */
-	public const VERSION = '2.8.1';
+	public const VERSION = '2.8.2';
 
 	/**
 	 * Settings Key.
@@ -901,10 +901,7 @@ class Settings_API {
 
 				// If callback is set, call it.
 				if ( $sanitize_callback ) {
-					// Pass the field configuration for repeater fields.
-					if ( 'repeater' === $type && isset( $this->registered_settings[ $key ] ) ) {
-						$output[ $key ] = call_user_func( $sanitize_callback, $output[ $key ], $this->registered_settings[ $key ] );
-					} elseif ( 'sensitive' === $type ) {
+					if ( 'sensitive' === $type ) {
 						$output[ $key ] = call_user_func( $sanitize_callback, $output[ $key ], $key );
 					} else {
 						$output[ $key ] = call_user_func( $sanitize_callback, $output[ $key ] );
