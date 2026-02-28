@@ -870,7 +870,9 @@ class Settings_Form {
 			// Add Item
 				wrapper.on('click', '.add-item', function() {
 					var template = wrapper.find('.repeater-template').html();
+					var uniqueId = 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 					template = template.replace(/{{INDEX}}/g, index);
+					template = template.replace(/{{ROW_ID}}/g, uniqueId);
 					itemsContainer.append(template);
 					index++;
 					var newItem = itemsContainer.find('.wz-repeater-item:last');
@@ -966,8 +968,21 @@ class Settings_Form {
 
 		$fallback_title = ! empty( $args['new_item_text'] ) ? $args['new_item_text'] : $this->translation_strings['repeater_new_item'];
 
+		// Generate or retrieve unique row ID.
+		$item_id = '';
+		if ( is_array( $item ) && isset( $item['row_id'] ) ) {
+			$item_id = $item['row_id'];
+		} elseif ( '{{INDEX}}' !== $index ) {
+			// For existing items without row_id, generate a persistent one.
+			$item_id = 'row_' . md5( $args['id'] . '_' . $index );
+		} else {
+			// For new items, use a placeholder that will be replaced.
+			$item_id = '{{ROW_ID}}';
+		}
+
 		?>
-		<div class="wz-repeater-item">
+		<div class="wz-repeater-item" data-row-id="<?php echo esc_attr( $item_id ); ?>">
+			<input type="hidden" name="<?php echo esc_attr( $args['name'] ); ?>[<?php echo esc_attr( $index ); ?>][row_id]" value="<?php echo esc_attr( $item_id ); ?>" />
 			<div class="repeater-item-header">
 			<?php
 			$display_field = ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name';

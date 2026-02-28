@@ -307,6 +307,14 @@ class Settings_Sanitize {
 			$existing_rows = is_array( $stored_value ) ? $stored_value : array();
 		}
 
+		// Create a lookup table for existing rows by row_id.
+		$existing_by_id = array();
+		foreach ( $existing_rows as $existing_row ) {
+			if ( isset( $existing_row['row_id'] ) ) {
+				$existing_by_id[ $existing_row['row_id'] ] = $existing_row;
+			}
+		}
+
 		foreach ( $value as $index => $row ) {
 			// Ensure we have a valid row structure.
 			if ( ! isset( $row['fields'] ) || ! is_array( $row['fields'] ) ) {
@@ -316,6 +324,17 @@ class Settings_Sanitize {
 			$sanitized_row = array(
 				'fields' => array(),
 			);
+
+			// Preserve row_id if it exists.
+			if ( isset( $row['row_id'] ) ) {
+				$sanitized_row['row_id'] = sanitize_text_field( $row['row_id'] );
+			}
+
+			// Get the corresponding existing row for sensitive field preservation.
+			$existing_row = null;
+			if ( isset( $row['row_id'] ) && isset( $existing_by_id[ $row['row_id'] ] ) ) {
+				$existing_row = $existing_by_id[ $row['row_id'] ];
+			}
 
 			foreach ( $row['fields'] as $field_key => $field_value ) {
 				$field_key = sanitize_key( $field_key );
@@ -338,8 +357,8 @@ class Settings_Sanitize {
 
 				// Preserve existing encrypted sensitive values when form submits masked/empty value.
 				if ( 'sensitive' === $field_type && ( empty( $field_value ) || ( is_string( $field_value ) && false !== strpos( $field_value, '**' ) ) ) ) {
-					if ( isset( $existing_rows[ $index ]['fields'][ $field_key ] ) ) {
-						$sanitized_row['fields'][ $field_key ] = $existing_rows[ $index ]['fields'][ $field_key ];
+					if ( $existing_row && isset( $existing_row['fields'][ $field_key ] ) ) {
+						$sanitized_row['fields'][ $field_key ] = $existing_row['fields'][ $field_key ];
 					}
 					continue;
 				}
