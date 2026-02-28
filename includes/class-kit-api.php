@@ -179,6 +179,7 @@ class Kit_API extends \ConvertKit_API_V4 {
 		}
 
 		if ( ! is_email( $email ) ) {
+			/* translators: %s: The invalid email address provided. */
 			return new \WP_Error( self::ERROR_NO_EMAIL, sprintf( esc_html__( 'Invalid email address format: %s', 'freemkit' ), $email ) );
 		}
 

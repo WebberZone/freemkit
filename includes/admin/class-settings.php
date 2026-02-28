@@ -827,6 +827,10 @@ class Settings {
 	public function ajax_refresh_lists() {
 		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
 
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'freemkit' ) ) );
+		}
+
 		foreach ( array( 'forms', 'tags', 'sequences', 'custom_fields' ) as $transient ) {
 			delete_transient( 'freemkit_kit_' . $transient );
 		}

@@ -255,6 +255,19 @@ class Database {
 		);
 
 		if ( false === $result ) {
+			if ( false !== stripos( (string) $wpdb->last_error, 'Duplicate entry' ) ) {
+				$existing_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+					$wpdb->prepare(
+						"SELECT id FROM {$this->get_table_name()} WHERE email = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						$sanitized_email
+					)
+				);
+
+				if ( $existing_id > 0 ) {
+					return $existing_id;
+				}
+			}
+
 			return new \WP_Error(
 				'db_insert_error',
 				__( 'Could not add subscriber.', 'freemkit' )
@@ -273,6 +286,84 @@ class Database {
 		 * @param Subscriber $subscriber    The subscriber object.
 		 */
 		do_action( 'freemkit_after_add_subscriber', $subscriber_id, $subscriber );
+
+		return $subscriber_id;
+	}
+
+	/**
+	 * Idempotently upsert a subscriber by email.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param Subscriber $subscriber Subscriber object.
+	 * @return int|\WP_Error Subscriber ID on success, \WP_Error on failure.
+	 */
+	public function upsert_subscriber_by_email( $subscriber ) {
+		global $wpdb;
+
+		if ( empty( $subscriber->email ) ) {
+			return new \WP_Error(
+				'missing_email',
+				__( 'Email is required.', 'freemkit' )
+			);
+		}
+
+		$data = $this->prepare_subscriber_data( $subscriber );
+
+		$sql = "
+			INSERT INTO {$this->get_table_name()} (
+				email, first_name, last_name, fields, tags, forms, status, created
+			) VALUES (
+				%s, %s, %s, %s, %s, %s, %s, %s
+			)
+			ON DUPLICATE KEY UPDATE
+				first_name = VALUES(first_name),
+				last_name = VALUES(last_name),
+				fields = VALUES(fields),
+				tags = VALUES(tags),
+				forms = VALUES(forms),
+				status = VALUES(status),
+				modified = CURRENT_TIMESTAMP
+		";
+
+		$result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				$sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+				$data['data']['email'],
+				$data['data']['first_name'],
+				$data['data']['last_name'],
+				$data['data']['fields'],
+				$data['data']['tags'],
+				$data['data']['forms'],
+				$data['data']['status'],
+				$data['data']['created']
+			)
+		);
+
+		if ( false === $result ) {
+			return new \WP_Error(
+				'db_upsert_error',
+				sprintf(
+					/* translators: %s: Database error */
+					__( 'Could not upsert subscriber: %s', 'freemkit' ),
+					$wpdb->last_error
+				)
+			);
+		}
+
+		$subscriber_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"SELECT id FROM {$this->get_table_name()} WHERE email = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$data['data']['email']
+			)
+		);
+
+		if ( $subscriber_id <= 0 ) {
+			return new \WP_Error( 'db_upsert_error', __( 'Could not resolve subscriber after upsert.', 'freemkit' ) );
+		}
+
+		$this->clear_subscriber_cache( $subscriber_id );
+		$this->clear_subscriber_cache( $data['data']['email'] );
 
 		return $subscriber_id;
 	}

@@ -17,25 +17,24 @@ defined( 'ABSPATH' ) || exit;
 class Webhook_Handler {
 
 	/**
+	 * Cron hook for async webhook processing.
+	 */
+	private const PROCESS_HOOK = 'freemkit_process_webhook_event';
+
+	/**
+	 * Prefix for queued event transients.
+	 */
+	private const QUEUE_PREFIX = 'freemkit_webhook_queue_';
+
+	/**
+	 * Prefix for replay/deduplication transients.
+	 */
+	private const SEEN_PREFIX = 'freemkit_webhook_seen_';
+
+	/**
 	 * Plugin configurations.
 	 *
-	 * @var array {
-	 *     Array of plugin configurations indexed by plugin ID.
-	 *
-	 *     @type array $plugin_id {
-	 *         Configuration for a specific plugin.
-	 *
-	 *         @type string $slug         Plugin slug.
-	 *         @type string $public_key   Public key for the plugin.
-	 *         @type string $secret_key   Secret key for the plugin.
-	 *         @type int    $free_form_ids     Form ID for free subscribers.
-	 *         @type int    $free_tag_ids      Tag ID for free subscribers.
-	 *         @type string $free_event_types  Comma-separated webhook events for free mapping.
-	 *         @type int    $paid_form_ids     Form ID for paid subscribers.
-	 *         @type int    $paid_tag_ids      Tag ID for paid subscribers.
-	 *         @type string $paid_event_types  Comma-separated webhook events for paid mapping.
-	 *     }
-	 * }
+	 * @var array
 	 */
 	public $plugin_configs;
 
@@ -58,25 +57,9 @@ class Webhook_Handler {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param array    $plugin_configs {
-	 *        Plugin configurations array indexed by plugin ID.
-	 *
-	 *     @type array $plugin_id {
-	 *         Configuration for a specific plugin.
-	 *
-	 *         @type string $slug         Plugin slug.
-	 *         @type string $public_key   Public key for the plugin.
-	 *         @type string $secret_key   Secret key for the plugin.
-	 *         @type int    $free_form_ids     Form ID for free subscribers.
-	 *         @type int    $free_tag_ids      Tag ID for free subscribers.
-	 *         @type string $free_event_types  Comma-separated webhook events for free mapping.
-	 *         @type int    $paid_form_ids     Form ID for paid subscribers.
-	 *         @type int    $paid_tag_ids      Tag ID for paid subscribers.
-	 *         @type string $paid_event_types  Comma-separated webhook events for paid mapping.
-	 *     }
-	 * }
-	 * @param Kit_API  $api      ConvertKit API instance.
-	 * @param Database $database Database instance.
+	 * @param array    $plugin_configs Plugin configurations array indexed by plugin ID.
+	 * @param Kit_API  $api            ConvertKit API instance.
+	 * @param Database $database       Database instance.
 	 */
 	public function __construct( array $plugin_configs, Kit_API $api, Database $database ) {
 		$this->plugin_configs = $plugin_configs;
@@ -101,6 +84,8 @@ class Webhook_Handler {
 		} else {
 			add_action( 'parse_request', array( $this, 'handle_query_var_webhook' ) );
 		}
+
+		add_action( self::PROCESS_HOOK, array( $this, 'process_queued_webhook' ), 10, 1 );
 	}
 
 	/**
@@ -131,30 +116,21 @@ class Webhook_Handler {
 	 * @return array|\WP_Error Array of processed data or WP_Error on failure.
 	 */
 	public function process_webhook( string $input ) {
-		// Decode the request.
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
 			return new \WP_Error( 'invalid_request', 'Invalid request body or missing plugin ID' );
 		}
 
 		$plugin_id = $fs_event->plugin_id;
-
-		// Check if plugin ID exists in config.
 		if ( ! isset( $this->plugin_configs[ $plugin_id ] ) ) {
 			return new \WP_Error( 'invalid_plugin', 'Plugin ID not found in configuration' );
 		}
 
-		// Note: Signature validation is handled in validate_webhook_signature() before this method is called.
-
-		// Process the webhook data.
-		// Check if objects property exists.
 		if ( ! isset( $fs_event->objects ) || ! isset( $fs_event->objects->user ) ) {
 			return new \WP_Error( 'invalid_data', 'Missing user data in request.' );
 		}
 
 		$user = $fs_event->objects->user;
-
-		// Validate email.
 		if ( empty( $user->email ) || ! filter_var( $user->email, FILTER_VALIDATE_EMAIL ) ) {
 			return new \WP_Error( 'invalid_email', 'Invalid or missing email address.' );
 		}
@@ -169,10 +145,10 @@ class Webhook_Handler {
 		if ( $last_name_field ) {
 			$fields[ $last_name_field ] = $last_name;
 		}
+
 		$custom_fields = Options_API::get_option( 'custom_fields' );
 		if ( $custom_fields ) {
 			foreach ( $custom_fields as $custom_field ) {
-				// Check if property exists before accessing it.
 				$property_name  = $custom_field['local_name'] ?? '';
 				$property_value = '';
 
@@ -184,8 +160,6 @@ class Webhook_Handler {
 			}
 		}
 
-		// Resolve form/tag IDs with fallback to global settings when plugin-level values are empty.
-		$forms         = array();
 		$plugin_config = $this->plugin_configs[ $plugin_id ];
 		$kit_form_id   = Options_API::get_option( 'kit_form_id' );
 		$kit_tag_id    = Options_API::get_option( 'kit_tag_id' );
@@ -197,7 +171,6 @@ class Webhook_Handler {
 		$free_event_types = $this->resolve_list_config( $plugin_config, 'free_event_types', '', array( 'install.installed', 'install.activated' ) );
 		$paid_event_types = $this->resolve_list_config( $plugin_config, 'paid_event_types', '', array( 'license.created', 'subscription.created', 'payment.created' ) );
 
-		// Check if type property exists.
 		if ( ! isset( $fs_event->type ) ) {
 			return new \WP_Error( 'invalid_event', 'Missing event type in request.' );
 		}
@@ -210,11 +183,13 @@ class Webhook_Handler {
 		} elseif ( in_array( $event_type, $paid_event_types, true ) ) {
 			$api_result = $this->subscribe_to_forms( $paid_form_ids, $email, $first_name, $fields, $paid_tag_ids );
 		} else {
-			return new \WP_Error( 'event_not_handled', 'Event type not handled.' );
+			return array(
+				'status'  => 'ignored',
+				'message' => 'Event type not mapped; ignored.',
+			);
 		}
 
 		if ( isset( $api_result ) && is_wp_error( $api_result ) ) {
-			// Log the error using WordPress debug log if enabled.
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Kit API Error: %s', $api_result->get_error_message() ) );
@@ -222,10 +197,6 @@ class Webhook_Handler {
 			return new \WP_Error( 'api_error', 'Processed with API errors' );
 		}
 
-		// Check if subscriber already exists.
-		$existing_sub = $this->database->get_subscriber_by_email( $email );
-
-		// Create a new subscriber object with the data.
 		$subscriber = new Subscriber(
 			array(
 				'email'      => $email,
@@ -243,16 +214,8 @@ class Webhook_Handler {
 			)
 		);
 
-		// Update existing subscriber or insert new one.
-		if ( ! is_wp_error( $existing_sub ) ) {
-			$subscriber->id = $existing_sub->id;
-			$db_result      = $this->database->update_subscriber( $subscriber );
-		} else {
-			$db_result = $this->database->add_subscriber( $subscriber );
-		}
-
+		$db_result = $this->database->upsert_subscriber_by_email( $subscriber );
 		if ( is_wp_error( $db_result ) ) {
-			// Log the error using WordPress debug log if enabled.
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Database Error: %s', $db_result->get_error_message() ) );
@@ -331,16 +294,13 @@ class Webhook_Handler {
 	public function get_signature( ?\WP_REST_Request $request = null ): string {
 		$signature = '';
 
-		// Try to get from REST request if provided.
 		if ( null !== $request ) {
 			$signature = $request->get_header( 'x-signature' );
 		}
 
-		// Check alternative header formats if signature is empty.
 		if ( empty( $signature ) && function_exists( 'apache_request_headers' ) ) {
 			$headers = apache_request_headers();
 			foreach ( $headers as $key => $value ) {
-				// Try different case variations.
 				if ( strtolower( $key ) === 'x-signature' ) {
 					$signature = $value;
 					break;
@@ -348,12 +308,45 @@ class Webhook_Handler {
 			}
 		}
 
-		// If still empty, check $_SERVER for transformed header.
 		if ( empty( $signature ) && isset( $_SERVER['HTTP_X_SIGNATURE'] ) ) {
 			$signature = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_SIGNATURE'] ) );
 		}
 
 		return $signature;
+	}
+
+	/**
+	 * Get request header value.
+	 *
+	 * @param string                $header_name Header name.
+	 * @param \WP_REST_Request|null $request Request instance.
+	 * @return string
+	 */
+	public function get_request_header( string $header_name, ?\WP_REST_Request $request = null ): string {
+		$value = '';
+
+		if ( null !== $request ) {
+			$value = (string) $request->get_header( $header_name );
+		}
+
+		if ( '' === $value && function_exists( 'apache_request_headers' ) ) {
+			$headers = apache_request_headers();
+			foreach ( $headers as $key => $header_value ) {
+				if ( strtolower( $key ) === strtolower( $header_name ) ) {
+					$value = (string) $header_value;
+					break;
+				}
+			}
+		}
+
+		if ( '' === $value ) {
+			$server_key = 'HTTP_' . strtoupper( str_replace( '-', '_', $header_name ) );
+			if ( isset( $_SERVER[ $server_key ] ) ) {
+				$value = sanitize_text_field( wp_unslash( $_SERVER[ $server_key ] ) );
+			}
+		}
+
+		return trim( $value );
 	}
 
 	/**
@@ -379,24 +372,27 @@ class Webhook_Handler {
 			die( 'Invalid request method' );
 		}
 
-		$input     = file_get_contents( 'php://input' );
-		$signature = $this->get_signature();
-
-		// Validate signature before processing.
+		$input      = file_get_contents( 'php://input' );
+		$signature  = $this->get_signature();
 		$validation = $this->validate_webhook_signature( $input, $signature );
 		if ( is_wp_error( $validation ) ) {
 			status_header( 400 );
 			die( esc_html( $validation->get_error_message() ) );
 		}
 
-		// Process the webhook.
-		$result = $this->process_webhook( $input );
-		if ( is_wp_error( $result ) ) {
+		$freshness = $this->validate_webhook_freshness( $input );
+		if ( is_wp_error( $freshness ) ) {
 			status_header( 400 );
+			die( esc_html( $freshness->get_error_message() ) );
+		}
+
+		$result = $this->queue_webhook_event( $input );
+		if ( is_wp_error( $result ) ) {
+			status_header( 500 );
 			die( esc_html( $result->get_error_message() ) );
 		}
 
-		status_header( 200 );
+		status_header( 202 );
 		die( esc_html( $result['message'] ) );
 	}
 
@@ -410,20 +406,16 @@ class Webhook_Handler {
 	 * @return true|\WP_Error True if validation passes, WP_Error otherwise.
 	 */
 	public function validate_webhook_signature( string $input, string $signature ) {
-		// Decode the request.
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
 			return new \WP_Error( 'invalid_request', 'Invalid request body or missing plugin ID' );
 		}
 
 		$plugin_id = $fs_event->plugin_id;
-
-		// Check if plugin ID exists in config.
 		if ( ! isset( $this->plugin_configs[ $plugin_id ] ) ) {
 			return new \WP_Error( 'invalid_plugin', 'Plugin ID not found in configuration' );
 		}
 
-		// Verify the signature.
 		$plugin_config = $this->plugin_configs[ $plugin_id ];
 		$hash          = hash_hmac( 'sha256', $input, $plugin_config['secret_key'] );
 
@@ -435,6 +427,225 @@ class Webhook_Handler {
 	}
 
 	/**
+	 * Validate webhook freshness using timestamp if available.
+	 *
+	 * @param string                $input Raw webhook input data.
+	 * @param \WP_REST_Request|null $request Request instance.
+	 * @return true|\WP_Error
+	 */
+	public function validate_webhook_freshness( string $input, ?\WP_REST_Request $request = null ) {
+		$timestamp = $this->extract_webhook_timestamp( $input, $request );
+		if ( null === $timestamp ) {
+			$require_timestamp = (bool) apply_filters( 'freemkit_webhook_require_timestamp', false, $request );
+			if ( $require_timestamp ) {
+				return new \WP_Error( 'missing_timestamp', 'Webhook timestamp is required but missing.' );
+			}
+			return true;
+		}
+
+		$max_age = (int) apply_filters( 'freemkit_webhook_max_age', 15 * MINUTE_IN_SECONDS, $timestamp );
+		if ( $max_age <= 0 ) {
+			$max_age = 15 * MINUTE_IN_SECONDS;
+		}
+
+		if ( abs( time() - $timestamp ) > $max_age ) {
+			return new \WP_Error( 'stale_webhook', 'Webhook timestamp is outside the accepted time window.' );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Extract webhook timestamp from headers or payload.
+	 *
+	 * @param string                $input Raw payload.
+	 * @param \WP_REST_Request|null $request Request instance.
+	 * @return int|null
+	 */
+	public function extract_webhook_timestamp( string $input, ?\WP_REST_Request $request = null ): ?int {
+		$header_keys = array( 'x-fs-timestamp', 'x-timestamp', 'x-webhook-timestamp' );
+		foreach ( $header_keys as $header_key ) {
+			$header_value = $this->get_request_header( $header_key, $request );
+			if ( '' !== $header_value && is_numeric( $header_value ) ) {
+				return (int) $header_value;
+			}
+		}
+
+		$event = json_decode( $input, true );
+		if ( ! is_array( $event ) ) {
+			return null;
+		}
+
+		$candidates = array(
+			$event['timestamp'] ?? null,
+			$event['created'] ?? null,
+			$event['created_at'] ?? null,
+			$event['event_timestamp'] ?? null,
+			$event['date'] ?? null,
+			$event['datetime'] ?? null,
+			isset( $event['objects']['event']['created'] ) ? $event['objects']['event']['created'] : null,
+			isset( $event['objects']['event']['created_at'] ) ? $event['objects']['event']['created_at'] : null,
+			isset( $event['objects']['event']['timestamp'] ) ? $event['objects']['event']['timestamp'] : null,
+		);
+
+		foreach ( $candidates as $candidate ) {
+			if ( is_numeric( $candidate ) ) {
+				return (int) $candidate;
+			}
+
+			if ( is_string( $candidate ) ) {
+				$parsed = strtotime( $candidate );
+				if ( false !== $parsed ) {
+					return (int) $parsed;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Extract a stable webhook event identifier.
+	 *
+	 * @param string $input Raw payload.
+	 * @return string
+	 */
+	public function get_event_key( string $input ): string {
+		$event = json_decode( $input, true );
+		if ( is_array( $event ) ) {
+			$candidates = array(
+				$event['id'] ?? null,
+				$event['event_id'] ?? null,
+				isset( $event['objects']['event']['id'] ) ? $event['objects']['event']['id'] : null,
+			);
+
+			foreach ( $candidates as $candidate ) {
+				if ( is_scalar( $candidate ) && '' !== (string) $candidate ) {
+					return sanitize_key( (string) $candidate );
+				}
+			}
+		}
+
+		return hash( 'sha256', $input );
+	}
+
+	/**
+	 * Check if webhook has already been seen.
+	 *
+	 * @param string $event_key Event key.
+	 * @return bool
+	 */
+	public function is_duplicate_webhook( string $event_key ): bool {
+		return false !== get_transient( self::SEEN_PREFIX . $event_key );
+	}
+
+	/**
+	 * Mark webhook as seen to prevent replay/duplicate processing.
+	 *
+	 * @param string $event_key Event key.
+	 * @return void
+	 */
+	public function mark_webhook_seen( string $event_key ): void {
+		$ttl = (int) apply_filters( 'freemkit_webhook_replay_ttl', DAY_IN_SECONDS, $event_key );
+		$ttl = max( HOUR_IN_SECONDS, $ttl );
+		set_transient( self::SEEN_PREFIX . $event_key, 1, $ttl );
+	}
+
+	/**
+	 * Queue webhook for async processing.
+	 *
+	 * @param string $input Raw payload.
+	 * @return array|\WP_Error
+	 */
+	public function queue_webhook_event( string $input ) {
+		$event_key = $this->get_event_key( $input );
+		if ( $this->is_duplicate_webhook( $event_key ) ) {
+			return array(
+				'status'  => 'ignored',
+				'message' => 'Duplicate webhook ignored.',
+			);
+		}
+
+		$this->mark_webhook_seen( $event_key );
+
+		$payload = array(
+			'input'    => $input,
+			'attempts' => 0,
+		);
+		set_transient( self::QUEUE_PREFIX . $event_key, $payload, DAY_IN_SECONDS );
+		$this->mark_webhook_seen( $event_key );
+
+		if ( ! wp_next_scheduled( self::PROCESS_HOOK, array( $event_key ) ) ) {
+			$scheduled = wp_schedule_single_event( time() + 1, self::PROCESS_HOOK, array( $event_key ) );
+			if ( false === $scheduled ) {
+				// Fall back to immediate processing when scheduling is unavailable.
+				$this->process_queued_webhook( $event_key );
+				return array(
+					'status'  => 'processed',
+					'message' => 'Webhook processed immediately because scheduling was unavailable.',
+				);
+			}
+		}
+
+		// Prompt cron spawn so queues are not delayed on low-traffic sites.
+		if ( function_exists( 'spawn_cron' ) ) {
+			spawn_cron( time() );
+		}
+
+		// If internal WP-Cron is disabled, process now to avoid indefinite queue delays.
+		if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
+			$this->process_queued_webhook( $event_key );
+			return array(
+				'status'  => 'processed',
+				'message' => 'Webhook processed immediately because WP-Cron is disabled.',
+			);
+		}
+
+		return array(
+			'status'  => 'queued',
+			'message' => 'Webhook accepted for asynchronous processing.',
+		);
+	}
+
+	/**
+	 * Process a queued webhook event.
+	 *
+	 * @param string $event_key Event key.
+	 * @return void
+	 */
+	public function process_queued_webhook( string $event_key ): void {
+		$payload = get_transient( self::QUEUE_PREFIX . $event_key );
+		if ( ! is_array( $payload ) || empty( $payload['input'] ) ) {
+			return;
+		}
+
+		$result = $this->process_webhook( (string) $payload['input'] );
+		if ( ! is_wp_error( $result ) ) {
+			delete_transient( self::QUEUE_PREFIX . $event_key );
+			return;
+		}
+
+		$attempts      = isset( $payload['attempts'] ) ? (int) $payload['attempts'] : 0;
+		$max_attempts  = (int) apply_filters( 'freemkit_webhook_max_retries', 3, $event_key );
+		$next_attempts = $attempts + 1;
+
+		if ( $next_attempts >= $max_attempts ) {
+			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( '[FreemKit] Webhook dropped after retries (%s): %s', $event_key, $result->get_error_message() ) );
+			}
+			delete_transient( self::QUEUE_PREFIX . $event_key );
+			delete_transient( self::SEEN_PREFIX . $event_key );
+			return;
+		}
+
+		$payload['attempts'] = $next_attempts;
+		set_transient( self::QUEUE_PREFIX . $event_key, $payload, DAY_IN_SECONDS );
+		$delay = min( 5 * MINUTE_IN_SECONDS, $next_attempts * MINUTE_IN_SECONDS );
+		wp_schedule_single_event( time() + $delay, self::PROCESS_HOOK, array( $event_key ) );
+	}
+
+	/**
 	 * Check webhook permissions for REST API.
 	 *
 	 * @since 1.0.0
@@ -443,15 +654,12 @@ class Webhook_Handler {
 	 * @return true|\WP_Error True if permissions are valid, \WP_Error otherwise.
 	 */
 	public function check_webhook_permissions( \WP_REST_Request $request ) {
-		// Get signature from headers.
 		$signature = $this->get_signature( $request );
-
-		// Validate signature only, without processing side effects.
 		return $this->validate_webhook_signature( $request->get_body(), $signature );
 	}
 
 	/**
-	 * Processes incoming webhook requests from ConvertKit via REST API.
+	 * Process incoming webhook requests from Freemius via REST API.
 	 *
 	 * @since 1.0.0
 	 *
@@ -459,28 +667,31 @@ class Webhook_Handler {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public function handle_webhook( \WP_REST_Request $request ) {
-		// Get signature from headers.
-		$signature = $this->get_signature( $request );
-
-		// Validate signature before processing.
-		$validation = $this->validate_webhook_signature( $request->get_body(), $signature );
+		$body       = $request->get_body();
+		$signature  = $this->get_signature( $request );
+		$validation = $this->validate_webhook_signature( $body, $signature );
 		if ( is_wp_error( $validation ) ) {
 			return $validation;
 		}
 
-		// Process the webhook.
-		$result = $this->process_webhook( $request->get_body() );
+		$freshness = $this->validate_webhook_freshness( $body, $request );
+		if ( is_wp_error( $freshness ) ) {
+			return $freshness;
+		}
 
+		$result = $this->queue_webhook_event( $body );
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
+		$status_code = 'queued' === $result['status'] ? 202 : 200;
+
 		return new \WP_REST_Response(
 			array(
-				'status'  => 'success',
+				'status'  => sanitize_text_field( $result['status'] ),
 				'message' => esc_html( $result['message'] ),
 			),
-			200
+			$status_code
 		);
 	}
 }
