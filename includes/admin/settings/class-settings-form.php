@@ -964,13 +964,15 @@ class Settings_Form {
 			return;
 		}
 
+		$fallback_title = ! empty( $args['new_item_text'] ) ? $args['new_item_text'] : $this->translation_strings['repeater_new_item'];
+
 		?>
-	<div class="wz-repeater-item">
-		<div class="repeater-item-header">
+		<div class="wz-repeater-item">
+			<div class="repeater-item-header">
 			<?php
 			$display_field = ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name';
 			?>
-			<span class="repeater-title"><?php echo esc_html( ! empty( $item['fields'][ $display_field ] ) ? $item['fields'][ $display_field ] : $this->translation_strings['repeater_new_item'] ); ?></span>
+			<span class="repeater-title"><?php echo esc_html( ! empty( $item['fields'][ $display_field ] ) ? $item['fields'][ $display_field ] : $fallback_title ); ?></span>
 			<span class="toggle-icon">▼</span>
 		</div>
 		<div class="repeater-item-content" style="display: none;">
@@ -1044,10 +1046,10 @@ class Settings_Form {
 			var $this = $(this);
 			var newName = $this.val();
 			var $repeaterTitle = $this.closest('.wz-repeater-item').find('.repeater-title');
-			$repeaterTitle.text(newName || '<?php echo esc_js( $this->translation_strings['repeater_new_item'] ); ?>'); // Update title or set default if empty
+			$repeaterTitle.text(newName || '<?php echo esc_js( $fallback_title ); ?>'); // Update title or set default if empty
+			});
 		});
-	});
-	</script>
+		</script>
 		<?php
 	}
 

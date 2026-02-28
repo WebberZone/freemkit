@@ -573,7 +573,6 @@ class Webhook_Handler {
 			'attempts' => 0,
 		);
 		set_transient( self::QUEUE_PREFIX . $event_key, $payload, DAY_IN_SECONDS );
-		$this->mark_webhook_seen( $event_key );
 
 		if ( ! wp_next_scheduled( self::PROCESS_HOOK, array( $event_key ) ) ) {
 			$scheduled = wp_schedule_single_event( time() + 1, self::PROCESS_HOOK, array( $event_key ) );

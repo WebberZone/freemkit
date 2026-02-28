@@ -896,7 +896,7 @@ class Settings_API {
 				continue;
 			}
 
-			if ( array_key_exists( $key, $output ) ) {
+			if ( array_key_exists( $key, $input ) ) {
 				$sanitize_callback = $this->get_sanitize_callback( $key );
 
 				// If callback is set, call it.
