@@ -744,14 +744,14 @@ class Settings {
 			$validation = $this->validate_freemius_plugins_for_save( $settings );
 			$errors     = $validation['errors'];
 
-			// Persist only validated plugin rows.
+			// Persist validated rows and preserve existing saved rows for invalid entries.
 			$settings['plugins'] = $validation['plugins'];
 
 			if ( ! empty( $errors ) ) {
 				add_settings_error(
 					self::$prefix . '-notices',
 					self::$prefix . '_freemius_validation_partial',
-					esc_html__( 'Some Freemius plugin rows failed validation and were not saved.', 'freemkit' ),
+					esc_html__( 'Some Freemius plugin rows failed validation. Existing saved values were kept for those rows.', 'freemkit' ),
 					'error'
 				);
 
@@ -776,9 +776,24 @@ class Settings {
 	 * @return array{plugins: array<int,mixed>, errors: array<int,string>} Filtered rows and validation errors.
 	 */
 	private function validate_freemius_plugins_for_save( array $settings ): array {
-		$errors        = array();
-		$valid_plugins = array();
-		$plugins       = isset( $settings['plugins'] ) && is_array( $settings['plugins'] ) ? $settings['plugins'] : array();
+		$errors            = array();
+		$persisted_plugins = array();
+		$plugins           = isset( $settings['plugins'] ) && is_array( $settings['plugins'] ) ? $settings['plugins'] : array();
+		$existing_settings = get_option( Options_API::SETTINGS_OPTION, array() );
+		$existing_plugins  = ( is_array( $existing_settings ) && isset( $existing_settings['plugins'] ) && is_array( $existing_settings['plugins'] ) )
+			? $existing_settings['plugins']
+			: array();
+
+		$existing_by_row_id = array();
+		foreach ( $existing_plugins as $existing_plugin ) {
+			if ( ! is_array( $existing_plugin ) ) {
+				continue;
+			}
+			$row_id = isset( $existing_plugin['row_id'] ) ? (string) $existing_plugin['row_id'] : '';
+			if ( '' !== $row_id ) {
+				$existing_by_row_id[ $row_id ] = $existing_plugin;
+			}
+		}
 
 		foreach ( $plugins as $index => $plugin ) {
 			if ( ! is_array( $plugin ) || ! isset( $plugin['fields'] ) || ! is_array( $plugin['fields'] ) ) {
@@ -798,24 +813,43 @@ class Settings {
 
 			if ( '' === $plugin_id || '' === $public_key || '' === $secret_key ) {
 				/* translators: %s: plugin row label. */
-				$errors[] = sprintf( esc_html__( '%s: Product ID, Public Key, and Secret Key are required.', 'freemkit' ), esc_html( $label ) );
+				$errors[]            = sprintf( esc_html__( '%s: Product ID, Public Key, and Secret Key are required.', 'freemkit' ), esc_html( $label ) );
+				$persisted_plugins[] = $this->resolve_saved_or_submitted_plugin_row( $plugin, $existing_by_row_id );
 				continue;
 			}
 
 			$result = $this->validate_freemius_credentials( $plugin_id, $public_key, $secret_key );
 			if ( is_wp_error( $result ) ) {
 				/* translators: 1: plugin row label, 2: validation error message. */
-				$errors[] = sprintf( esc_html__( '%1$s: %2$s', 'freemkit' ), esc_html( $label ), esc_html( $result->get_error_message() ) );
+				$errors[]            = sprintf( esc_html__( '%1$s: %2$s', 'freemkit' ), esc_html( $label ), esc_html( $result->get_error_message() ) );
+				$persisted_plugins[] = $this->resolve_saved_or_submitted_plugin_row( $plugin, $existing_by_row_id );
 				continue;
 			}
 
-			$valid_plugins[] = $plugin;
+			$persisted_plugins[] = $plugin;
 		}
 
 		return array(
-			'plugins' => array_values( $valid_plugins ),
+			'plugins' => array_values( $persisted_plugins ),
 			'errors'  => $errors,
 		);
+	}
+
+	/**
+	 * Return existing saved plugin row when possible, otherwise submitted row.
+	 *
+	 * @param array $submitted_plugin Submitted plugin row.
+	 * @param array $existing_by_row_id Existing rows indexed by row_id.
+	 * @return array
+	 */
+	private function resolve_saved_or_submitted_plugin_row( array $submitted_plugin, array $existing_by_row_id ): array {
+		$row_id = isset( $submitted_plugin['row_id'] ) ? (string) $submitted_plugin['row_id'] : '';
+
+		if ( '' !== $row_id && isset( $existing_by_row_id[ $row_id ] ) && is_array( $existing_by_row_id[ $row_id ] ) ) {
+			return $existing_by_row_id[ $row_id ];
+		}
+
+		return $submitted_plugin;
 	}
 
 	/**

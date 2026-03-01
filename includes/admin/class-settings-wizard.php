@@ -171,11 +171,12 @@ class Settings_Wizard extends Settings_Wizard_API {
 		switch ( $action ) {
 			case 'next_step':
 				$this->process_current_step();
-				if ( $this->has_blocking_validation_error() ) {
+				if ( $this->is_freemius_step() && $this->has_blocking_validation_error() ) {
+					$this->redirect_to_step( $this->current_step );
+				} else {
+					$this->next_step();
 					$this->redirect_to_step( $this->current_step );
 				}
-				$this->next_step();
-				$this->redirect_to_step( $this->current_step );
 				break;
 
 			case 'previous_step':
@@ -185,11 +186,12 @@ class Settings_Wizard extends Settings_Wizard_API {
 
 			case 'finish_setup':
 				$this->process_current_step();
-				if ( $this->has_blocking_validation_error() ) {
+				if ( $this->is_freemius_step() && $this->has_blocking_validation_error() ) {
 					$this->redirect_to_step( $this->current_step );
+				} else {
+					$this->mark_wizard_completed();
+					$this->redirect_to_step( $this->total_steps + 1 );
 				}
-				$this->mark_wizard_completed();
-				$this->redirect_to_step( $this->total_steps + 1 );
 				break;
 
 			case 'skip_wizard':
@@ -207,17 +209,34 @@ class Settings_Wizard extends Settings_Wizard_API {
 	 * @return bool
 	 */
 	private function has_blocking_validation_error(): bool {
-		$errors = get_settings_errors( $this->prefix . '-notices' );
+		$errors = get_settings_errors();
 
 		foreach ( $errors as $error ) {
-			$code = (string) $error['code'];
-			$type = (string) $error['type'];
-			if ( $this->prefix . '_freemius_validation_failed' === $code && 'error' === $type ) {
+			$setting = (string) $error['setting'];
+			$code    = (string) $error['code'];
+			$type    = (string) $error['type'];
+			if (
+				$this->prefix . '_freemius_validation_partial' === $code
+				&& 'error' === $type
+				&& ( '' === $setting || $this->prefix . '-notices' === $setting )
+			) {
 				return true;
 			}
 		}
 
 		return false;
+	}
+
+	/**
+	 * Check whether the current wizard step is the Freemius step.
+	 *
+	 * @return bool
+	 */
+	private function is_freemius_step(): bool {
+		$keys  = array_keys( $this->steps );
+		$index = $this->get_current_step() - 1;
+
+		return isset( $keys[ $index ] ) && 'freemius' === $keys[ $index ];
 	}
 
 	/**
