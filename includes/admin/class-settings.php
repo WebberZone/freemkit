@@ -89,10 +89,11 @@ class Settings {
 		add_filter( self::$prefix . '_after_setting_output', array( $this, 'add_connection_test_button' ), 10, 2 );
 		add_filter( self::$prefix . '_settings_form_buttons', array( $this, 'add_cache_clear_button' ), 10 );
 		add_action( self::$prefix . '_settings_form_buttons', array( $this, 'render_wizard_button' ), 20 );
-		add_filter( self::$prefix . '_settings_sanitize', array( $this, 'change_settings_on_save' ), 99 );
+		add_filter( self::$prefix . '_settings_sanitize', array( $this, 'change_settings_on_save' ), 99, 2 );
 
 		// Add AJAX handlers for Kit resources and connection testing.
 		add_action( 'wp_ajax_' . self::$prefix . '_test_kit_connection', array( $this, 'ajax_test_kit_connection' ) );
+		add_action( 'wp_ajax_' . self::$prefix . '_validate_freemius_keys', array( $this, 'ajax_validate_freemius_keys' ) );
 		add_action( 'wp_ajax_' . self::$prefix . '_refresh_lists', array( $this, 'ajax_refresh_lists' ) );
 		add_action( 'wp_ajax_' . self::$prefix . '_kit_search', array( $this, 'handle_kit_search' ) );
 	}
@@ -267,7 +268,7 @@ class Settings {
 			'plugins'               => array(
 				'id'                => 'plugins',
 				'name'              => __( 'Freemius Plugins', 'freemkit' ),
-				'desc'              => '',
+				'desc'              => __( 'Use "Validate Keys" on each plugin row to verify the Product ID, public key, and secret key against Freemius before saving.', 'freemkit' ),
 				'type'              => 'repeater',
 				'add_button_text'   => __( 'Add Plugin', 'freemkit' ),
 				'new_item_text'     => __( 'New Plugin', 'freemkit' ),
@@ -326,7 +327,7 @@ class Settings {
 						'name'             => __( 'Free Trigger Events', 'freemkit' ),
 						'desc'             => __( 'Choose Freemius webhook event(s) that should add users to the Free form/tag mapping.', 'freemkit' ),
 						'type'             => 'text',
-						'default'          => 'install.installed,install.activated',
+						'default'          => 'install.installed',
 						'size'             => 'large',
 						'field_class'      => 'ts_autocomplete',
 						'field_attributes' => self::get_kit_search_field_attributes( 'freemius_events', array( 'create' => true ) ),
@@ -356,7 +357,7 @@ class Settings {
 						'name'             => __( 'Paid Trigger Events', 'freemkit' ),
 						'desc'             => __( 'Choose Freemius webhook event(s) that should add users to the Paid form/tag mapping.', 'freemkit' ),
 						'type'             => 'text',
-						'default'          => 'license.created,subscription.created,payment.created',
+						'default'          => 'license.created',
 						'size'             => 'large',
 						'field_class'      => 'ts_autocomplete',
 						'field_attributes' => self::get_kit_search_field_attributes( 'freemius_events', array( 'create' => true ) ),
@@ -650,8 +651,8 @@ class Settings {
 
 		// Kit-specific scripts.
 		$this->enqueue_admin_script(
-			'kit-validate',
-			"/js/kit-validate{$suffix}.js",
+			'connection-validate',
+			"/js/connection-validate{$suffix}.js",
 			array( 'jquery' )
 		);
 
@@ -672,11 +673,15 @@ class Settings {
 					'nonce'         => wp_create_nonce( self::$prefix . '_admin_nonce' ),
 					'webhook_urls'  => self::get_webhook_urls(),
 					'strings'       => array(
-						'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'freemkit' ),
-						'cache_error'          => esc_html__( 'Error clearing cache: ', 'freemkit' ),
-						'api_validation_error' => esc_html__( 'Error validating API credentials.', 'freemkit' ),
-						'copy_success'         => esc_html__( 'Webhook URL copied.', 'freemkit' ),
-						'copy_failed'          => esc_html__( 'Copy failed. Select and copy manually.', 'freemkit' ),
+						'cache_cleared'               => esc_html__( 'Cache cleared successfully!', 'freemkit' ),
+						'cache_error'                 => esc_html__( 'Error clearing cache: ', 'freemkit' ),
+						'api_validation_error'        => esc_html__( 'Error validating API credentials.', 'freemkit' ),
+						'validate_freemius_keys'      => esc_html__( 'Validate Keys', 'freemkit' ),
+						'freemius_missing_fields'     => esc_html__( 'Product ID, public key, and secret key are required.', 'freemkit' ),
+						'freemius_validation_success' => esc_html__( 'Freemius credentials are valid.', 'freemkit' ),
+						'freemius_validation_error'   => esc_html__( 'Unable to validate Freemius credentials.', 'freemkit' ),
+						'copy_success'                => esc_html__( 'Webhook URL copied.', 'freemkit' ),
+						'copy_failed'                 => esc_html__( 'Copy failed. Select and copy manually.', 'freemkit' ),
 					),
 				)
 			);
@@ -730,10 +735,87 @@ class Settings {
 	 * @since 1.0.0
 	 *
 	 * @param  array $settings Settings array.
+	 * @param  array $input    Submitted input payload for current save operation.
 	 * @return array Sanitized settings array.
 	 */
-	public function change_settings_on_save( array $settings ): array {
+	public function change_settings_on_save( array $settings, array $input = array() ): array {
+		// Enforce Freemius credential validation on save when plugin rows are being submitted.
+		if ( isset( $input['plugins'] ) ) {
+			$validation = $this->validate_freemius_plugins_for_save( $settings );
+			$errors     = $validation['errors'];
+
+			// Persist only validated plugin rows.
+			$settings['plugins'] = $validation['plugins'];
+
+			if ( ! empty( $errors ) ) {
+				add_settings_error(
+					self::$prefix . '-notices',
+					self::$prefix . '_freemius_validation_partial',
+					esc_html__( 'Some Freemius plugin rows failed validation and were not saved.', 'freemkit' ),
+					'error'
+				);
+
+				foreach ( $errors as $error_message ) {
+					add_settings_error(
+						self::$prefix . '-notices',
+						self::$prefix . '_freemius_validation_detail',
+						$error_message,
+						'error'
+					);
+				}
+			}
+		}
+
 		return $settings;
+	}
+
+	/**
+	 * Validate Freemius plugin credentials before persisting settings.
+	 *
+	 * @param array $settings Full settings payload prepared for save.
+	 * @return array{plugins: array<int,mixed>, errors: array<int,string>} Filtered rows and validation errors.
+	 */
+	private function validate_freemius_plugins_for_save( array $settings ): array {
+		$errors        = array();
+		$valid_plugins = array();
+		$plugins       = isset( $settings['plugins'] ) && is_array( $settings['plugins'] ) ? $settings['plugins'] : array();
+
+		foreach ( $plugins as $index => $plugin ) {
+			if ( ! is_array( $plugin ) || ! isset( $plugin['fields'] ) || ! is_array( $plugin['fields'] ) ) {
+				continue;
+			}
+
+			$fields     = $plugin['fields'];
+			$label      = isset( $fields['name'] ) && '' !== trim( (string) $fields['name'] ) ? trim( (string) $fields['name'] ) : sprintf( 'Row %d', (int) $index + 1 );
+			$plugin_id  = trim( (string) ( $fields['id'] ?? '' ) );
+			$public_key = trim( (string) ( $fields['public_key'] ?? '' ) );
+			$secret_raw = (string) ( $fields['secret_key'] ?? '' );
+
+			$secret_key = Settings_API::decrypt_api_key( $secret_raw );
+			if ( '' === $secret_key ) {
+				$secret_key = trim( $secret_raw );
+			}
+
+			if ( '' === $plugin_id || '' === $public_key || '' === $secret_key ) {
+				/* translators: %s: plugin row label. */
+				$errors[] = sprintf( esc_html__( '%s: Product ID, Public Key, and Secret Key are required.', 'freemkit' ), esc_html( $label ) );
+				continue;
+			}
+
+			$result = $this->validate_freemius_credentials( $plugin_id, $public_key, $secret_key );
+			if ( is_wp_error( $result ) ) {
+				/* translators: 1: plugin row label, 2: validation error message. */
+				$errors[] = sprintf( esc_html__( '%1$s: %2$s', 'freemkit' ), esc_html( $label ), esc_html( $result->get_error_message() ) );
+				continue;
+			}
+
+			$valid_plugins[] = $plugin;
+		}
+
+		return array(
+			'plugins' => array_values( $valid_plugins ),
+			'errors'  => $errors,
+		);
 	}
 
 	/**
@@ -877,6 +959,306 @@ class Settings {
 	}
 
 	/**
+	 * AJAX handler to validate Freemius product credentials.
+	 *
+	 * @since 1.0.0
+	 * @return void
+	 */
+	public function ajax_validate_freemius_keys() {
+		check_ajax_referer( self::$prefix . '_admin_nonce', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'freemkit' ) ) );
+		}
+
+		$plugin_id  = isset( $_POST['plugin_id'] ) ? trim( (string) wp_unslash( $_POST['plugin_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$public_key = isset( $_POST['public_key'] ) ? trim( (string) wp_unslash( $_POST['public_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$secret_key = isset( $_POST['secret_key'] ) ? trim( (string) wp_unslash( $_POST['secret_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$row_id     = isset( $_POST['row_id'] ) ? sanitize_text_field( wp_unslash( $_POST['row_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+
+		// Preserve key material exactly; only reject control characters.
+		if ( preg_match( '/[\x00-\x1F\x7F]/', $public_key . $secret_key ) ) {
+			wp_send_json_error(
+				(object) array(
+					'message' => esc_html__( 'The provided key contains invalid control characters.', 'freemkit' ),
+				)
+			);
+		}
+
+		$stored_row       = array();
+		$secret_is_masked = false !== strpos( $secret_key, '**' );
+
+		if ( '' !== $row_id || '' !== $plugin_id ) {
+			$stored_row = $this->get_saved_freemius_plugin_row( $row_id, $plugin_id );
+		}
+
+		// If secret is masked and non-secret values changed, require re-entry of the secret.
+		if ( $secret_is_masked && ! empty( $stored_row ) ) {
+			$stored_id         = isset( $stored_row['id'] ) ? (string) $stored_row['id'] : '';
+			$stored_public_key = isset( $stored_row['public_key'] ) ? (string) $stored_row['public_key'] : '';
+			$id_changed        = '' !== $plugin_id && '' !== $stored_id && $plugin_id !== $stored_id;
+			$public_changed    = '' !== $public_key && '' !== $stored_public_key && $public_key !== $stored_public_key;
+
+			if ( $id_changed || $public_changed ) {
+				wp_send_json_error(
+					(object) array(
+						'message' => esc_html__( 'You changed Product ID or Public Key. Please re-enter the Secret Key before validating.', 'freemkit' ),
+					)
+				);
+			}
+		}
+
+		if ( '' === $plugin_id || '' === $public_key || '' === $secret_key || $secret_is_masked ) {
+			if ( empty( $stored_row ) ) {
+				$stored_row = $this->get_saved_freemius_plugin_row( $row_id, $plugin_id );
+			}
+
+			if ( ! empty( $stored_row ) ) {
+				$plugin_id  = '' !== $plugin_id ? $plugin_id : (string) ( $stored_row['id'] ?? '' );
+				$public_key = '' !== $public_key ? $public_key : (string) ( $stored_row['public_key'] ?? '' );
+				$secret_key = $this->resolve_secret_key_for_validation( $secret_key, $stored_row );
+			}
+		}
+
+		if ( '' === $plugin_id || '' === $public_key || '' === $secret_key ) {
+			wp_send_json_error(
+				(object) array(
+					'message' => esc_html__( 'Product ID, public key, and secret key are required to validate credentials.', 'freemkit' ),
+				)
+			);
+		}
+
+		$result = $this->validate_freemius_credentials( $plugin_id, $public_key, $secret_key );
+		if ( is_wp_error( $result ) ) {
+			$message = $result->get_error_message();
+			$details = $result->get_error_data();
+
+			if ( is_array( $details ) ) {
+				$status_code = isset( $details['status_code'] ) ? absint( $details['status_code'] ) : 0;
+				$api_message = isset( $details['api_message'] ) ? sanitize_text_field( (string) $details['api_message'] ) : '';
+
+				if ( $status_code > 0 ) {
+					$message .= sprintf( ' (HTTP %d)', $status_code );
+				}
+			}
+
+			wp_send_json_error( (object) array( 'message' => $message ) );
+		}
+
+		/* translators: 1: Freemius product name, 2: Product ID. */
+		$message = sprintf( esc_html__( 'Credentials are valid for %1$s (ID: %2$s).', 'freemkit' ), $result['name'], $result['id'] );
+		wp_send_json_success( (object) array( 'message' => $message ) );
+	}
+
+	/**
+	 * Get a saved Freemius repeater row by row ID and/or plugin ID.
+	 *
+	 * @param string $row_id    Repeater row ID.
+	 * @param string $plugin_id Freemius plugin ID.
+	 * @return array<string,string>
+	 */
+	private function get_saved_freemius_plugin_row( string $row_id, string $plugin_id ): array {
+		$settings = get_option( Options_API::SETTINGS_OPTION, array() );
+		$plugins  = ( is_array( $settings ) && ! empty( $settings['plugins'] ) && is_array( $settings['plugins'] ) ) ? $settings['plugins'] : array();
+
+		foreach ( $plugins as $plugin ) {
+			if ( ! is_array( $plugin ) ) {
+				continue;
+			}
+
+			$fields = isset( $plugin['fields'] ) && is_array( $plugin['fields'] ) ? $plugin['fields'] : $plugin;
+			$id     = isset( $fields['id'] ) ? sanitize_text_field( (string) $fields['id'] ) : '';
+			$rid    = isset( $plugin['row_id'] ) ? sanitize_text_field( (string) $plugin['row_id'] ) : '';
+
+			if ( '' !== $row_id && '' !== $rid && $row_id === $rid ) {
+				return array(
+					'id'         => $id,
+					'public_key' => isset( $fields['public_key'] ) ? (string) $fields['public_key'] : '',
+					'secret_key' => isset( $fields['secret_key'] ) ? (string) $fields['secret_key'] : '',
+				);
+			}
+
+			if ( '' !== $plugin_id && '' !== $id && $plugin_id === $id ) {
+				return array(
+					'id'         => $id,
+					'public_key' => isset( $fields['public_key'] ) ? (string) $fields['public_key'] : '',
+					'secret_key' => isset( $fields['secret_key'] ) ? (string) $fields['secret_key'] : '',
+				);
+			}
+		}
+
+		return array();
+	}
+
+	/**
+	 * Resolve plaintext secret key for validation request.
+	 *
+	 * @param string               $secret_key Submitted secret key.
+	 * @param array<string,string> $stored_row Stored row values.
+	 * @return string
+	 */
+	private function resolve_secret_key_for_validation( string $secret_key, array $stored_row ): string {
+		if ( '' !== $secret_key && false === strpos( $secret_key, '**' ) ) {
+			return $secret_key;
+		}
+
+		$stored_secret = isset( $stored_row['secret_key'] ) ? (string) $stored_row['secret_key'] : '';
+		if ( '' === $stored_secret ) {
+			return '';
+		}
+
+		return Settings_API::decrypt_api_key( $stored_secret );
+	}
+
+	/**
+	 * Validate Freemius credentials against the product endpoint.
+	 *
+	 * @param string $plugin_id  Product ID.
+	 * @param string $public_key Public key.
+	 * @param string $secret_key Secret key.
+	 * @return array<string,string>|\WP_Error
+	 */
+	private function validate_freemius_credentials( string $plugin_id, string $public_key, string $secret_key ) {
+		$resource_path = sprintf( '/v1/products/%s.json', rawurlencode( $plugin_id ) );
+		$url           = 'https://api.freemius.com' . $resource_path;
+		$response      = null;
+
+		// Attempt the request using FS authorization signatures.
+		foreach ( array( 'binary', 'hex' ) as $signature_mode ) {
+			$response = wp_remote_get(
+				$url,
+				array(
+					'timeout' => 15,
+					'headers' => $this->build_freemius_fs_headers( 'GET', $resource_path, '', $plugin_id, $public_key, $secret_key, $signature_mode ),
+				)
+			);
+
+			if ( is_wp_error( $response ) ) {
+				return new \WP_Error(
+					'freemius_request_error',
+					sprintf(
+						/* translators: %s: Error details. */
+						esc_html__( 'Could not reach Freemius to validate credentials: %s', 'freemkit' ),
+						$response->get_error_message()
+					)
+				);
+			}
+
+			$status_code = (int) wp_remote_retrieve_response_code( $response );
+			if ( $status_code >= 200 && $status_code < 300 ) {
+				break;
+			}
+		}
+
+		$status_code = (int) wp_remote_retrieve_response_code( $response );
+		$body        = (string) wp_remote_retrieve_body( $response );
+		$data        = json_decode( $body, true );
+		$product     = ( is_array( $data ) && isset( $data['product'] ) && is_array( $data['product'] ) ) ? $data['product'] : ( is_array( $data ) ? $data : array() );
+
+		if ( $status_code < 200 || $status_code >= 300 ) {
+			$api_message = '';
+			if ( is_array( $data ) && isset( $data['error']['message'] ) && is_string( $data['error']['message'] ) ) {
+				$api_message = sanitize_text_field( $data['error']['message'] );
+			}
+
+			$message = $this->map_freemius_validation_error_message( $status_code, $api_message, $plugin_id );
+
+			return new \WP_Error(
+				'freemius_invalid_credentials',
+				$message,
+				array(
+					'status_code' => $status_code,
+					'api_message' => $api_message,
+				)
+			);
+		}
+
+		$returned_id = isset( $product['id'] ) ? (string) $product['id'] : '';
+		$name        = isset( $product['title'] ) ? (string) $product['title'] : ( isset( $product['name'] ) ? (string) $product['name'] : __( 'this product', 'freemkit' ) );
+
+		if ( '' !== $returned_id && $returned_id !== $plugin_id ) {
+			return new \WP_Error( 'freemius_product_mismatch', esc_html__( 'Credentials are valid, but they do not match the entered Product ID.', 'freemkit' ) );
+		}
+
+		return array(
+			'id'   => '' !== $returned_id ? $returned_id : $plugin_id,
+			'name' => sanitize_text_field( $name ),
+		);
+	}
+
+	/**
+	 * Build Freemius FS authorization headers.
+	 *
+	 * @param string $method         HTTP method.
+	 * @param string $resource_path  API resource path.
+	 * @param string $body           Request body.
+	 * @param string $scope_entity_id Freemius scope entity ID (product ID).
+	 * @param string $public_key     Public key.
+	 * @param string $secret_key     Secret key.
+	 * @param string $signature_mode Signature mode ('binary' or 'hex').
+	 * @return array<string,string>
+	 */
+	private function build_freemius_fs_headers( string $method, string $resource_path, string $body, string $scope_entity_id, string $public_key, string $secret_key, string $signature_mode = 'binary' ): array {
+		$date         = gmdate( 'D, d M Y H:i:s O' );
+		$content_type = 'application/json';
+		$md5          = '' === $body ? '' : md5( $body ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_md5
+		$string       = strtoupper( $method ) . "\n" . $md5 . "\n" . $content_type . "\n" . $date . "\n" . $resource_path;
+
+		if ( 'hex' === $signature_mode ) {
+			$hmac = hash_hmac( 'sha256', $string, $secret_key );
+		} else {
+			$hmac = hash_hmac( 'sha256', $string, $secret_key, true );
+		}
+
+		$signature = rtrim( strtr( base64_encode( $hmac ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+
+		return array(
+			'Authorization' => sprintf( 'FS %s:%s:%s', $scope_entity_id, $public_key, $signature ),
+			'Content-Type'  => $content_type,
+			'Accept'        => 'application/json',
+			'Date'          => $date,
+		);
+	}
+
+	/**
+	 * Map Freemius API auth errors to clearer admin messages.
+	 *
+	 * @param int    $status_code HTTP status code.
+	 * @param string $api_message Raw Freemius error message.
+	 * @param string $plugin_id   Submitted product ID.
+	 * @return string
+	 */
+	private function map_freemius_validation_error_message( int $status_code, string $api_message, string $plugin_id ): string {
+		$message_lc = strtolower( $api_message );
+
+		if ( false !== strpos( $message_lc, 'invalid authorization header' ) ) {
+			return sprintf(
+				/* translators: %s: Product ID. */
+				esc_html__( 'Could not validate Product ID %s. Re-check Product ID, Public Key, and Secret Key for this product.', 'freemkit' ),
+				$plugin_id
+			);
+		}
+
+		if ( false !== strpos( $message_lc, 'must use fs authorization' ) ) {
+			return esc_html__( 'Freemius rejected the authorization method for this request. Please verify your product credentials and try again.', 'freemkit' );
+		}
+
+		if ( 401 === $status_code || 403 === $status_code ) {
+			return sprintf(
+				/* translators: %s: Product ID. */
+				esc_html__( 'Access denied for Product ID %s. Confirm the keys belong to this exact product.', 'freemkit' ),
+				$plugin_id
+			);
+		}
+
+		if ( '' !== $api_message ) {
+			return $api_message;
+		}
+
+		return esc_html__( 'Freemius rejected the credentials. Please verify Product ID, public key, and secret key.', 'freemkit' );
+	}
+
+	/**
 	 * Get Kit data, optionally filtered by search term.
 	 *
 	 * @since 1.0.0
@@ -970,41 +1352,158 @@ class Settings {
 	 */
 	public static function get_freemius_events( string $search = '' ): array {
 		$events = array(
+			'affiliate.approved',
+			'affiliate.blocked',
+			'affiliate.created',
+			'affiliate.deleted',
+			'affiliate.payout.pending',
+			'affiliate.paypal.updated',
+			'affiliate.rejected',
+			'affiliate.suspended',
+			'affiliate.unapproved',
+			'affiliate.updated',
+			'card.created',
+			'card.updated',
+			'cart.abandoned',
 			'install.installed',
+			'cart.completed',
+			'cart.created',
+			'cart.recovered',
+			'cart.recovery.deactivated',
+			'cart.recovery.email_1_sent',
+			'cart.recovery.email_2_sent',
+			'cart.recovery.email_3_sent',
+			'cart.recovery.reactivated',
+			'cart.recovery.subscribed',
+			'cart.recovery.unsubscribed',
+			'cart.updated',
+			'coupon.created',
+			'coupon.deleted',
+			'coupon.updated',
+			'email.clicked',
+			'email.opened',
 			'install.activated',
+			'install.deactivated',
+			'install.deleted',
 			'install.premium.activated',
 			'install.connected',
 			'install.disconnected',
+			'install.language.updated',
+			'install.plan.changed',
+			'install.plan.downgraded',
+			'install.platform.version.updated',
+			'install.premium.deactivated',
+			'install.programming_language.version.updated',
+			'install.sdk.version.updated',
+			'install.title.updated',
 			'install.trial.started',
 			'install.trial.extended',
 			'install.trial.cancelled',
 			'install.trial.expired',
+			'install.trial_expiring_notice.sent',
+			'install.trial.plan.updated',
+			'install.uninstalled',
 			'install.updated',
+			'install.url.updated',
+			'install.version.downgrade',
+			'install.version.upgraded',
 			'license.created',
 			'license.activated',
 			'license.updated',
 			'license.extended',
 			'license.shortened',
 			'license.expired',
+			'license.expired_notice.sent',
 			'license.cancelled',
 			'license.deactivated',
 			'license.deleted',
 			'license.ownership.changed',
 			'license.quota.changed',
+			'license.renewal_reminder.sent',
+			'license.trial_expiring_notice.sent',
+			'license.site.blacklisted',
+			'license.blacklisted_site.deleted',
+			'license.site.whitelisted',
+			'license.whitelisted_site.deleted',
+			'member.created',
+			'member.deleted',
+			'member.updated',
+			'plan.created',
+			'plan.deleted',
 			'subscription.created',
 			'subscription.cancelled',
+			'subscription.renewal_reminder.sent',
+			'subscription.renewal_reminder.opened',
 			'subscription.renewal.retry',
 			'subscription.renewal.failed',
 			'subscription.renewal.failed.last',
+			'subscription.renewal.failed_email.sent',
+			'subscription.renewals.discounted',
 			'payment.created',
 			'payment.refund',
 			'payment.dispute.created',
 			'payment.dispute.closed',
 			'payment.dispute.lost',
 			'payment.dispute.won',
-			'cart.completed',
 			'plan.lifetime.purchase',
+			'plan.updated',
+			'pricing.created',
+			'pricing.deleted',
+			'pricing.updated',
+			'review.created',
+			'review.deleted',
+			'review.requested',
+			'review.updated',
+			'store.created',
+			'store.dashboard_url.updated',
+			'store.plugin.added',
+			'store.plugin.removed',
+			'store.url.updated',
+			'user.beta_program.opted_in',
+			'user.beta_program.opted_out',
+			'user.billing.updated',
+			'user.billing.tax_id.updated',
+			'user.card.created',
+			'user.created',
+			'user.email.changed',
+			'user.email.verified',
+			'user.email_status.bounced',
+			'user.email_status.delivered',
+			'user.email_status.dropped',
+			'user.marketing.opted_in',
+			'user.marketing.opted_out',
+			'user.marketing.reset',
+			'user.name.changed',
+			'user.support.contacted',
+			'user.trial.started',
+			'webhook.created',
+			'webhook.deleted',
+			'webhook.updated',
+			'addon.free.downloaded',
+			'addon.premium.downloaded',
+			'install.extensions.opt_in',
+			'install.extensions.opt_out',
+			'install.ownership.candidate.confirmed',
+			'install.ownership.completed',
+			'install.ownership.initiated',
+			'install.ownership.owner.confirmed',
+			'install.site.opt_in',
+			'install.site.opt_out',
+			'install.user.opt_in',
+			'install.user.opt_out',
+			'plugin.free.downloaded',
+			'plugin.premium.downloaded',
+			'plugin.version.deleted',
+			'plugin.version.deployed',
+			'plugin.version.released',
+			'plugin.version.beta.released',
+			'plugin.version.release.suspended',
+			'plugin.version.updated',
+			'pricing.visit',
 		);
+		$events = array_values( array_unique( array_filter( $events ) ) );
+		$events = apply_filters( 'freemkit_freemius_events', $events );
+		$events = array_values( array_unique( array_filter( array_map( 'strval', (array) $events ) ) ) );
 
 		$items = array_map(
 			static function ( string $event ): array {

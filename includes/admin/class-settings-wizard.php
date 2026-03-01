@@ -147,6 +147,80 @@ class Settings_Wizard extends Settings_Wizard_API {
 	}
 
 	/**
+	 * Process wizard step submission with support for blocking validation errors.
+	 *
+	 * @return void
+	 */
+	public function process_step() {
+		if ( empty( $_POST['wizard_action'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			return;
+		}
+
+		$nonce_value = isset( $_POST[ $this->prefix . '_wizard_nonce' ] ) ? sanitize_text_field( wp_unslash( $_POST[ $this->prefix . '_wizard_nonce' ] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( empty( $nonce_value ) || ! wp_verify_nonce( $nonce_value, $this->prefix . '_wizard_nonce' ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$this->current_step = $this->get_current_step();
+		$action             = isset( $_POST['wizard_action'] ) ? sanitize_text_field( wp_unslash( $_POST['wizard_action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+
+		switch ( $action ) {
+			case 'next_step':
+				$this->process_current_step();
+				if ( $this->has_blocking_validation_error() ) {
+					$this->redirect_to_step( $this->current_step );
+				}
+				$this->next_step();
+				$this->redirect_to_step( $this->current_step );
+				break;
+
+			case 'previous_step':
+				$this->previous_step();
+				$this->redirect_to_step( $this->current_step );
+				break;
+
+			case 'finish_setup':
+				$this->process_current_step();
+				if ( $this->has_blocking_validation_error() ) {
+					$this->redirect_to_step( $this->current_step );
+				}
+				$this->mark_wizard_completed();
+				$this->redirect_to_step( $this->total_steps + 1 );
+				break;
+
+			case 'skip_wizard':
+				$this->mark_wizard_completed();
+				$this->redirect_to_admin();
+				break;
+			default:
+				break;
+		}
+	}
+
+	/**
+	 * Check if a blocking Freemius validation error is present.
+	 *
+	 * @return bool
+	 */
+	private function has_blocking_validation_error(): bool {
+		$errors = get_settings_errors( $this->prefix . '-notices' );
+
+		foreach ( $errors as $error ) {
+			$code = (string) $error['code'];
+			$type = (string) $error['type'];
+			if ( $this->prefix . '_freemius_validation_failed' === $code && 'error' === $type ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Build settings array for a wizard step from setting keys.
 	 *
 	 * @param array<string>              $keys         Setting keys.
@@ -342,7 +416,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 
 		$suffix     = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
 		$admin_path = "/js/admin{$suffix}.js";
-		$kit_path   = "/js/kit-validate{$suffix}.js";
+		$kit_path   = "/js/connection-validate{$suffix}.js";
 
 		$admin_file    = __DIR__ . $admin_path;
 		$kit_file      = __DIR__ . $kit_path;
@@ -358,7 +432,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 		);
 
 		wp_enqueue_script(
-			'freemkit-kit-validate',
+			'freemkit-connection-validate',
 			plugins_url( $kit_path, __FILE__ ),
 			array( 'jquery' ),
 			$kit_version,
@@ -375,11 +449,15 @@ class Settings_Wizard extends Settings_Wizard_API {
 				'nonce'         => wp_create_nonce( $this->prefix . '_admin_nonce' ),
 				'webhook_urls'  => Settings::get_webhook_urls(),
 				'strings'       => array(
-					'cache_cleared'        => esc_html__( 'Cache cleared successfully!', 'freemkit' ),
-					'cache_error'          => esc_html__( 'Error clearing cache: ', 'freemkit' ),
-					'api_validation_error' => esc_html__( 'Error validating API credentials.', 'freemkit' ),
-					'copy_success'         => esc_html__( 'Webhook URL copied.', 'freemkit' ),
-					'copy_failed'          => esc_html__( 'Copy failed. Select and copy manually.', 'freemkit' ),
+					'cache_cleared'               => esc_html__( 'Cache cleared successfully!', 'freemkit' ),
+					'cache_error'                 => esc_html__( 'Error clearing cache: ', 'freemkit' ),
+					'api_validation_error'        => esc_html__( 'Error validating API credentials.', 'freemkit' ),
+					'validate_freemius_keys'      => esc_html__( 'Validate Keys', 'freemkit' ),
+					'freemius_missing_fields'     => esc_html__( 'Product ID, public key, and secret key are required.', 'freemkit' ),
+					'freemius_validation_success' => esc_html__( 'Freemius credentials are valid.', 'freemkit' ),
+					'freemius_validation_error'   => esc_html__( 'Unable to validate Freemius credentials.', 'freemkit' ),
+					'copy_success'                => esc_html__( 'Webhook URL copied.', 'freemkit' ),
+					'copy_failed'                 => esc_html__( 'Copy failed. Select and copy manually.', 'freemkit' ),
 				),
 			)
 		);

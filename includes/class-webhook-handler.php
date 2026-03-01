@@ -164,18 +164,26 @@ class Webhook_Handler {
 		$kit_form_id   = Options_API::get_option( 'kit_form_id' );
 		$kit_tag_id    = Options_API::get_option( 'kit_tag_id' );
 
-		$free_form_ids    = $this->resolve_list_config( $plugin_config, 'free_form_ids', $kit_form_id );
-		$paid_form_ids    = $this->resolve_list_config( $plugin_config, 'paid_form_ids', $kit_form_id );
-		$free_tag_ids     = $this->resolve_list_config( $plugin_config, 'free_tag_ids', $kit_tag_id );
-		$paid_tag_ids     = $this->resolve_list_config( $plugin_config, 'paid_tag_ids', $kit_tag_id );
-		$free_event_types = $this->resolve_list_config( $plugin_config, 'free_event_types', '', array( 'install.installed', 'install.activated' ) );
-		$paid_event_types = $this->resolve_list_config( $plugin_config, 'paid_event_types', '', array( 'license.created', 'subscription.created', 'payment.created' ) );
+		$free_form_ids = $this->resolve_list_config( $plugin_config, 'free_form_ids', $kit_form_id );
+		$paid_form_ids = $this->resolve_list_config( $plugin_config, 'paid_form_ids', $kit_form_id );
+		$free_tag_ids  = $this->resolve_list_config( $plugin_config, 'free_tag_ids', $kit_tag_id );
+		$paid_tag_ids  = $this->resolve_list_config( $plugin_config, 'paid_tag_ids', $kit_tag_id );
+
+		$default_free_event_types = array( 'install.installed' );
+		$default_paid_event_types = array( 'license.created' );
+
+		$free_event_types = $this->resolve_list_config( $plugin_config, 'free_event_types', '', apply_filters( 'freemkit_default_free_event_types', $default_free_event_types, $plugin_config ) );
+		$paid_event_types = $this->resolve_list_config( $plugin_config, 'paid_event_types', '', apply_filters( 'freemkit_default_paid_event_types', $default_paid_event_types, $plugin_config ) );
+		$free_event_types = $this->normalize_event_types( $free_event_types );
+		$paid_event_types = $this->normalize_event_types( $paid_event_types );
+		$free_event_types = array_slice( $free_event_types, 0, 1 );
+		$paid_event_types = array_slice( $paid_event_types, 0, 1 );
 
 		if ( ! isset( $fs_event->type ) ) {
 			return new \WP_Error( 'invalid_event', 'Missing event type in request.' );
 		}
 
-		$event_type = (string) $fs_event->type;
+		$event_type = $this->normalize_event_type( (string) $fs_event->type );
 		$api_result = null;
 
 		if ( in_array( $event_type, $free_event_types, true ) ) {
@@ -227,6 +235,32 @@ class Webhook_Handler {
 			'status'  => 'success',
 			'message' => 'Webhook processed successfully',
 		);
+	}
+
+	/**
+	 * Normalize event list values so aliases still match.
+	 *
+	 * @param array $event_types Raw event types.
+	 * @return array
+	 */
+	private function normalize_event_types( array $event_types ): array {
+		$normalized = array_map( array( $this, 'normalize_event_type' ), $event_types );
+		return array_values( array_unique( array_filter( $normalized ) ) );
+	}
+
+	/**
+	 * Normalize event type aliases from Freemius payloads and saved settings.
+	 *
+	 * @param string $event_type Event type.
+	 * @return string
+	 */
+	private function normalize_event_type( string $event_type ): string {
+		$event_type = strtolower( trim( $event_type ) );
+		$aliases    = array(
+			'installed.installed' => 'install.installed',
+		);
+
+		return $aliases[ $event_type ] ?? $event_type;
 	}
 
 	/**
