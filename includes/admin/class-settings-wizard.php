@@ -313,8 +313,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 						$page = isset( $_GET['page'] ) ? sanitize_key( (string) wp_unslash( $_GET['page'] ) ) : '';
 
 						return ! $this->is_wizard_completed()
-							&& ! get_option( 'freemkit_wizard_notice_dismissed', false )
-							&& ( get_transient( 'freemkit_show_wizard_activation_redirect' ) || get_option( 'freemkit_show_wizard', false ) )
+							&& ( get_transient( $this->prefix . '_show_wizard_activation_redirect' ) || $this->should_show_wizard() )
 							&& $this->page_slug !== $page;
 					},
 				),
@@ -346,11 +345,11 @@ class Settings_Wizard extends Settings_Wizard_API {
 			return;
 		}
 
-		if ( ! get_transient( 'freemkit_show_wizard_activation_redirect' ) ) {
+		if ( ! get_transient( $this->prefix . '_show_wizard_activation_redirect' ) ) {
 			return;
 		}
 
-		delete_transient( 'freemkit_show_wizard_activation_redirect' );
+		delete_transient( $this->prefix . '_show_wizard_activation_redirect' );
 
 		wp_safe_redirect( $this->get_wizard_url() );
 		exit;
@@ -382,10 +381,10 @@ class Settings_Wizard extends Settings_Wizard_API {
 			return;
 		}
 
-		$this->reset_wizard();
-		$this->trigger_wizard();
+		// Do not reset completion flags on restart entry.
+		// This prevents re-showing setup nags if user exits the rerun midway.
 		update_option( "{$this->prefix}_wizard_current_step", 1 );
-		delete_transient( 'freemkit_show_wizard_activation_redirect' );
+		delete_transient( $this->prefix . '_show_wizard_activation_redirect' );
 
 		wp_safe_redirect( $this->get_wizard_url( array( 'step' => 1 ) ) );
 		exit;
