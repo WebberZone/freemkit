@@ -239,7 +239,7 @@ class Settings_Wizard_API {
 			( ( $this->args['hide_when_completed'] ?? true ) && $this->is_wizard_completed() );
 
 		if ( $hide_submenu ) {
-			add_action( 'admin_head', array( $this, 'hide_completed_wizard_submenu' ) );
+			add_action( 'admin_enqueue_scripts', array( $this, 'hide_completed_wizard_submenu' ) );
 		}
 	}
 
@@ -250,14 +250,11 @@ class Settings_Wizard_API {
 	 */
 	public function hide_completed_wizard_submenu() {
 		$slug = sanitize_key( $this->page_slug );
-		?>
-		<style>
-			#adminmenu a[href$="page=<?php echo esc_attr( $slug ); ?>"],
-			#adminmenu a[href*="page=<?php echo esc_attr( $slug ); ?>&"] {
+		$css  = '#adminmenu a[href$="page=' . $slug . '"],
+			#adminmenu a[href*="page=' . $slug . '&"] {
 				display: none;
-			}
-		</style>
-		<?php
+			}';
+		wp_add_inline_style( 'wp-admin', $css );
 	}
 
 	/**
@@ -424,11 +421,6 @@ class Settings_Wizard_API {
 
 		// Check if we have a specific sanitizer for this type.
 		if ( is_callable( array( $settings_sanitize, "sanitize_{$type}_field" ) ) ) {
-			// Repeater sanitization requires the field config to correctly sanitize nested subfields.
-			if ( 'repeater' === $type ) {
-				return call_user_func( array( $settings_sanitize, 'sanitize_repeater_field' ), $value, $setting_config );
-			}
-
 			return call_user_func( array( $settings_sanitize, "sanitize_{$type}_field" ), $value );
 		}
 
@@ -448,14 +440,6 @@ class Settings_Wizard_API {
 	protected function save_step_settings( $settings ) {
 		$existing_settings = get_option( $this->settings_key, array() );
 		$updated_settings  = array_merge( $existing_settings, $settings );
-
-		/**
-		 * Allow standard settings-sanitize filters to run for wizard saves as well.
-		 *
-		 * @param array $updated_settings Merged settings payload.
-		 * @param array $settings         Current step submitted settings.
-		 */
-		$updated_settings = apply_filters( $this->prefix . '_settings_sanitize', $updated_settings, $settings ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
 		update_option( $this->settings_key, $updated_settings );
 	}
 

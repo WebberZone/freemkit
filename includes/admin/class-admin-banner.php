@@ -306,7 +306,8 @@ class Admin_Banner {
 		if ( empty( $style_config['url'] ) ) {
 			$assets_base         = trailingslashit( plugin_dir_url( __FILE__ ) ) . 'css/';
 			$min_suffix          = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
-			$style_config['url'] = $assets_base . $style_config['filename'] . $min_suffix . '.css';
+			$rtl_suffix          = is_rtl() ? '-rtl' : '';
+			$style_config['url'] = $assets_base . $style_config['filename'] . $rtl_suffix . $min_suffix . '.css';
 		}
 
 		return $style_config;
@@ -449,11 +450,7 @@ class Admin_Banner {
 	 * Get the current page slug from the request.
 	 */
 	public function get_request_page_slug(): string {
-		$page_param_raw = filter_input( INPUT_GET, 'page', FILTER_UNSAFE_RAW );
-
-		if ( is_string( $page_param_raw ) && '' !== $page_param_raw ) {
-			$page_raw = sanitize_text_field( $page_param_raw );
-		} elseif ( isset( $_GET['page'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_GET['page'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$page_raw = sanitize_text_field( wp_unslash( $_GET['page'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		} else {
 			return '';
