@@ -2,7 +2,7 @@
 /**
  * Admin notices API.
  *
- * @package WebberZone\Knowledge_Base\Admin
+ * @package WebberZone\FreemKit\Admin
  */
 
 namespace WebberZone\FreemKit\Admin;
