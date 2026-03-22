@@ -77,6 +77,15 @@ class Kit_OAuth {
 			return;
 		}
 
+		// Verify the OAuth state parameter to prevent CSRF attacks and recover the return URL.
+		$redirect_url = $this->verify_oauth_state_and_get_redirect(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( is_wp_error( $redirect_url ) ) {
+			Kit_Audit_Log::add( 'oauth_state_invalid', array( 'error' => $redirect_url->get_error_message() ), 'warning' );
+			Admin::add_notice( esc_html__( 'Kit OAuth failed: invalid state parameter. Please try connecting again.', 'freemkit' ), 'notice-error' );
+			wp_safe_redirect( $this->get_settings_url() );
+			exit;
+		}
+
 		$authorization_code = sanitize_text_field( wp_unslash( $_GET['code'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$result             = $api->get_access_token( $authorization_code );
 
@@ -84,7 +93,7 @@ class Kit_OAuth {
 			/* translators: %s: Error message */
 			Kit_Audit_Log::add( 'oauth_connect_failed', array( 'error' => $result->get_error_message() ), 'warning' );
 			Admin::add_notice( sprintf( esc_html__( 'Kit OAuth failed: %s', 'freemkit' ), $result->get_error_message() ), 'notice-error' );
-			wp_safe_redirect( $this->get_settings_url() );
+			wp_safe_redirect( $redirect_url );
 			exit;
 		}
 
@@ -92,8 +101,58 @@ class Kit_OAuth {
 		$this->clear_kit_cache();
 		Kit_Audit_Log::add( 'oauth_connect_success' );
 		Admin::add_notice( esc_html__( 'Successfully connected to Kit via OAuth.', 'freemkit' ), 'notice-success' );
-		wp_safe_redirect( $this->get_settings_url() );
+		wp_safe_redirect( $redirect_url );
 		exit;
+	}
+
+	/**
+	 * Verify the OAuth state parameter and return the redirect URL from it.
+	 *
+	 * Decodes the base64url-encoded JSON state that get_oauth_url() generated,
+	 * verifies the client_id matches, and returns the return_to URL if valid.
+	 * Falls back to get_settings_url() if state is absent or malformed.
+	 *
+	 * @return string|\WP_Error Redirect URL on success, WP_Error if state is present but invalid.
+	 */
+	private function verify_oauth_state_and_get_redirect() {
+		if ( ! isset( $_GET['state'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			// No state sent — fall back gracefully (some OAuth flows omit it).
+			return $this->get_settings_url();
+		}
+
+		$raw_state = sanitize_text_field( wp_unslash( $_GET['state'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		// Reverse base64url encoding used by ConvertKit_API_V4::base64_urlencode().
+		$padded  = str_pad( strtr( $raw_state, '-_', '+/' ), strlen( $raw_state ) + ( 4 - strlen( $raw_state ) % 4 ) % 4, '=' );
+		$decoded = base64_decode( $padded, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions
+
+		if ( false === $decoded ) {
+			return new \WP_Error( 'oauth_state_decode', 'Could not base64-decode state.' );
+		}
+
+		$state_data = json_decode( $decoded, true );
+		if ( ! is_array( $state_data ) ) {
+			return new \WP_Error( 'oauth_state_json', 'Could not JSON-decode state.' );
+		}
+
+		// Verify client_id to confirm the state belongs to this OAuth app.
+		$expected_client_id = defined( 'FREEMKIT_KIT_OAUTH_CLIENT_ID' ) ? (string) FREEMKIT_KIT_OAUTH_CLIENT_ID : '';
+		if ( $expected_client_id && ( ! isset( $state_data['client_id'] ) || $state_data['client_id'] !== $expected_client_id ) ) {
+			return new \WP_Error( 'oauth_state_client_id', 'State client_id mismatch.' );
+		}
+
+		// Use return_to URL if present and local to prevent open-redirect.
+		if ( ! empty( $state_data['return_to'] ) && is_string( $state_data['return_to'] ) ) {
+			$return_to = $state_data['return_to'];
+			$admin_url = admin_url();
+			$site_url  = site_url();
+			$is_local  = ( 0 === strpos( $return_to, $admin_url ) || 0 === strpos( $return_to, $site_url ) );
+			if ( $is_local ) {
+				return esc_url_raw( $return_to );
+			}
+		}
+
+		return $this->get_settings_url();
 	}
 
 	/**
