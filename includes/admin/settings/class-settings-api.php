@@ -728,11 +728,7 @@ class Settings_API {
 			}
 		}
 
-		$upgraded_settings = $this->upgraded_settings;
-
-		if ( false !== $upgraded_settings ) {
-			$options = array_merge( $options, $upgraded_settings );
-		}
+		$options = array_merge( $options, $this->upgraded_settings );
 
 		/**
 		 * Filters the default settings array.

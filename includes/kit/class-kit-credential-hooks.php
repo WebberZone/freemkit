@@ -76,10 +76,7 @@ class Kit_Credential_Hooks {
 			return;
 		}
 
-		$code = 0;
-		if ( $error instanceof \WP_Error ) {
-			$code = (int) $error->get_error_data( 'convertkit_api_error' );
-		}
+		$code = (int) $error->get_error_data( 'convertkit_api_error' );
 
 		// Only count confirmed invalid token responses.
 		if ( 401 !== $code ) {

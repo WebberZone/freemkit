@@ -166,7 +166,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 		}
 
 		$this->current_step = $this->get_current_step();
-		$action             = isset( $_POST['wizard_action'] ) ? sanitize_text_field( wp_unslash( $_POST['wizard_action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$action             = sanitize_text_field( wp_unslash( $_POST['wizard_action'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		switch ( $action ) {
 			case 'next_step':

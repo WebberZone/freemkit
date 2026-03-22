@@ -832,7 +832,7 @@ class Settings {
 		}
 
 		return array(
-			'plugins' => array_values( $persisted_plugins ),
+			'plugins' => $persisted_plugins,
 			'errors'  => $errors,
 		);
 	}
