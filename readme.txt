@@ -8,11 +8,11 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Seamlessly connect your Freemius software licensing with Kit email marketing to automate customer communications and marketing workflows.
+Seamlessly connect your Freemius with Kit email marketing to automate customer communications and marketing workflows.
 
 == Description ==
 
-WebberZone's FreemKit bridges the gap between Freemius software licensing and Kit (formerly ConvertKit) email marketing platforms, enabling WordPress plugin and theme developers to automate subscription workflows and enhance customer communication.
+WebberZone's FreemKit bridges the gap between Freemius and Kit (formerly ConvertKit) email marketing platforms, enabling WordPress plugin and theme developers to automate subscription workflows and enhance customer communication.
 
 = Key Features =
 
@@ -45,8 +45,11 @@ WebberZone's FreemKit bridges the gap between Freemius software licensing and Ki
 1. Upload the `freemkit` folder to the `/wp-content/plugins/` directory.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 3. Navigate to Settings → FreemKit to configure your Freemius and Kit API credentials.
-4. Set up your desired automation rules and field mappings.
-5. Test the integration using the built-in testing tools.
+4. Copy the **Webhook URL** displayed on the settings page.
+5. In your [Freemius Developer Dashboard](https://dashboard.freemius.com), open your product, go to **Integrations → Webhooks → Listeners**, click **Add Webhook**, paste the URL, choose the events to subscribe to, and save.
+6. Enter your product's **Secret Key** (found in Freemius under Settings → General) into the FreemKit settings so signatures can be verified.
+7. Set up your desired automation rules and field mappings.
+8. Test the integration using the built-in testing tools.
 
 == Frequently Asked Questions ==
 
@@ -58,10 +61,20 @@ WebberZone's FreemKit bridges the gap between Freemius software licensing and Ki
 * Active Kit account with API access.
 * Valid API credentials for both services.
 
+= How do I add the webhook in the Freemius Developer Dashboard? =
+
+1. Log in to your [Freemius Developer Dashboard](https://dashboard.freemius.com) and open the product you want to connect.
+2. Navigate to **Integrations → Webhooks → Listeners** and click **Add Webhook**.
+3. Paste the **Webhook URL** shown on the FreemKit settings page. By default this is `https://yourdomain.com/wp-json/freemkit/v1/webhook` (REST API endpoint). If you use the query-variable endpoint it will be `https://yourdomain.com/?freemkit_webhook=1`.
+4. Choose which events to send — at minimum select `install.installed` (for free users) and `license.created` (for paid users), or select **All Events** if you want full coverage.
+5. Save the webhook. Freemius will sign every request with your product's **Secret Key** using HMAC-SHA256.
+6. Copy the **Secret Key** from your Freemius product settings (Settings → General) and enter it in the FreemKit settings page so the plugin can verify incoming requests.
+
 = Is it secure? =
 
 Yes! The plugin is built with security in mind:
 * All API communications are encrypted
+* Validates every incoming webhook request using HMAC-SHA256 signatures against your Freemius product secret key
 * Implements WordPress nonce verification
 * Includes proper user capability checks
 * Features comprehensive input sanitization
