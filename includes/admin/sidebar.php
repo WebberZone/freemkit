@@ -22,19 +22,10 @@
 						<a href="https://webberzone.com/support/product/freemkit/" target="_blank"><?php esc_html_e( 'Knowledge Base', 'freemkit' ); ?></a>
 					</li>
 					<li>
-						<a href="https://wordpress.org/plugins/freemkit/faq/" target="_blank"><?php esc_html_e( 'FAQ', 'freemkit' ); ?></a>
+						<a href="https://webberzone.com/request-support/" target="_blank"><?php esc_html_e( 'Request Support', 'freemkit' ); ?></a>
 					</li>
 					<li>
-						<a href="https://wordpress.org/support/plugin/freemkit/" target="_blank"><?php esc_html_e( 'Support', 'freemkit' ); ?></a>
-					</li>
-					<li>
-						<a href="https://wordpress.org/support/plugin/freemkit/reviews/" target="_blank"><?php esc_html_e( 'Reviews', 'freemkit' ); ?></a>
-					</li>
-					<li>
-						<a href="https://github.com/webberzone/freemkit" target="_blank"><?php esc_html_e( 'Github repository', 'freemkit' ); ?></a>
-					</li>
-					<li>
-						<a href="https://webberzone.com/" target="_blank"><?php esc_html_e( "Ajay's blog", 'freemkit' ); ?></a>
+						<a href="https://ajaydsouza.com/" target="_blank"><?php esc_html_e( "Ajay's blog", 'freemkit' ); ?></a>
 					</li>
 				</ul>
 			</div>
@@ -55,6 +46,8 @@
 					<li><a href="https://webberzone.com/plugins/popular-authors/" target="_blank">Popular Authors</a></li>
 					<li><a href="https://webberzone.com/plugins/autoclose/" target="_blank">Auto Close</a></li>
 					<li><a href="https://webberzone.com/plugins/webberzone-link-warnings/" target="_blank">Link Warnings</a></li>
+					<li><a href="https://webberzone.com/plugins/webberzone-code-block-highlighting/" target="_blank">Code Block Highlighting</a></li>
+				</ul>
 			</div>
 		</div><!-- /.inside -->
 	</div><!-- /.postbox -->	

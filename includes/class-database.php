@@ -44,7 +44,7 @@ class Database {
 	 * @since 1.0.0
 	 * @var string
 	 */
-	public $db_version = '2.0.0';
+	public $db_version = '1.0.0';
 
 	/**
 	 * Constructor.
@@ -98,7 +98,9 @@ class Database {
 			PRIMARY KEY  (id),
 			KEY subscriber_id (subscriber_id),
 			KEY plugin_id (plugin_id),
-			KEY event_type (event_type)
+			KEY event_type (event_type),
+			KEY user_type (user_type),
+			KEY created (created)
 		) {$charset_collate};";
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -115,20 +117,6 @@ class Database {
 					$wpdb->last_error
 				)
 			);
-		}
-
-		// Drop legacy columns from dev installs.
-		$current_version = get_option( 'freemkit_db_version', '0' );
-		if ( version_compare( $current_version, '2.0.0', '<' ) ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$columns   = $wpdb->get_results( "SHOW COLUMNS FROM {$this->table_name}", ARRAY_A );
-			$col_names = wp_list_pluck( $columns, 'Field' );
-			if ( in_array( 'tags', $col_names, true ) ) {
-				$wpdb->query( "ALTER TABLE {$this->table_name} DROP COLUMN tags" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			}
-			if ( in_array( 'forms', $col_names, true ) ) {
-				$wpdb->query( "ALTER TABLE {$this->table_name} DROP COLUMN forms" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			}
 		}
 
 		update_option( 'freemkit_db_version', $this->db_version );
