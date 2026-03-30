@@ -34,9 +34,12 @@ function freemkit_delete_site_options( int $site_id = 0 ): void {
 
 	if ( defined( 'FREEMKIT_DELETE_DATA' ) && FREEMKIT_DELETE_DATA ) {
 
-		// Delete the subscribers table.
+		// Delete the events table first, then subscribers.
+		$events_table = $wpdb->prefix . 'freemkit_subscriber_events';
+		$wpdb->query( "DROP TABLE IF EXISTS {$events_table}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
 		$table_name = $wpdb->prefix . 'freemkit_subscribers';
-		$wpdb->query( "DROP TABLE IF EXISTS {$table_name}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "DROP TABLE IF EXISTS {$table_name}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	if ( $site_id > 0 ) {

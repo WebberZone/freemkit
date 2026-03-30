@@ -8,6 +8,7 @@
 namespace WebberZone\FreemKit;
 
 use WebberZone\FreemKit\Subscriber;
+use WebberZone\FreemKit\Subscriber_Event;
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -30,12 +31,20 @@ class Database {
 	public $table_name;
 
 	/**
+	 * Events table name.
+	 *
+	 * @since 1.0.0
+	 * @var string
+	 */
+	public $events_table_name;
+
+	/**
 	 * Database version.
 	 *
 	 * @since 1.0.0
 	 * @var string
 	 */
-	public $db_version = '1.0.0';
+	public $db_version = '2.0.0';
 
 	/**
 	 * Constructor.
@@ -45,7 +54,8 @@ class Database {
 	public function __construct() {
 		global $wpdb;
 
-		$this->table_name = $wpdb->prefix . 'freemkit_subscribers';
+		$this->table_name        = $wpdb->prefix . 'freemkit_subscribers';
+		$this->events_table_name = $wpdb->prefix . 'freemkit_subscriber_events';
 	}
 
 	/**
@@ -60,14 +70,12 @@ class Database {
 
 		$charset_collate = $wpdb->get_charset_collate();
 
-		$sql = "CREATE TABLE IF NOT EXISTS {$this->table_name} (
+		$subscribers_sql = "CREATE TABLE IF NOT EXISTS {$this->table_name} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			email varchar(100) NOT NULL,
 			first_name varchar(50) DEFAULT '',
 			last_name varchar(50) DEFAULT '',
 			fields longtext DEFAULT NULL,
-			tags longtext DEFAULT NULL,
-			forms longtext DEFAULT NULL,
 			status varchar(20) NOT NULL DEFAULT 'active',
 			created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			modified datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -76,9 +84,27 @@ class Database {
 			KEY status (status)
 		) {$charset_collate};";
 
+		$events_sql = "CREATE TABLE IF NOT EXISTS {$this->events_table_name} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			subscriber_id bigint(20) unsigned NOT NULL,
+			plugin_id varchar(50) NOT NULL DEFAULT '',
+			plugin_slug varchar(100) NOT NULL DEFAULT '',
+			event_type varchar(100) NOT NULL DEFAULT '',
+			user_type varchar(20) NOT NULL DEFAULT '',
+			form_ids text DEFAULT NULL,
+			tag_ids text DEFAULT NULL,
+			freemius_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY subscriber_id (subscriber_id),
+			KEY plugin_id (plugin_id),
+			KEY event_type (event_type)
+		) {$charset_collate};";
+
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-		$result = dbDelta( $sql );
+		dbDelta( $subscribers_sql );
+		dbDelta( $events_sql );
 
 		if ( ! empty( $wpdb->last_error ) ) {
 			return new \WP_Error(
@@ -91,7 +117,21 @@ class Database {
 			);
 		}
 
-		add_option( 'freemkit_db_version', $this->db_version );
+		// Drop legacy columns from dev installs.
+		$current_version = get_option( 'freemkit_db_version', '0' );
+		if ( version_compare( $current_version, '2.0.0', '<' ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$columns   = $wpdb->get_results( "SHOW COLUMNS FROM {$this->table_name}", ARRAY_A );
+			$col_names = wp_list_pluck( $columns, 'Field' );
+			if ( in_array( 'tags', $col_names, true ) ) {
+				$wpdb->query( "ALTER TABLE {$this->table_name} DROP COLUMN tags" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+			if ( in_array( 'forms', $col_names, true ) ) {
+				$wpdb->query( "ALTER TABLE {$this->table_name} DROP COLUMN forms" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+		}
+
+		update_option( 'freemkit_db_version', $this->db_version );
 
 		return true;
 	}
@@ -117,6 +157,17 @@ class Database {
 	 */
 	public function get_table_name() {
 		return $this->table_name;
+	}
+
+	/**
+	 * Get events table name.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return string Events table name.
+	 */
+	public function get_events_table_name() {
+		return $this->events_table_name;
 	}
 
 	/**
@@ -312,16 +363,14 @@ class Database {
 
 		$sql = "
 			INSERT INTO {$this->get_table_name()} (
-				email, first_name, last_name, fields, tags, forms, status, created
+				email, first_name, last_name, fields, status, created
 			) VALUES (
-				%s, %s, %s, %s, %s, %s, %s, %s
+				%s, %s, %s, %s, %s, %s
 			)
 			ON DUPLICATE KEY UPDATE
 				first_name = VALUES(first_name),
 				last_name = VALUES(last_name),
 				fields = VALUES(fields),
-				tags = VALUES(tags),
-				forms = VALUES(forms),
 				status = VALUES(status),
 				modified = CURRENT_TIMESTAMP
 		";
@@ -333,8 +382,6 @@ class Database {
 				$data['data']['first_name'],
 				$data['data']['last_name'],
 				$data['data']['fields'],
-				$data['data']['tags'],
-				$data['data']['forms'],
 				$data['data']['status'],
 				$data['data']['created']
 			)
@@ -468,8 +515,6 @@ class Database {
 			'first_name' => sanitize_text_field( $subscriber->first_name ),
 			'last_name'  => sanitize_text_field( $subscriber->last_name ),
 			'fields'     => $this->prepare_array_field( $subscriber->fields ),
-			'tags'       => $this->prepare_array_field( $subscriber->tags ),
-			'forms'      => $this->prepare_array_field( $subscriber->forms ),
 			'status'     => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
 		);
 
@@ -477,9 +522,9 @@ class Database {
 			$data['created'] = ! empty( $subscriber->created )
 				? $subscriber->created
 				: current_time( 'mysql', true );
-			$format          = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+			$format          = array( '%s', '%s', '%s', '%s', '%s', '%s' );
 		} else {
-			$format = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+			$format = array( '%s', '%s', '%s', '%s', '%s' );
 		}
 
 		return array(
@@ -513,7 +558,7 @@ class Database {
 	 * @return Subscriber
 	 */
 	public function merge_subscriber_data( $existing_subscriber, $new_subscriber ) {
-		$fields_to_merge = array( 'fields', 'tags', 'forms' );
+		$fields_to_merge = array( 'fields' );
 
 		foreach ( $fields_to_merge as $field ) {
 			$new_subscriber->$field = array_unique(
@@ -561,6 +606,7 @@ class Database {
 
 		$this->clear_subscriber_cache( $id );
 		$this->clear_subscriber_cache( $subscriber->email );
+		$this->delete_subscriber_events( $id );
 
 		/**
 		 * Fires after a subscriber is deleted.
@@ -708,6 +754,214 @@ class Database {
 	}
 
 	/**
+	 * Add a subscriber event.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param Subscriber_Event $event Event object.
+	 * @return int|\WP_Error Event ID on success, \WP_Error on failure.
+	 */
+	public function add_subscriber_event( $event ) {
+		global $wpdb;
+
+		if ( empty( $event->subscriber_id ) ) {
+			return new \WP_Error(
+				'missing_subscriber_id',
+				__( 'Subscriber ID is required.', 'freemkit' )
+			);
+		}
+
+		$data = array(
+			'subscriber_id'    => $event->subscriber_id,
+			'plugin_id'        => sanitize_text_field( $event->plugin_id ),
+			'plugin_slug'      => sanitize_text_field( $event->plugin_slug ),
+			'event_type'       => sanitize_text_field( $event->event_type ),
+			'user_type'        => sanitize_text_field( $event->user_type ),
+			'form_ids'         => sanitize_text_field( $event->form_ids ),
+			'tag_ids'          => sanitize_text_field( $event->tag_ids ),
+			'freemius_user_id' => $event->freemius_user_id,
+			'created'          => ! empty( $event->created ) ? $event->created : current_time( 'mysql', true ),
+		);
+
+		$result = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			$this->events_table_name,
+			$data,
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' )
+		);
+
+		if ( false === $result ) {
+			return new \WP_Error(
+				'db_insert_error',
+				__( 'Could not add subscriber event.', 'freemkit' )
+			);
+		}
+
+		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Get a single subscriber event by ID.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int $event_id Event ID.
+	 * @return Subscriber_Event|\WP_Error Event object or \WP_Error on failure.
+	 */
+	public function get_subscriber_event( $event_id ) {
+		global $wpdb;
+
+		$table = $this->get_events_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE id = %d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$event_id
+			)
+		);
+
+		if ( null === $row ) {
+			return new \WP_Error(
+				'event_not_found',
+				__( 'Subscriber event not found.', 'freemkit' )
+			);
+		}
+
+		return new Subscriber_Event( (array) $row );
+	}
+
+	/**
+	 * Get events for a subscriber.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int   $subscriber_id Subscriber ID.
+	 * @param array $args {
+	 *     Optional. Arguments to filter events.
+	 *
+	 *     @type string $plugin_id  Filter by plugin ID.
+	 *     @type string $event_type Filter by event type.
+	 *     @type string $user_type  Filter by user type (free/paid).
+	 *     @type int    $per_page   Number per page. Default 100.
+	 *     @type int    $page       Page number. Default 1.
+	 *     @type string $orderby    Column to order by. Default 'created'.
+	 *     @type string $order      Order direction. Default 'DESC'.
+	 * }
+	 * @return Subscriber_Event[] Array of event objects.
+	 */
+	public function get_subscriber_events( $subscriber_id, $args = array() ) {
+		global $wpdb;
+
+		$defaults = array(
+			'plugin_id'  => '',
+			'event_type' => '',
+			'user_type'  => '',
+			'per_page'   => 100,
+			'page'       => 1,
+			'orderby'    => 'created',
+			'order'      => 'DESC',
+		);
+
+		$args = wp_parse_args( $args, $defaults );
+
+		$where  = array( 'subscriber_id = %d' );
+		$values = array( $subscriber_id );
+
+		if ( ! empty( $args['plugin_id'] ) ) {
+			$where[]  = 'plugin_id = %s';
+			$values[] = $args['plugin_id'];
+		}
+
+		if ( ! empty( $args['event_type'] ) ) {
+			$where[]  = 'event_type = %s';
+			$values[] = $args['event_type'];
+		}
+
+		if ( ! empty( $args['user_type'] ) ) {
+			$where[]  = 'user_type = %s';
+			$values[] = $args['user_type'];
+		}
+
+		$where_clause = implode( ' AND ', $where );
+		$offset       = ( $args['page'] - 1 ) * $args['per_page'];
+		$table        = $this->get_events_table_name();
+
+		$sql = "SELECT * FROM {$table} WHERE {$where_clause}";
+
+		$orderby = sanitize_sql_orderby( $args['orderby'] . ' ' . $args['order'] );
+		if ( ! empty( $orderby ) ) {
+			$sql .= " ORDER BY {$orderby}";
+		}
+
+		$sql .= ' LIMIT %d OFFSET %d';
+
+		$values[] = $args['per_page'];
+		$values[] = $offset;
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$results = $wpdb->get_results( $wpdb->prepare( $sql, $values ) );
+
+		$items = array();
+		foreach ( $results as $result ) {
+			$items[] = new Subscriber_Event( (array) $result );
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Delete all events for a subscriber.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int $subscriber_id Subscriber ID.
+	 * @return bool|\WP_Error True on success, \WP_Error on failure.
+	 */
+	public function delete_subscriber_events( $subscriber_id ) {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$result = $wpdb->delete(
+			$this->events_table_name,
+			array( 'subscriber_id' => $subscriber_id ),
+			array( '%d' )
+		);
+
+		if ( false === $result ) {
+			return new \WP_Error(
+				'db_delete_error',
+				__( 'Could not delete subscriber events.', 'freemkit' )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Get distinct plugin slugs for a subscriber.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int $subscriber_id Subscriber ID.
+	 * @return string[] Array of plugin slugs.
+	 */
+	public function get_subscriber_plugin_slugs( $subscriber_id ) {
+		global $wpdb;
+
+		$table = $this->get_events_table_name();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$results = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT plugin_slug FROM {$table} WHERE subscriber_id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$subscriber_id
+			)
+		);
+
+		return $results ? $results : array();
+	}
+
+	/**
 	 * Delete multiple subscribers.
 	 *
 	 * @since 1.0.0
@@ -750,6 +1004,10 @@ class Database {
 				)
 			);
 		}
+
+		// Cascade delete events.
+		$events_table = $this->get_events_table_name();
+		$wpdb->query( "DELETE FROM {$events_table} WHERE subscriber_id IN ({$ids})" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		return true;
 	}

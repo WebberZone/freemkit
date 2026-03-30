@@ -137,6 +137,8 @@ class Webhook_Handler {
 			return new \WP_Error( 'invalid_email', 'Invalid or missing email address.' );
 		}
 
+		$freemius_user_id = isset( $user->id ) ? (int) $user->id : 0;
+
 		$email      = sanitize_email( $user->email );
 		$first_name = isset( $user->first ) ? ( 0 === strcasecmp( $user->first, 'Admin' ) ? '' : sanitize_text_field( $user->first ) ) : '';
 		$last_name  = isset( $user->last ) ? ( 0 === strcasecmp( $user->last, 'Admin' ) ? '' : sanitize_text_field( $user->last ) ) : '';
@@ -185,13 +187,19 @@ class Webhook_Handler {
 			return new \WP_Error( 'invalid_event', 'Missing event type in request.' );
 		}
 
-		$event_type = Freemius::normalize_event_type( (string) $fs_event->type );
-		$api_result = null;
+		$event_type      = Freemius::normalize_event_type( (string) $fs_event->type );
+		$user_type       = '';
+		$active_form_ids = array();
+		$active_tag_ids  = array();
 
 		if ( in_array( $event_type, $free_event_types, true ) ) {
-			$api_result = $this->subscribe_to_forms( $free_form_ids, $email, $first_name, $fields, $free_tag_ids );
+			$user_type       = 'free';
+			$active_form_ids = $free_form_ids;
+			$active_tag_ids  = $free_tag_ids;
 		} elseif ( in_array( $event_type, $paid_event_types, true ) ) {
-			$api_result = $this->subscribe_to_forms( $paid_form_ids, $email, $first_name, $fields, $paid_tag_ids );
+			$user_type       = 'paid';
+			$active_form_ids = $paid_form_ids;
+			$active_tag_ids  = $paid_tag_ids;
 		} else {
 			return array(
 				'status'  => 'ignored',
@@ -199,7 +207,9 @@ class Webhook_Handler {
 			);
 		}
 
-		if ( isset( $api_result ) && is_wp_error( $api_result ) ) {
+		$api_result = $this->subscribe_to_forms( $active_form_ids, $email, $first_name, $fields, $active_tag_ids );
+
+		if ( is_wp_error( $api_result ) ) {
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Kit API Error: %s', $api_result->get_error_message() ) );
@@ -213,14 +223,6 @@ class Webhook_Handler {
 				'first_name' => $first_name,
 				'last_name'  => $last_name,
 				'fields'     => $fields,
-				'forms'      => array(
-					'free' => $free_form_ids,
-					'paid' => $paid_form_ids,
-				),
-				'tags'       => array(
-					'free' => $free_tag_ids,
-					'paid' => $paid_tag_ids,
-				),
 			)
 		);
 
@@ -231,6 +233,25 @@ class Webhook_Handler {
 				error_log( sprintf( '[FreemKit] Database Error: %s', $db_result->get_error_message() ) );
 			}
 			return new \WP_Error( 'db_error', 'Processed with database errors' );
+		}
+
+		$event = new Subscriber_Event(
+			array(
+				'subscriber_id'    => $db_result,
+				'plugin_id'        => (string) $plugin_id,
+				'plugin_slug'      => $plugin_config['slug'],
+				'event_type'       => $event_type,
+				'user_type'        => $user_type,
+				'form_ids'         => implode( ',', $active_form_ids ),
+				'tag_ids'          => implode( ',', $active_tag_ids ),
+				'freemius_user_id' => $freemius_user_id,
+			)
+		);
+
+		$event_result = $this->database->add_subscriber_event( $event );
+		if ( is_wp_error( $event_result ) && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[FreemKit] Event insert error: %s', $event_result->get_error_message() ) );
 		}
 
 		return array(

@@ -72,8 +72,7 @@ class Subscribers_List_Table extends \WP_List_Table {
 			'status'     => __( 'Status', 'freemkit' ),
 			'created'    => __( 'Created', 'freemkit' ),
 			'fields'     => __( 'Fields', 'freemkit' ),
-			'tags'       => __( 'Tags', 'freemkit' ),
-			'forms'      => __( 'Forms', 'freemkit' ),
+			'plugins'    => __( 'Plugins', 'freemkit' ),
 		);
 
 		return $columns;
@@ -165,11 +164,12 @@ class Subscribers_List_Table extends \WP_List_Table {
 			case 'last_name':
 				return esc_html( $item->last_name );
 
-			case 'tags':
-				return esc_html( implode( ', ', $item->tags ) );
+			case 'fields':
+				return esc_html( implode( ', ', (array) $item->fields ) );
 
-			case 'forms':
-				return esc_html( implode( ', ', $item->forms ) );
+			case 'plugins':
+				$slugs = $this->database->get_subscriber_plugin_slugs( $item->id );
+				return esc_html( implode( ', ', $slugs ) );
 
 			case 'status':
 				return esc_html( $item->status );

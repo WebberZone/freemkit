@@ -97,7 +97,6 @@ class Subscribers_List {
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'FreemKit - Subscribers', 'freemkit' ); ?></h1>
-			<a href="<?php echo esc_url( admin_url( 'options-general.php?page=freemkit_options_page' ) ); ?>" class="page-title-action"><?php esc_html_e( 'View Settings', 'freemkit' ); ?></a>
 			<?php do_action( 'freemkit_subscribers_page_header' ); ?>
 
 			<div id="poststuff">

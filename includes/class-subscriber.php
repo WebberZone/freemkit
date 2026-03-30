@@ -56,22 +56,6 @@ class Subscriber {
 	public $fields = array();
 
 	/**
-	 * Tags.
-	 *
-	 * @since 1.0.0
-	 * @var array|string
-	 */
-	public $tags = array();
-
-	/**
-	 * Forms.
-	 *
-	 * @since 1.0.0
-	 * @var array|string
-	 */
-	public $forms = array();
-
-	/**
 	 * Subscriber status.
 	 *
 	 * @since 1.0.0
@@ -180,8 +164,6 @@ class Subscriber {
 						$this->$key = sanitize_text_field( $data[ $key ] );
 						break;
 					case 'fields':
-					case 'tags':
-					case 'forms':
 						$data_value = maybe_unserialize( $data[ $key ] );
 						$this->$key = wp_parse_list( $data_value );
 						break;
