@@ -450,13 +450,20 @@ class Settings {
 	 */
 	public static function settings_subscribers(): array {
 		$settings = array(
-			'subscribers'     => array(
+			'subscribers'              => array(
 				'id'   => 'subscribers',
 				'name' => __( 'Subscribers', 'freemkit' ),
 				'desc' => __( 'Configure your subscribers settings in this tab.', 'freemkit' ),
 				'type' => 'header',
 			),
-			'last_name_field' => array(
+			'respect_marketing_optout' => array(
+				'id'      => 'respect_marketing_optout',
+				'name'    => __( 'Respect Marketing Opt-out', 'freemkit' ),
+				'desc'    => __( 'When enabled, users who opt out of marketing on Freemius will be unsubscribed from Kit and blocked from future subscriptions.', 'freemkit' ),
+				'type'    => 'checkbox',
+				'default' => 1,
+			),
+			'last_name_field'          => array(
 				'id'               => 'last_name_field',
 				'name'             => __( 'Last Name field', 'freemkit' ),
 				'desc'             => __( 'Select the field name for mapping the last name in Kit. Note: Kit lacks a default last name field; a custom field must be created in your account first.', 'freemkit' ),
@@ -465,7 +472,7 @@ class Settings {
 				'field_class'      => 'ts_autocomplete',
 				'field_attributes' => self::get_kit_search_field_attributes( 'custom_fields', array( 'maxItems' => 1 ) ),
 			),
-			'custom_fields'   => array(
+			'custom_fields'            => array(
 				'id'                => 'custom_fields',
 				'name'              => __( 'Custom Fields', 'freemkit' ),
 				'desc'              => '',

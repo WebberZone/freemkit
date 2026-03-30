@@ -168,6 +168,21 @@ class Kit_API extends \ConvertKit_API_V4 {
 	}
 
 	/**
+	 * Unsubscribe a subscriber from Kit by email.
+	 *
+	 * @param string $email Email address.
+	 * @return array|\WP_Error|null
+	 */
+	public function unsubscribe_subscriber( string $email ) {
+		$validate = $this->validate_email( $email );
+		if ( is_wp_error( $validate ) ) {
+			return $validate;
+		}
+
+		return parent::unsubscribe_by_email( $email );
+	}
+
+	/**
 	 * Validate email.
 	 *
 	 * @param string $email Email.

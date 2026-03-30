@@ -129,6 +129,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 				'description' => __( 'Configure webhook handling and add one or more Freemius plugin mappings.', 'freemkit' ),
 				'settings'    => $this->build_step_settings(
 					array(
+						'respect_marketing_optout',
 						'webhook_endpoint_type',
 						'webhook_url',
 						'plugins',

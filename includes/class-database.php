@@ -77,11 +77,13 @@ class Database {
 			last_name varchar(50) DEFAULT '',
 			fields longtext DEFAULT NULL,
 			status varchar(20) NOT NULL DEFAULT 'active',
+			marketing_optout tinyint(1) NOT NULL DEFAULT 0,
 			created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			modified datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			UNIQUE KEY email (email),
-			KEY status (status)
+			KEY status (status),
+			KEY marketing_optout (marketing_optout)
 		) {$charset_collate};";
 
 		$events_sql = "CREATE TABLE IF NOT EXISTS {$this->events_table_name} (
@@ -351,15 +353,16 @@ class Database {
 
 		$sql = "
 			INSERT INTO {$this->get_table_name()} (
-				email, first_name, last_name, fields, status, created
+				email, first_name, last_name, fields, status, marketing_optout, created
 			) VALUES (
-				%s, %s, %s, %s, %s, %s
+				%s, %s, %s, %s, %s, %d, %s
 			)
 			ON DUPLICATE KEY UPDATE
 				first_name = VALUES(first_name),
 				last_name = VALUES(last_name),
 				fields = VALUES(fields),
 				status = VALUES(status),
+				marketing_optout = VALUES(marketing_optout),
 				modified = CURRENT_TIMESTAMP
 		";
 
@@ -371,6 +374,7 @@ class Database {
 				$data['data']['last_name'],
 				$data['data']['fields'],
 				$data['data']['status'],
+				$data['data']['marketing_optout'],
 				$data['data']['created']
 			)
 		);
@@ -499,20 +503,21 @@ class Database {
 	 */
 	public function prepare_subscriber_data( $subscriber, $is_new = true ) {
 		$data = array(
-			'email'      => sanitize_email( $subscriber->email ),
-			'first_name' => sanitize_text_field( $subscriber->first_name ),
-			'last_name'  => sanitize_text_field( $subscriber->last_name ),
-			'fields'     => $this->prepare_array_field( $subscriber->fields ),
-			'status'     => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
+			'email'            => sanitize_email( $subscriber->email ),
+			'first_name'       => sanitize_text_field( $subscriber->first_name ),
+			'last_name'        => sanitize_text_field( $subscriber->last_name ),
+			'fields'           => $this->prepare_array_field( $subscriber->fields ),
+			'status'           => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
+			'marketing_optout' => (int) $subscriber->marketing_optout,
 		);
 
 		if ( $is_new ) {
 			$data['created'] = ! empty( $subscriber->created )
 				? $subscriber->created
 				: current_time( 'mysql', true );
-			$format          = array( '%s', '%s', '%s', '%s', '%s', '%s' );
+			$format          = array( '%s', '%s', '%s', '%s', '%s', '%d', '%s' );
 		} else {
-			$format = array( '%s', '%s', '%s', '%s', '%s' );
+			$format = array( '%s', '%s', '%s', '%s', '%s', '%d' );
 		}
 
 		return array(

@@ -187,7 +187,14 @@ class Webhook_Handler {
 			return new \WP_Error( 'invalid_event', 'Missing event type in request.' );
 		}
 
-		$event_type      = Freemius::normalize_event_type( (string) $fs_event->type );
+		$event_type               = Freemius::normalize_event_type( (string) $fs_event->type );
+		$respect_marketing_optout = (bool) Options_API::get_option( 'respect_marketing_optout' );
+
+		// Handle marketing opt-out event.
+		if ( 'user.marketing.opted_out' === $event_type ) {
+			return $this->process_marketing_optout( $email, $first_name, $last_name, $fields, $plugin_id, $plugin_config, $freemius_user_id, $respect_marketing_optout );
+		}
+
 		$user_type       = '';
 		$active_form_ids = array();
 		$active_tag_ids  = array();
@@ -205,6 +212,20 @@ class Webhook_Handler {
 				'status'  => 'ignored',
 				'message' => 'Event type not mapped; ignored.',
 			);
+		}
+
+		// Block subscription if the subscriber has opted out of marketing.
+		if ( $respect_marketing_optout ) {
+			$existing = $this->database->get_subscriber_by_email( $email );
+			if ( ! is_wp_error( $existing ) && ! empty( $existing->marketing_optout ) ) {
+				// Safety: ensure they are unsubscribed from Kit.
+				$this->api->unsubscribe_subscriber( $email );
+
+				return array(
+					'status'  => 'ignored',
+					'message' => 'Subscriber has opted out of marketing; subscription blocked.',
+				);
+			}
 		}
 
 		$api_result = $this->subscribe_to_forms( $active_form_ids, $email, $first_name, $fields, $active_tag_ids );
@@ -312,6 +333,83 @@ class Webhook_Handler {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Process a marketing opt-out event.
+	 *
+	 * Records the opt-out in the database and unsubscribes from Kit.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $email                    Subscriber email.
+	 * @param string $first_name               Subscriber first name.
+	 * @param string $last_name                Subscriber last name.
+	 * @param array  $fields                   Custom fields.
+	 * @param string $plugin_id                Freemius plugin ID.
+	 * @param array  $plugin_config            Plugin configuration.
+	 * @param int    $freemius_user_id         Freemius user ID.
+	 * @param bool   $respect_marketing_optout Whether the setting is enabled.
+	 * @return array|\WP_Error
+	 */
+	public function process_marketing_optout( string $email, string $first_name, string $last_name, array $fields, string $plugin_id, array $plugin_config, int $freemius_user_id, bool $respect_marketing_optout ) {
+		if ( ! $respect_marketing_optout ) {
+			return array(
+				'status'  => 'ignored',
+				'message' => 'Marketing opt-out handling is disabled.',
+			);
+		}
+
+		$subscriber = new Subscriber(
+			array(
+				'email'            => $email,
+				'first_name'       => $first_name,
+				'last_name'        => $last_name,
+				'fields'           => $fields,
+				'status'           => 'opted_out',
+				'marketing_optout' => 1,
+			)
+		);
+
+		$db_result = $this->database->upsert_subscriber_by_email( $subscriber );
+		if ( is_wp_error( $db_result ) ) {
+			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( '[FreemKit] Database Error during marketing opt-out: %s', $db_result->get_error_message() ) );
+			}
+			return new \WP_Error( 'db_error', 'Marketing opt-out recorded with database errors' );
+		}
+
+		$event = new Subscriber_Event(
+			array(
+				'subscriber_id'    => $db_result,
+				'plugin_id'        => (string) $plugin_id,
+				'plugin_slug'      => $plugin_config['slug'],
+				'event_type'       => 'user.marketing.opted_out',
+				'user_type'        => 'opted_out',
+				'form_ids'         => '',
+				'tag_ids'          => '',
+				'freemius_user_id' => $freemius_user_id,
+			)
+		);
+
+		$event_result = $this->database->add_subscriber_event( $event );
+		if ( is_wp_error( $event_result ) && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[FreemKit] Event insert error during marketing opt-out: %s', $event_result->get_error_message() ) );
+		}
+
+		// Unsubscribe from Kit.
+		$unsubscribe_result = $this->api->unsubscribe_subscriber( $email );
+		if ( is_wp_error( $unsubscribe_result ) && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[FreemKit] Kit unsubscribe error: %s', $unsubscribe_result->get_error_message() ) );
+		}
+
+		return array(
+			'status'  => 'success',
+			'message' => 'Marketing opt-out processed; subscriber unsubscribed from Kit.',
+		);
 	}
 
 	/**

@@ -64,6 +64,14 @@ class Subscriber {
 	public string $status = 'active';
 
 	/**
+	 * Marketing opt-out flag.
+	 *
+	 * @since 1.0.0
+	 * @var int
+	 */
+	public int $marketing_optout = 0;
+
+	/**
 	 * Created timestamp.
 	 *
 	 * @since 1.0.0
@@ -153,7 +161,8 @@ class Subscriber {
 			if ( isset( $data[ $key ] ) ) {
 				switch ( $key ) {
 					case 'id':
-						$this->id = (int) $data[ $key ];
+					case 'marketing_optout':
+						$this->$key = (int) $data[ $key ];
 						break;
 					case 'email':
 						$this->email = $data[ $key ];

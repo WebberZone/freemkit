@@ -82,42 +82,7 @@ class Admin {
 	public function __construct( Database $database ) {
 		$this->database     = $database;
 		self::$notices_api  = new Admin_Notices_API();
-		$this->admin_banner = new Admin_Banner(
-			array(
-				'capability' => 'manage_options',
-				'prefix'     => 'freemkit',
-				'strings'    => array(
-					'region_label' => __( 'FreemKit admin navigation', 'freemkit' ),
-					'nav_label'    => __( 'FreemKit sections', 'freemkit' ),
-					'eyebrow'      => __( 'WebberZone', 'freemkit' ),
-					'title'        => __( 'FreemKit', 'freemkit' ),
-					'text'         => __( 'Manage integration settings and subscribers.', 'freemkit' ),
-				),
-				'sections'   => array(
-					'settings'    => array(
-						'label'      => __( 'Settings', 'freemkit' ),
-						'url'        => admin_url( 'options-general.php?page=freemkit_options_page' ),
-						'type'       => 'primary',
-						'page_slugs' => array( 'freemkit_options_page' ),
-						'screen_ids' => array( 'settings_page_freemkit_options_page' ),
-					),
-					'wizard'      => array(
-						'label'      => __( 'Setup Wizard', 'freemkit' ),
-						'url'        => admin_url( 'options-general.php?page=freemkit_setup_wizard' ),
-						'type'       => 'secondary',
-						'page_slugs' => array( 'freemkit_setup_wizard' ),
-						'screen_ids' => array( 'settings_page_freemkit_setup_wizard' ),
-					),
-					'subscribers' => array(
-						'label'      => __( 'Subscribers', 'freemkit' ),
-						'url'        => admin_url( 'users.php?page=freemkit_subscribers' ),
-						'type'       => 'secondary',
-						'page_slugs' => array( 'freemkit_subscribers' ),
-						'screen_ids' => array( 'users_page_freemkit_subscribers' ),
-					),
-				),
-			)
-		);
+		$this->admin_banner = new Admin_Banner( $this->get_admin_banner_config() );
 
 		// Initialize settings.
 		$this->settings = new Settings();
@@ -175,6 +140,50 @@ class Admin {
 				'screens'     => array(),
 				'capability'  => 'manage_options',
 			)
+		);
+	}
+
+	/**
+	 * Retrieve the configuration array for the admin banner.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function get_admin_banner_config(): array {
+		return array(
+			'capability' => 'manage_options',
+			'prefix'     => 'freemkit',
+			'strings'    => array(
+				'region_label' => __( 'FreemKit admin navigation', 'freemkit' ),
+				'nav_label'    => __( 'FreemKit sections', 'freemkit' ),
+				'eyebrow'      => __( 'WebberZone', 'freemkit' ),
+				'title'        => __( 'FreemKit', 'freemkit' ),
+				'text'         => __( 'Manage integration settings and subscribers.', 'freemkit' ),
+			),
+			'sections'   => array(
+				'settings'    => array(
+					'label'      => __( 'Settings', 'freemkit' ),
+					'url'        => admin_url( 'options-general.php?page=freemkit_options_page' ),
+					'type'       => 'primary',
+					'page_slugs' => array( 'freemkit_options_page' ),
+					'screen_ids' => array( 'settings_page_freemkit_options_page' ),
+				),
+				'subscribers' => array(
+					'label'      => __( 'Subscribers', 'freemkit' ),
+					'url'        => admin_url( 'users.php?page=freemkit_subscribers' ),
+					'type'       => 'secondary',
+					'page_slugs' => array( 'freemkit_subscribers' ),
+					'screen_ids' => array( 'users_page_freemkit_subscribers' ),
+				),
+				'plugins'     => array(
+					'label'  => esc_html__( 'WebberZone Plugins', 'freemkit' ),
+					'url'    => 'https://webberzone.com/plugins/',
+					'type'   => 'secondary',
+					'target' => '_blank',
+					'rel'    => 'noopener noreferrer',
+				),
+			),
 		);
 	}
 }
