@@ -118,8 +118,6 @@ class Settings_Wizard extends Settings_Wizard_API {
 					array(
 						'kit_form_id',
 						'kit_tag_id',
-						'last_name_field',
-						'custom_fields',
 					),
 					$all_settings
 				),
@@ -412,7 +410,6 @@ class Settings_Wizard extends Settings_Wizard_API {
 				'endpoint'        => '',
 				'forms'           => Settings::get_localized_kit_data( 'forms' ),
 				'tags'            => Settings::get_localized_kit_data( 'tags' ),
-				'custom_fields'   => Settings::get_localized_kit_data( 'custom_fields' ),
 				'freemius_events' => Settings::get_localized_kit_data( 'freemius_events' ),
 				'strings'         => array(
 					/* translators: %s: search term */

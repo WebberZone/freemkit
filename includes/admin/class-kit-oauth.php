@@ -293,7 +293,7 @@ class Kit_OAuth {
 	 * @return void
 	 */
 	public function clear_kit_cache(): void {
-		foreach ( array( 'forms', 'tags', 'sequences', 'custom_fields' ) as $transient ) {
+		foreach ( array( 'forms', 'tags', 'sequences' ) as $transient ) {
 			delete_transient( 'freemkit_kit_' . $transient );
 		}
 	}

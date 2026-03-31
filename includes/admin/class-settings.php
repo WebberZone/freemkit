@@ -450,53 +450,25 @@ class Settings {
 	 */
 	public static function settings_subscribers(): array {
 		$settings = array(
-			'subscribers'              => array(
+			'subscribers'               => array(
 				'id'   => 'subscribers',
 				'name' => __( 'Subscribers', 'freemkit' ),
 				'desc' => __( 'Configure your subscribers settings in this tab.', 'freemkit' ),
 				'type' => 'header',
 			),
-			'respect_marketing_optout' => array(
+			'respect_marketing_optout'  => array(
 				'id'      => 'respect_marketing_optout',
 				'name'    => __( 'Respect Marketing Opt-out', 'freemkit' ),
 				'desc'    => __( 'When enabled, users who opt out of marketing on Freemius will be unsubscribed from Kit and blocked from future subscriptions.', 'freemkit' ),
 				'type'    => 'checkbox',
 				'default' => 1,
 			),
-			'last_name_field'          => array(
-				'id'               => 'last_name_field',
-				'name'             => __( 'Last Name field', 'freemkit' ),
-				'desc'             => __( 'Select the field name for mapping the last name in Kit. Note: Kit lacks a default last name field; a custom field must be created in your account first.', 'freemkit' ),
-				'type'             => 'text',
-				'default'          => '',
-				'field_class'      => 'ts_autocomplete',
-				'field_attributes' => self::get_kit_search_field_attributes( 'custom_fields', array( 'maxItems' => 1 ) ),
-			),
-			'custom_fields'            => array(
-				'id'                => 'custom_fields',
-				'name'              => __( 'Custom Fields', 'freemkit' ),
-				'desc'              => '',
-				'type'              => 'repeater',
-				'live_update_field' => 'local_name',
-				'default'           => array(),
-				'fields'            => array(
-					array(
-						'id'      => 'local_name',
-						'name'    => __( 'Field Local Name', 'freemkit' ),
-						'desc'    => __( 'Enter the name of your field that will be used locally in the database on this site.', 'freemkit' ),
-						'type'    => 'text',
-						'default' => '',
-					),
-					array(
-						'id'               => 'remote_name',
-						'name'             => __( 'Field name on Kit', 'freemkit' ),
-						'desc'             => __( 'Enter the name of your custom field that is used on the Kit.', 'freemkit' ),
-						'type'             => 'text',
-						'default'          => '',
-						'field_class'      => 'ts_autocomplete',
-						'field_attributes' => self::get_kit_search_field_attributes( 'custom_fields', array( 'maxItems' => 1 ) ),
-					),
-				),
+			'kit_unsubscribe_on_delete' => array(
+				'id'      => 'kit_unsubscribe_on_delete',
+				'name'    => __( 'Unsubscribe from Kit on Delete', 'freemkit' ),
+				'desc'    => __( 'When enabled, deleting a subscriber will also unsubscribe them from Kit.', 'freemkit' ),
+				'type'    => 'checkbox',
+				'default' => 0,
 			),
 		);
 
@@ -515,7 +487,7 @@ class Settings {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param string $endpoint   The endpoint to search ('forms', 'tags', 'custom_fields', 'freemius_events').
+	 * @param string $endpoint   The endpoint to search ('forms', 'tags', 'freemius_events').
 	 * @param array  $ts_config  Optional TypeScript configuration.
 	 * @return array Field attributes array
 	 */
@@ -706,7 +678,6 @@ class Settings {
 					'endpoint'        => '',
 					'forms'           => self::get_localized_kit_data( 'forms' ),
 					'tags'            => self::get_localized_kit_data( 'tags' ),
-					'custom_fields'   => self::get_localized_kit_data( 'custom_fields' ),
 					'freemius_events' => self::get_localized_kit_data( 'freemius_events' ),
 					'strings'         => array(
 						/* translators: %s: search term */
@@ -906,11 +877,11 @@ class Settings {
 				case 'tags':
 					$data = $this->get_kit_tags( $query );
 					break;
-				case 'custom_fields':
-					$data = $this->get_kit_custom_fields( $query );
-					break;
 				case 'freemius_events':
 					$data = Freemius::get_events( $query );
+					break;
+				case 'custom_fields':
+					$data = self::get_kit_data( 'custom_fields', $query );
 					break;
 				default:
 					$data = array();
@@ -962,7 +933,7 @@ class Settings {
 			wp_send_json_error( (object) array( 'message' => esc_html__( 'You do not have permission to perform this action.', 'freemkit' ) ) );
 		}
 
-		foreach ( array( 'forms', 'tags', 'sequences', 'custom_fields' ) as $transient ) {
+		foreach ( array( 'forms', 'tags', 'sequences' ) as $transient ) {
 			delete_transient( 'freemkit_kit_' . $transient );
 		}
 
@@ -1276,7 +1247,13 @@ class Settings {
 				continue;
 			}
 
-			$id = isset( $item['id'] ) ? (string) $item['id'] : ( isset( $item['key'] ) ? (string) $item['key'] : '' );
+			// Custom fields: use the API key (e.g. 'last_name') not the numeric ID,
+			// because Kit's update_subscriber endpoint expects field keys in the fields object.
+			if ( 'custom_fields' === $type && isset( $item['key'] ) ) {
+				$id = (string) $item['key'];
+			} else {
+				$id = isset( $item['id'] ) ? (string) $item['id'] : ( isset( $item['key'] ) ? (string) $item['key'] : '' );
+			}
 			if ( '' === $id ) {
 				continue;
 			}
@@ -1286,8 +1263,6 @@ class Settings {
 				$name = (string) $item['name'];
 			} elseif ( isset( $item['label'] ) ) {
 				$name = (string) $item['label'];
-			} elseif ( 'custom_fields' === $type && isset( $item['key'] ) ) {
-				$name = (string) $item['key'];
 			}
 
 			if ( '' === $name ) {
@@ -1325,18 +1300,6 @@ class Settings {
 	 */
 	public function get_kit_tags( $search = '' ) {
 		return self::get_kit_data( 'tags', $search );
-	}
-
-	/**
-	 * Get Kit custom fields, optionally filtered by search term.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param string $search Optional search term.
-	 * @return array|\WP_Error Array of custom fields.
-	 */
-	public function get_kit_custom_fields( $search = '' ) {
-		return self::get_kit_data( 'custom_fields', $search );
 	}
 
 	/**

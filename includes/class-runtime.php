@@ -79,21 +79,27 @@ class Runtime {
 		}
 
 		foreach ( $settings['plugins'] as $plugin ) {
-			if ( ! is_array( $plugin ) || empty( $plugin['id'] ) ) {
+			if ( ! is_array( $plugin ) ) {
 				continue;
 			}
 
-			$plugin_id                    = sanitize_text_field( (string) $plugin['id'] );
+			$plugin_fields = isset( $plugin['fields'] ) && is_array( $plugin['fields'] ) ? $plugin['fields'] : $plugin;
+
+			if ( empty( $plugin_fields['id'] ) ) {
+				continue;
+			}
+
+			$plugin_id                    = sanitize_text_field( (string) $plugin_fields['id'] );
 			$plugin_configs[ $plugin_id ] = array(
-				'slug'             => sanitize_title( (string) ( $plugin['name'] ?? '' ) ),
-				'public_key'       => (string) ( $plugin['public_key'] ?? '' ),
-				'secret_key'       => (string) ( $plugin['secret_key'] ?? '' ),
-				'free_form_ids'    => (string) ( $plugin['free_form_ids'] ?? '' ),
-				'free_tag_ids'     => (string) ( $plugin['free_tag_ids'] ?? '' ),
-				'free_event_types' => (string) ( $plugin['free_event_types'] ?? '' ),
-				'paid_form_ids'    => (string) ( $plugin['paid_form_ids'] ?? '' ),
-				'paid_tag_ids'     => (string) ( $plugin['paid_tag_ids'] ?? '' ),
-				'paid_event_types' => (string) ( $plugin['paid_event_types'] ?? '' ),
+				'slug'             => sanitize_title( (string) ( $plugin_fields['name'] ?? '' ) ),
+				'public_key'       => (string) ( $plugin_fields['public_key'] ?? '' ),
+				'secret_key'       => (string) ( $plugin_fields['secret_key'] ?? '' ),
+				'free_form_ids'    => (string) ( $plugin_fields['free_form_ids'] ?? '' ),
+				'free_tag_ids'     => (string) ( $plugin_fields['free_tag_ids'] ?? '' ),
+				'free_event_types' => (string) ( $plugin_fields['free_event_types'] ?? '' ),
+				'paid_form_ids'    => (string) ( $plugin_fields['paid_form_ids'] ?? '' ),
+				'paid_tag_ids'     => (string) ( $plugin_fields['paid_tag_ids'] ?? '' ),
+				'paid_event_types' => (string) ( $plugin_fields['paid_event_types'] ?? '' ),
 			);
 		}
 

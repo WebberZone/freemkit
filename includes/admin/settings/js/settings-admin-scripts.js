@@ -135,9 +135,9 @@ jQuery(document).ready(function ($) {
 		});
 
 		// Live update repeater title when the specified field changes.
-		wrapper.on('input', '.wz-repeater-item :input[name$="[fields][' + liveUpdateField + ']"]', function () {
+		wrapper.on('input change', '.wz-repeater-item :input[name$="[fields][' + liveUpdateField + ']"]', function () {
 			var $this = $(this);
-			var newName = $this.val();
+			var newName = $this.is('select') ? $this.find('option:selected').text() : $this.val();
 			var $repeaterTitle = $this.closest('.wz-repeater-item').find('.repeater-title');
 			$repeaterTitle.text(newName || fallbackTitle);
 		});

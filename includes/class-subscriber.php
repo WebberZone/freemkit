@@ -48,14 +48,6 @@ class Subscriber {
 	public string $last_name = '';
 
 	/**
-	 * Custom fields.
-	 *
-	 * @since 1.0.0
-	 * @var array|string
-	 */
-	public $fields = array();
-
-	/**
 	 * Subscriber status.
 	 *
 	 * @since 1.0.0
@@ -171,10 +163,6 @@ class Subscriber {
 					case 'last_name':
 					case 'status':
 						$this->$key = sanitize_text_field( $data[ $key ] );
-						break;
-					case 'fields':
-						$data_value = maybe_unserialize( $data[ $key ] );
-						$this->$key = wp_parse_list( $data_value );
 						break;
 					case 'created':
 						// Assign only if it exists, otherwise let MySQL handle it.

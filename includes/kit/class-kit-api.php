@@ -140,6 +140,8 @@ class Kit_API extends \ConvertKit_API_V4 {
 			return $validate;
 		}
 
+		// create_subscriber acts as upsert: creates new or updates first_name for existing.
+		// Custom fields are only set for new subscribers via this endpoint.
 		$subscriber = parent::create_subscriber( $email, $first_name, 'active', $fields );
 		if ( is_wp_error( $subscriber ) ) {
 			return $subscriber;
@@ -148,6 +150,15 @@ class Kit_API extends \ConvertKit_API_V4 {
 		$subscriber_id = isset( $subscriber['subscriber']['id'] ) ? (int) $subscriber['subscriber']['id'] : 0;
 		if ( $subscriber_id <= 0 ) {
 			return new \WP_Error( self::ERROR_API_ERROR, esc_html__( 'Unable to determine subscriber ID.', 'freemkit' ) );
+		}
+
+		// Explicitly update custom fields for existing subscribers, since create_subscriber
+		// only updates first_name on upsert and silently ignores fields for existing records.
+		if ( ! empty( $fields ) ) {
+			$update_result = parent::update_subscriber( $subscriber_id, $first_name, '', $fields );
+			if ( is_wp_error( $update_result ) ) {
+				return $update_result;
+			}
 		}
 
 		$result = parent::add_subscriber_to_form( $form_id, $subscriber_id );
@@ -180,6 +191,37 @@ class Kit_API extends \ConvertKit_API_V4 {
 		}
 
 		return parent::unsubscribe_by_email( $email );
+	}
+
+	/**
+	 * Resolve a custom field value to its API key.
+	 *
+	 * Stored settings may contain the numeric field ID (legacy) or the string key.
+	 * Kit's update_subscriber endpoint requires the string key (e.g. 'last_name').
+	 * If the value is numeric, fetches custom fields from Kit and returns the matching key.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $value Stored field value — either a numeric ID or a string key.
+	 * @return string Resolved key, or the original value if no match found.
+	 */
+	public function resolve_custom_field_key( string $value ): string {
+		if ( ! ctype_digit( $value ) ) {
+			return $value;
+		}
+
+		$response = parent::get_custom_fields();
+		if ( is_wp_error( $response ) || empty( $response['custom_fields'] ) ) {
+			return $value;
+		}
+
+		foreach ( $response['custom_fields'] as $field ) {
+			if ( isset( $field['id'] ) && (string) $field['id'] === $value && ! empty( $field['key'] ) ) {
+				return (string) $field['key'];
+			}
+		}
+
+		return $value;
 	}
 
 	/**

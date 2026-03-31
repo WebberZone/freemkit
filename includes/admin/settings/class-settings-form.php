@@ -903,8 +903,19 @@ class Settings_Form {
 			<div class="repeater-item-header">
 			<?php
 			$display_field = ! empty( $args['live_update_field'] ) ? $args['live_update_field'] : 'name';
+			$display_value = ! empty( $item['fields'][ $display_field ] ) ? $item['fields'][ $display_field ] : '';
+
+			// For select fields, resolve the option label instead of the raw value.
+			if ( ! empty( $display_value ) ) {
+				foreach ( $args['fields'] as $sub_field ) {
+					if ( $sub_field['id'] === $display_field && 'select' === ( $sub_field['type'] ?? '' ) && ! empty( $sub_field['options'][ $display_value ] ) ) {
+						$display_value = $sub_field['options'][ $display_value ];
+						break;
+					}
+				}
+			}
 			?>
-			<span class="repeater-title"><?php echo esc_html( ! empty( $item['fields'][ $display_field ] ) ? $item['fields'][ $display_field ] : $fallback_title ); ?></span>
+			<span class="repeater-title"><?php echo esc_html( ! empty( $display_value ) ? $display_value : $fallback_title ); ?></span>
 			<span class="toggle-icon">▼</span>
 		</div>
 		<div class="repeater-item-content" style="display: none;">

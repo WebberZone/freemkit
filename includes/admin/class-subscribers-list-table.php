@@ -11,6 +11,8 @@
 namespace WebberZone\FreemKit\Admin;
 
 use WebberZone\FreemKit\Database;
+use WebberZone\FreemKit\Kit\Kit_API;
+use WebberZone\FreemKit\Options_API;
 use WebberZone\FreemKit\Subscriber;
 
 // If this file is called directly, abort.
@@ -71,7 +73,6 @@ class Subscribers_List_Table extends \WP_List_Table {
 			'last_name'  => __( 'Last Name', 'freemkit' ),
 			'status'     => __( 'Status', 'freemkit' ),
 			'created'    => __( 'Created', 'freemkit' ),
-			'fields'     => __( 'Fields', 'freemkit' ),
 			'plugins'    => __( 'Plugins', 'freemkit' ),
 		);
 
@@ -164,12 +165,9 @@ class Subscribers_List_Table extends \WP_List_Table {
 			case 'last_name':
 				return esc_html( $item->last_name );
 
-			case 'fields':
-				return esc_html( implode( ', ', (array) $item->fields ) );
-
 			case 'plugins':
-				$slugs = $this->database->get_subscriber_plugin_slugs( $item->id );
-				return esc_html( implode( ', ', $slugs ) );
+				$names = $this->get_subscriber_plugin_names( $item->id );
+				return esc_html( implode( ', ', $names ) );
 
 			case 'status':
 				return esc_html( $item->status );
@@ -219,11 +217,11 @@ class Subscribers_List_Table extends \WP_List_Table {
 					wp_nonce_url(
 						add_query_arg(
 							array(
-								'page'   => 'subscribers',
+								'page'   => 'freemkit_subscribers',
 								'action' => 'edit',
 								'id'     => $item->id,
 							),
-							admin_url( 'admin.php' )
+							admin_url( 'users.php' )
 						),
 						'edit_subscriber_' . $item->id
 					)
@@ -236,11 +234,11 @@ class Subscribers_List_Table extends \WP_List_Table {
 					wp_nonce_url(
 						add_query_arg(
 							array(
-								'page'   => 'subscribers',
+								'page'   => 'freemkit_subscribers',
 								'action' => 'delete',
 								'id'     => $item->id,
 							),
-							admin_url( 'admin.php' )
+							admin_url( 'users.php' )
 						),
 						'delete_subscriber_' . $item->id
 					)
@@ -339,10 +337,32 @@ class Subscribers_List_Table extends \WP_List_Table {
 			}
 
 			$subscriber_ids = array_map( 'absint', $_REQUEST['subscriber'] );
-			$result         = $this->database->delete_subscribers( $subscriber_ids );
+
+			// Collect emails before deleting for potential Kit unsubscribe.
+			$emails = array();
+			if ( Options_API::get_option( 'kit_unsubscribe_on_delete', 0 ) ) {
+				foreach ( $subscriber_ids as $sid ) {
+					$sub = $this->database->get_subscriber( $sid );
+					if ( ! is_wp_error( $sub ) ) {
+						$emails[] = $sub->email;
+					}
+				}
+			}
+
+			$result = $this->database->delete_subscribers( $subscriber_ids );
 
 			if ( is_wp_error( $result ) ) {
 				return $result;
+			}
+
+			// Unsubscribe from Kit if enabled.
+			if ( ! empty( $emails ) ) {
+				$kit_api = new Kit_API();
+				if ( $kit_api->has_access_and_refresh_token() ) {
+					foreach ( $emails as $email ) {
+						$kit_api->unsubscribe_subscriber( $email );
+					}
+				}
 			}
 		}
 
@@ -377,6 +397,59 @@ class Subscribers_List_Table extends \WP_List_Table {
 			esc_url( $export_url ),
 			esc_html__( 'Export CSV', 'freemkit' )
 		);
+	}
+
+	/**
+	 * Get plugin names for a subscriber from their events.
+	 *
+	 * Resolves plugin IDs to names using the configured plugins in settings.
+	 * Falls back to plugin_slug, then plugin_id.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int $subscriber_id Subscriber ID.
+	 * @return array Array of unique plugin display names.
+	 */
+	protected function get_subscriber_plugin_names( int $subscriber_id ): array {
+		$events = $this->database->get_subscriber_events(
+			$subscriber_id,
+			array(
+				'per_page' => 100,
+				'page'     => 1,
+			)
+		);
+
+		if ( empty( $events ) ) {
+			return array();
+		}
+
+		// Build a lookup of plugin_id => name from settings.
+		$configured = Options_API::get_option( 'plugins', array() );
+		$name_map   = array();
+		if ( is_array( $configured ) ) {
+			foreach ( $configured as $plugin ) {
+				$data = isset( $plugin['fields'] ) ? $plugin['fields'] : $plugin;
+				if ( ! empty( $data['id'] ) && ! empty( $data['name'] ) ) {
+					$name_map[ $data['id'] ] = $data['name'];
+				}
+			}
+		}
+
+		$names = array();
+		foreach ( $events as $event ) {
+			$plugin_id   = (string) $event->plugin_id;
+			$plugin_slug = (string) $event->plugin_slug;
+
+			if ( ! empty( $plugin_id ) && isset( $name_map[ $plugin_id ] ) ) {
+				$names[] = $name_map[ $plugin_id ];
+			} elseif ( ! empty( $plugin_slug ) ) {
+				$names[] = $plugin_slug;
+			} elseif ( ! empty( $plugin_id ) ) {
+				$names[] = $plugin_id;
+			}
+		}
+
+		return array_unique( $names );
 	}
 
 	/**

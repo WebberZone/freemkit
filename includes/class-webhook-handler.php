@@ -143,27 +143,6 @@ class Webhook_Handler {
 		$first_name = isset( $user->first ) ? ( 0 === strcasecmp( $user->first, 'Admin' ) ? '' : sanitize_text_field( $user->first ) ) : '';
 		$last_name  = isset( $user->last ) ? ( 0 === strcasecmp( $user->last, 'Admin' ) ? '' : sanitize_text_field( $user->last ) ) : '';
 
-		$fields = array();
-
-		$last_name_field = Options_API::get_option( 'last_name_field' );
-		if ( $last_name_field ) {
-			$fields[ $last_name_field ] = $last_name;
-		}
-
-		$custom_fields = Options_API::get_option( 'custom_fields' );
-		if ( $custom_fields ) {
-			foreach ( $custom_fields as $custom_field ) {
-				$property_name  = $custom_field['local_name'] ?? '';
-				$property_value = '';
-
-				if ( ! empty( $property_name ) && isset( $user->{$property_name} ) ) {
-					$property_value = sanitize_text_field( $user->{$property_name} );
-				}
-
-				$fields[ $custom_field['remote_name'] ] = $property_value;
-			}
-		}
-
 		$plugin_config = $this->plugin_configs[ $plugin_id ];
 		$kit_form_id   = Options_API::get_option( 'kit_form_id' );
 		$kit_tag_id    = Options_API::get_option( 'kit_tag_id' );
@@ -192,7 +171,12 @@ class Webhook_Handler {
 
 		// Handle marketing opt-out event.
 		if ( 'user.marketing.opted_out' === $event_type ) {
-			return $this->process_marketing_optout( $email, $first_name, $last_name, $fields, $plugin_id, $plugin_config, $freemius_user_id, $respect_marketing_optout );
+			return $this->process_marketing_optout( $email, $first_name, $last_name, $plugin_id, $plugin_config, $freemius_user_id, $respect_marketing_optout );
+		}
+
+		// Handle marketing opt-in / reset events.
+		if ( 'user.marketing.opted_in' === $event_type || 'user.marketing.reset' === $event_type ) {
+			return $this->process_marketing_optin( $email, $first_name, $last_name, $plugin_id, $plugin_config, $freemius_user_id, $event_type );
 		}
 
 		$user_type       = '';
@@ -228,7 +212,27 @@ class Webhook_Handler {
 			}
 		}
 
-		$api_result = $this->subscribe_to_forms( $active_form_ids, $email, $first_name, $fields, $active_tag_ids );
+		// Build Kit custom fields from settings mappings.
+		// resolve_custom_field_key() converts legacy numeric IDs to string keys.
+		$kit_fields      = array();
+		$last_name_field = Options_API::get_option( 'last_name_field' );
+		if ( $last_name_field && $last_name ) {
+			$kit_fields[ $this->api->resolve_custom_field_key( $last_name_field ) ] = $last_name;
+		}
+		$custom_field_mappings = Options_API::get_option( 'custom_fields' );
+		if ( is_array( $custom_field_mappings ) ) {
+			foreach ( $custom_field_mappings as $mapping ) {
+				// Repeater stores data under a nested 'fields' key.
+				$data        = isset( $mapping['fields'] ) ? $mapping['fields'] : $mapping;
+				$local_name  = $data['local_name'] ?? '';
+				$remote_name = $data['remote_name'] ?? '';
+				if ( $local_name && $remote_name && isset( $user->{$local_name} ) ) {
+					$kit_fields[ $this->api->resolve_custom_field_key( $remote_name ) ] = sanitize_text_field( $user->{$local_name} );
+				}
+			}
+		}
+
+		$api_result = $this->subscribe_to_forms( $active_form_ids, $email, $first_name, $kit_fields, $active_tag_ids );
 
 		if ( is_wp_error( $api_result ) ) {
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
@@ -243,7 +247,6 @@ class Webhook_Handler {
 				'email'      => $email,
 				'first_name' => $first_name,
 				'last_name'  => $last_name,
-				'fields'     => $fields,
 			)
 		);
 
@@ -345,14 +348,13 @@ class Webhook_Handler {
 	 * @param string $email                    Subscriber email.
 	 * @param string $first_name               Subscriber first name.
 	 * @param string $last_name                Subscriber last name.
-	 * @param array  $fields                   Custom fields.
 	 * @param string $plugin_id                Freemius plugin ID.
 	 * @param array  $plugin_config            Plugin configuration.
 	 * @param int    $freemius_user_id         Freemius user ID.
 	 * @param bool   $respect_marketing_optout Whether the setting is enabled.
 	 * @return array|\WP_Error
 	 */
-	public function process_marketing_optout( string $email, string $first_name, string $last_name, array $fields, string $plugin_id, array $plugin_config, int $freemius_user_id, bool $respect_marketing_optout ) {
+	public function process_marketing_optout( string $email, string $first_name, string $last_name, string $plugin_id, array $plugin_config, int $freemius_user_id, bool $respect_marketing_optout ) {
 		if ( ! $respect_marketing_optout ) {
 			return array(
 				'status'  => 'ignored',
@@ -365,7 +367,6 @@ class Webhook_Handler {
 				'email'            => $email,
 				'first_name'       => $first_name,
 				'last_name'        => $last_name,
-				'fields'           => $fields,
 				'status'           => 'opted_out',
 				'marketing_optout' => 1,
 			)
@@ -409,6 +410,67 @@ class Webhook_Handler {
 		return array(
 			'status'  => 'success',
 			'message' => 'Marketing opt-out processed; subscriber unsubscribed from Kit.',
+		);
+	}
+
+	/**
+	 * Process a marketing opt-in or reset event.
+	 *
+	 * Clears the opt-out flag and sets the subscriber status back to active.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $email            Subscriber email.
+	 * @param string $first_name       Subscriber first name.
+	 * @param string $last_name        Subscriber last name.
+	 * @param string $plugin_id        Freemius plugin ID.
+	 * @param array  $plugin_config    Plugin configuration.
+	 * @param int    $freemius_user_id Freemius user ID.
+	 * @param string $event_type       Normalized event type.
+	 * @return array|\WP_Error
+	 */
+	public function process_marketing_optin( string $email, string $first_name, string $last_name, string $plugin_id, array $plugin_config, int $freemius_user_id, string $event_type ) {
+		$subscriber = new Subscriber(
+			array(
+				'email'            => $email,
+				'first_name'       => $first_name,
+				'last_name'        => $last_name,
+				'status'           => 'active',
+				'marketing_optout' => 0,
+			)
+		);
+
+		$db_result = $this->database->upsert_subscriber_by_email( $subscriber );
+		if ( is_wp_error( $db_result ) ) {
+			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( '[FreemKit] Database Error during marketing opt-in: %s', $db_result->get_error_message() ) );
+			}
+			return new \WP_Error( 'db_error', 'Marketing opt-in recorded with database errors' );
+		}
+
+		$event = new Subscriber_Event(
+			array(
+				'subscriber_id'    => $db_result,
+				'plugin_id'        => (string) $plugin_id,
+				'plugin_slug'      => $plugin_config['slug'],
+				'event_type'       => $event_type,
+				'user_type'        => '',
+				'form_ids'         => '',
+				'tag_ids'          => '',
+				'freemius_user_id' => $freemius_user_id,
+			)
+		);
+
+		$event_result = $this->database->add_subscriber_event( $event );
+		if ( is_wp_error( $event_result ) && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[FreemKit] Event insert error during marketing opt-in: %s', $event_result->get_error_message() ) );
+		}
+
+		return array(
+			'status'  => 'success',
+			'message' => 'Marketing opt-in processed; subscriber status set to active.',
 		);
 	}
 

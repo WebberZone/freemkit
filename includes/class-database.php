@@ -75,7 +75,6 @@ class Database {
 			email varchar(100) NOT NULL,
 			first_name varchar(50) DEFAULT '',
 			last_name varchar(50) DEFAULT '',
-			fields longtext DEFAULT NULL,
 			status varchar(20) NOT NULL DEFAULT 'active',
 			marketing_optout tinyint(1) NOT NULL DEFAULT 0,
 			created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -351,31 +350,34 @@ class Database {
 
 		$data = $this->prepare_subscriber_data( $subscriber );
 
-		$sql = "
-			INSERT INTO {$this->get_table_name()} (
-				email, first_name, last_name, fields, status, marketing_optout, created
-			) VALUES (
-				%s, %s, %s, %s, %s, %d, %s
-			)
-			ON DUPLICATE KEY UPDATE
-				first_name = VALUES(first_name),
-				last_name = VALUES(last_name),
-				fields = VALUES(fields),
-				status = VALUES(status),
-				marketing_optout = VALUES(marketing_optout),
-				modified = CURRENT_TIMESTAMP
-		";
+		$columns      = array_keys( $data['data'] );
+		$values       = array_values( $data['data'] );
+		$column_sql   = implode( ', ', $columns );
+		$format_sql   = implode( ', ', $data['format'] );
+		$update_parts = array(
+			'first_name = VALUES(first_name)',
+			'last_name = VALUES(last_name)',
+			'status = VALUES(status)',
+		);
+
+		if ( isset( $data['data']['marketing_optout'] ) ) {
+			$update_parts[] = 'marketing_optout = VALUES(marketing_optout)';
+		}
+
+		$update_parts[] = 'modified = CURRENT_TIMESTAMP';
+
+		$sql = sprintf(
+			'INSERT INTO %1$s (%2$s) VALUES (%3$s) ON DUPLICATE KEY UPDATE %4$s',
+			$this->get_table_name(),
+			$column_sql,
+			$format_sql,
+			implode( ', ', $update_parts )
+		);
 
 		$result = $wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
 				$sql, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-				$data['data']['email'],
-				$data['data']['first_name'],
-				$data['data']['last_name'],
-				$data['data']['fields'],
-				$data['data']['status'],
-				$data['data']['marketing_optout'],
-				$data['data']['created']
+				...$values
 			)
 		);
 
@@ -452,9 +454,7 @@ class Database {
 			);
 		}
 
-		// Merge and prepare data.
-		$subscriber = $this->merge_subscriber_data( $existing, $subscriber );
-		$data       = $this->prepare_subscriber_data( $subscriber, false );
+		$data = $this->prepare_subscriber_data( $subscriber, false );
 
 		$result = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$this->get_table_name(),
@@ -503,21 +503,31 @@ class Database {
 	 */
 	public function prepare_subscriber_data( $subscriber, $is_new = true ) {
 		$data = array(
-			'email'            => sanitize_email( $subscriber->email ),
-			'first_name'       => sanitize_text_field( $subscriber->first_name ),
-			'last_name'        => sanitize_text_field( $subscriber->last_name ),
-			'fields'           => $this->prepare_array_field( $subscriber->fields ),
-			'status'           => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
-			'marketing_optout' => (int) $subscriber->marketing_optout,
+			'email'      => sanitize_email( $subscriber->email ),
+			'first_name' => sanitize_text_field( $subscriber->first_name ),
+			'last_name'  => sanitize_text_field( $subscriber->last_name ),
+			'status'     => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
 		);
+
+		if ( $this->subscriber_table_has_column( 'marketing_optout' ) ) {
+			$data['marketing_optout'] = (int) $subscriber->marketing_optout;
+		}
 
 		if ( $is_new ) {
 			$data['created'] = ! empty( $subscriber->created )
 				? $subscriber->created
 				: current_time( 'mysql', true );
-			$format          = array( '%s', '%s', '%s', '%s', '%s', '%d', '%s' );
+			$format          = array( '%s', '%s', '%s', '%s' );
+
+			if ( isset( $data['marketing_optout'] ) ) {
+				$format[] = '%d';
+			}
+			$format[] = '%s';
 		} else {
-			$format = array( '%s', '%s', '%s', '%s', '%s', '%d' );
+			$format = array( '%s', '%s', '%s', '%s' );
+			if ( isset( $data['marketing_optout'] ) ) {
+				$format[] = '%d';
+			}
 		}
 
 		return array(
@@ -527,43 +537,26 @@ class Database {
 	}
 
 	/**
-	 * Prepare array fields for database storage.
+	 * Check if subscriber table contains a given column.
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param mixed $field Field value.
-	 * @return string Comma-separated unique values.
+	 * @param string $column Column name.
+	 * @return bool
 	 */
-	public function prepare_array_field( $field ) {
-		if ( ! is_array( $field ) ) {
-			return (string) $field;
-		}
-		return implode( ',', array_unique( array_filter( $field ) ) );
+	protected function subscriber_table_has_column( string $column ): bool {
+		global $wpdb;
+
+		$exists = $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				"SHOW COLUMNS FROM {$this->get_table_name()} LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$column
+			)
+		);
+
+		return ! empty( $exists );
 	}
 
-	/**
-	 * Merge existing and new subscriber data.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param Subscriber $existing_subscriber Existing subscriber.
-	 * @param Subscriber $new_subscriber      New subscriber data.
-	 * @return Subscriber
-	 */
-	public function merge_subscriber_data( $existing_subscriber, $new_subscriber ) {
-		$fields_to_merge = array( 'fields' );
-
-		foreach ( $fields_to_merge as $field ) {
-			$new_subscriber->$field = array_unique(
-				array_merge(
-					wp_parse_list( $existing_subscriber->$field ),
-					wp_parse_list( $new_subscriber->$field )
-				)
-			);
-		}
-
-		return $new_subscriber;
-	}
 
 	/**
 	 * Delete subscriber.
