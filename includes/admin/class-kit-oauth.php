@@ -90,9 +90,11 @@ class Kit_OAuth {
 		$result             = $api->get_access_token( $authorization_code );
 
 		if ( is_wp_error( $result ) ) {
-			/* translators: %s: Error message */
 			Kit_Audit_Log::add( 'oauth_connect_failed', array( 'error' => $result->get_error_message() ), 'warning' );
+
+			/* translators: %s: Error message. */
 			Admin::add_notice( sprintf( esc_html__( 'Kit OAuth failed: %s', 'freemkit' ), $result->get_error_message() ), 'notice-error' );
+
 			wp_safe_redirect( $redirect_url );
 			exit;
 		}

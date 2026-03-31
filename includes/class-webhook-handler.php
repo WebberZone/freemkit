@@ -139,7 +139,9 @@ class Webhook_Handler {
 
 		$freemius_user_id = isset( $user->id ) ? (int) $user->id : 0;
 
-		$email      = sanitize_email( $user->email );
+		$email = sanitize_email( $user->email );
+
+		// Strip "Admin" from first/last name to avoid creating dummy contacts.
 		$first_name = isset( $user->first ) ? ( 0 === strcasecmp( $user->first, 'Admin' ) ? '' : sanitize_text_field( $user->first ) ) : '';
 		$last_name  = isset( $user->last ) ? ( 0 === strcasecmp( $user->last, 'Admin' ) ? '' : sanitize_text_field( $user->last ) ) : '';
 
@@ -169,14 +171,23 @@ class Webhook_Handler {
 		$event_type               = Freemius::normalize_event_type( (string) $fs_event->type );
 		$respect_marketing_optout = (bool) Options_API::get_option( 'respect_marketing_optout' );
 
-		// Handle marketing opt-out event.
-		if ( 'user.marketing.opted_out' === $event_type ) {
+		$raw_unsubscribe_events  = Options_API::get_option( 'unsubscribe_event_types', 'user.marketing.opted_out' );
+		$unsubscribe_event_list  = wp_parse_list( $raw_unsubscribe_events );
+		$unsubscribe_event_types = Freemius::normalize_event_types( ! empty( $unsubscribe_event_list ) ? $unsubscribe_event_list : array( 'user.marketing.opted_out' ) );
+
+		// Handle marketing opt-out / unsubscribe trigger events.
+		if ( in_array( $event_type, $unsubscribe_event_types, true ) ) {
 			return $this->process_marketing_optout( $email, $first_name, $last_name, $plugin_id, $plugin_config, $freemius_user_id, $respect_marketing_optout );
 		}
 
 		// Handle marketing opt-in / reset events.
-		if ( 'user.marketing.opted_in' === $event_type || 'user.marketing.reset' === $event_type ) {
+		if ( 'user.marketing.opted_in' === $event_type ) {
 			return $this->process_marketing_optin( $email, $first_name, $last_name, $plugin_id, $plugin_config, $freemius_user_id, $event_type );
+		}
+
+		// Handle name change events.
+		if ( 'user.name.changed' === $event_type ) {
+			return $this->process_name_change( $email, $first_name, $last_name, $plugin_id, $plugin_config, $freemius_user_id );
 		}
 
 		$user_type       = '';
@@ -280,7 +291,7 @@ class Webhook_Handler {
 
 		return array(
 			'status'  => 'success',
-			'message' => 'Webhook processed successfully',
+			'message' => __( 'Webhook processed successfully', 'freemkit' ),
 		);
 	}
 
@@ -471,6 +482,102 @@ class Webhook_Handler {
 		return array(
 			'status'  => 'success',
 			'message' => 'Marketing opt-in processed; subscriber status set to active.',
+		);
+	}
+
+	/**
+	 * Process a user name change event.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $email            Subscriber email.
+	 * @param string $first_name       Subscriber first name.
+	 * @param string $last_name        Subscriber last name.
+	 * @param string $plugin_id        Freemius plugin ID.
+	 * @param array  $plugin_config    Plugin configuration.
+	 * @param int    $freemius_user_id Freemius user ID.
+	 * @return array|\WP_Error
+	 */
+	public function process_name_change( string $email, string $first_name, string $last_name, string $plugin_id, array $plugin_config, int $freemius_user_id ) {
+		$sync_name_on_change = (bool) Options_API::get_option( 'sync_name_on_change', 1 );
+		if ( ! $sync_name_on_change ) {
+			return array(
+				'status'  => 'ignored',
+				'message' => 'Name change sync is disabled.',
+			);
+		}
+
+		$existing_subscriber = $this->database->get_subscriber_by_email( $email );
+		if ( is_wp_error( $existing_subscriber ) ) {
+			if ( 'subscriber_not_found' !== $existing_subscriber->get_error_code() ) {
+				if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log( sprintf( '[FreemKit] Database error during name sync lookup: %s', $existing_subscriber->get_error_message() ) );
+				}
+				return $existing_subscriber;
+			}
+			return array(
+				'status'  => 'ignored',
+				'message' => 'Subscriber not found in local database; skipping name sync.',
+			);
+		}
+
+		$status           = $existing_subscriber->status;
+		$marketing_optout = (int) $existing_subscriber->marketing_optout;
+
+		$kit_fields      = array();
+		$last_name_field = Options_API::get_option( 'last_name_field' );
+		if ( $last_name_field ) {
+			$kit_fields[ $this->api->resolve_custom_field_key( (string) $last_name_field ) ] = $last_name;
+		}
+
+		$api_result = $this->api->update_subscriber_name( $email, $first_name, $kit_fields );
+		if ( is_wp_error( $api_result ) && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[FreemKit] Kit API Error during name sync: %s', $api_result->get_error_message() ) );
+		}
+
+		$subscriber = new Subscriber(
+			array(
+				'email'            => $email,
+				'first_name'       => $first_name,
+				'last_name'        => $last_name,
+				'status'           => $status,
+				'marketing_optout' => $marketing_optout,
+			)
+		);
+
+		$db_result = $this->database->upsert_subscriber_by_email( $subscriber );
+		if ( is_wp_error( $db_result ) ) {
+			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( '[FreemKit] Database Error during name sync: %s', $db_result->get_error_message() ) );
+			}
+			return new \WP_Error( 'db_error', 'Name change processed with database errors' );
+		}
+
+		$event = new Subscriber_Event(
+			array(
+				'subscriber_id'    => $db_result,
+				'plugin_id'        => (string) $plugin_id,
+				'plugin_slug'      => $plugin_config['slug'],
+				'event_type'       => 'user.name.changed',
+				'user_type'        => '',
+				'form_ids'         => '',
+				'tag_ids'          => '',
+				'freemius_user_id' => $freemius_user_id,
+			)
+		);
+
+		$event_result = $this->database->add_subscriber_event( $event );
+		if ( is_wp_error( $event_result ) && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[FreemKit] Event insert error during name sync: %s', $event_result->get_error_message() ) );
+		}
+
+		return array(
+			'status'  => 'success',
+			'message' => 'Name change processed successfully.',
 		);
 	}
 

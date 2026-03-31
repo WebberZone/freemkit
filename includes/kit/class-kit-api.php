@@ -179,6 +179,35 @@ class Kit_API extends \ConvertKit_API_V4 {
 	}
 
 	/**
+	 * Update a subscriber's first name in Kit by email.
+	 *
+	 * Looks up the Kit subscriber ID by email, then calls update_subscriber.
+	 * Returns a WP_Error if the subscriber is not found in Kit.
+	 *
+	 * @param string $email      Email address.
+	 * @param string $first_name New first name.
+	 * @param array  $fields     Optional custom fields to update.
+	 * @return array|\WP_Error|null
+	 */
+	public function update_subscriber_name( string $email, string $first_name, array $fields = array() ) {
+		$validate = $this->validate_email( $email );
+		if ( is_wp_error( $validate ) ) {
+			return $validate;
+		}
+
+		$subscriber_id = parent::get_subscriber_id( $email );
+		if ( is_wp_error( $subscriber_id ) ) {
+			return $subscriber_id;
+		}
+
+		if ( false === $subscriber_id ) {
+			return new \WP_Error( self::ERROR_API_ERROR, esc_html__( 'Subscriber not found in Kit.', 'freemkit' ) );
+		}
+
+		return parent::update_subscriber( $subscriber_id, $first_name, '', $fields );
+	}
+
+	/**
 	 * Unsubscribe a subscriber from Kit by email.
 	 *
 	 * @param string $email Email address.

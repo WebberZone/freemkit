@@ -459,9 +459,19 @@ class Settings {
 			'respect_marketing_optout'  => array(
 				'id'      => 'respect_marketing_optout',
 				'name'    => __( 'Respect Marketing Opt-out', 'freemkit' ),
-				'desc'    => __( 'When enabled, users who opt out of marketing on Freemius will be unsubscribed from Kit and blocked from future subscriptions.', 'freemkit' ),
+				'desc'    => __( 'When enabled, users who opt out of marketing on Freemius will be unsubscribed from Kit and blocked from future subscriptions. Configure the Freemius Listener for every plugin to send the user.marketing.opted_out event.', 'freemkit' ),
 				'type'    => 'checkbox',
 				'default' => 1,
+			),
+			'unsubscribe_event_types'   => array(
+				'id'               => 'unsubscribe_event_types',
+				'name'             => __( 'Unsubscribe Trigger Events', 'freemkit' ),
+				'desc'             => __( 'Freemius events that will trigger an unsubscribe from Kit. Defaults to user.marketing.opted_out.', 'freemkit' ),
+				'type'             => 'text',
+				'default'          => 'user.marketing.opted_out',
+				'size'             => 'large',
+				'field_class'      => 'ts_autocomplete',
+				'field_attributes' => self::get_kit_search_field_attributes( 'freemius_events', array( 'create' => true ) ),
 			),
 			'kit_unsubscribe_on_delete' => array(
 				'id'      => 'kit_unsubscribe_on_delete',
@@ -469,6 +479,13 @@ class Settings {
 				'desc'    => __( 'When enabled, deleting a subscriber will also unsubscribe them from Kit.', 'freemkit' ),
 				'type'    => 'checkbox',
 				'default' => 0,
+			),
+			'sync_name_on_change'       => array(
+				'id'      => 'sync_name_on_change',
+				'name'    => __( 'Sync Name on Change', 'freemkit' ),
+				'desc'    => __( "When enabled, a user.name.changed Freemius event will update the subscriber\'s name in Kit and the local database.", 'freemkit' ),
+				'type'    => 'checkbox',
+				'default' => 1,
 			),
 		);
 
