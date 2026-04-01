@@ -8,7 +8,7 @@ This guide walks you through everything needed to get FreemKit running: installi
 
 - WordPress 5.0 or higher
 - PHP 7.4 or higher
-- An active [Kit](https://kit.com/) account
+- An active [Kit](https://partners.kit.com/z6ppnmz4nhnb) (aff.) account
 - One or more plugins sold through [Freemius](https://freemius.com/)
 
 ---
