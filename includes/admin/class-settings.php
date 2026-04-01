@@ -487,6 +487,13 @@ class Settings {
 				'type'    => 'checkbox',
 				'default' => 1,
 			),
+			'enable_audit_log'          => array(
+				'id'      => 'enable_audit_log',
+				'name'    => __( 'Enable Audit Log', 'freemkit' ),
+				'desc'    => __( 'Log webhook events, Kit API calls, and credential changes to the audit log. Disable on high-traffic sites if the overhead is a concern.', 'freemkit' ),
+				'type'    => 'checkbox',
+				'default' => 1,
+			),
 		);
 
 		/**

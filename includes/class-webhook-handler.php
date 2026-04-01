@@ -7,6 +7,7 @@
 
 namespace WebberZone\FreemKit;
 
+use WebberZone\FreemKit\Audit_Log;
 use WebberZone\FreemKit\Kit\Kit_API;
 
 defined( 'ABSPATH' ) || exit;
@@ -120,21 +121,21 @@ class Webhook_Handler {
 	public function process_webhook( string $input ) {
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
-			return new \WP_Error( 'invalid_request', 'Invalid request body or missing plugin ID' );
+			return new \WP_Error( 'invalid_request', __( 'Invalid request body or missing plugin ID', 'freemkit' ) );
 		}
 
 		$plugin_id = $fs_event->plugin_id;
 		if ( ! isset( $this->plugin_configs[ $plugin_id ] ) ) {
-			return new \WP_Error( 'invalid_plugin', 'Plugin ID not found in configuration' );
+			return new \WP_Error( 'invalid_plugin', __( 'Plugin ID not found in configuration', 'freemkit' ) );
 		}
 
 		if ( ! isset( $fs_event->objects ) || ! isset( $fs_event->objects->user ) ) {
-			return new \WP_Error( 'invalid_data', 'Missing user data in request.' );
+			return new \WP_Error( 'invalid_data', __( 'Missing user data in request.', 'freemkit' ) );
 		}
 
 		$user = $fs_event->objects->user;
 		if ( empty( $user->email ) || ! filter_var( $user->email, FILTER_VALIDATE_EMAIL ) ) {
-			return new \WP_Error( 'invalid_email', 'Invalid or missing email address.' );
+			return new \WP_Error( 'invalid_email', __( 'Invalid or missing email address.', 'freemkit' ) );
 		}
 
 		$freemius_user_id = isset( $user->id ) ? (int) $user->id : 0;
@@ -161,11 +162,9 @@ class Webhook_Handler {
 		$paid_event_types = $this->resolve_list_config( $plugin_config, 'paid_event_types', '', apply_filters( 'freemkit_default_paid_event_types', $default_paid_event_types, $plugin_config ) );
 		$free_event_types = Freemius::normalize_event_types( $free_event_types );
 		$paid_event_types = Freemius::normalize_event_types( $paid_event_types );
-		$free_event_types = array_slice( $free_event_types, 0, 1 );
-		$paid_event_types = array_slice( $paid_event_types, 0, 1 );
 
 		if ( ! isset( $fs_event->type ) ) {
-			return new \WP_Error( 'invalid_event', 'Missing event type in request.' );
+			return new \WP_Error( 'invalid_event', __( 'Missing event type in request.', 'freemkit' ) );
 		}
 
 		$event_type               = Freemius::normalize_event_type( (string) $fs_event->type );
@@ -203,9 +202,16 @@ class Webhook_Handler {
 			$active_form_ids = $paid_form_ids;
 			$active_tag_ids  = $paid_tag_ids;
 		} else {
+			Audit_Log::add(
+				'webhook_ignored',
+				array(
+					'event_type' => $event_type,
+					'plugin_id'  => (string) $plugin_id,
+				)
+			);
 			return array(
 				'status'  => 'ignored',
-				'message' => 'Event type not mapped; ignored.',
+				'message' => __( 'Event type not mapped; ignored.', 'freemkit' ),
 			);
 		}
 
@@ -218,7 +224,7 @@ class Webhook_Handler {
 
 				return array(
 					'status'  => 'ignored',
-					'message' => 'Subscriber has opted out of marketing; subscription blocked.',
+					'message' => __( 'Subscriber has opted out of marketing; subscription blocked.', 'freemkit' ),
 				);
 			}
 		}
@@ -250,7 +256,17 @@ class Webhook_Handler {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Kit API Error: %s', $api_result->get_error_message() ) );
 			}
-			return new \WP_Error( 'api_error', 'Processed with API errors' );
+			Audit_Log::add(
+				'webhook_kit_error',
+				array(
+					'event_type' => $event_type,
+					'plugin_id'  => (string) $plugin_id,
+					'email'      => $email,
+					'error'      => $api_result->get_error_message(),
+				),
+				'error'
+			);
+			return new \WP_Error( 'api_error', __( 'Processed with API errors', 'freemkit' ) );
 		}
 
 		$subscriber = new Subscriber(
@@ -267,7 +283,16 @@ class Webhook_Handler {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Database Error: %s', $db_result->get_error_message() ) );
 			}
-			return new \WP_Error( 'db_error', 'Processed with database errors' );
+			Audit_Log::add(
+				'webhook_db_error',
+				array(
+					'event_type' => $event_type,
+					'plugin_id'  => (string) $plugin_id,
+					'error'      => $db_result->get_error_message(),
+				),
+				'error'
+			);
+			return new \WP_Error( 'db_error', __( 'Processed with database errors', 'freemkit' ) );
 		}
 
 		$event = new Subscriber_Event(
@@ -289,9 +314,19 @@ class Webhook_Handler {
 			error_log( sprintf( '[FreemKit] Event insert error: %s', $event_result->get_error_message() ) );
 		}
 
+		Audit_Log::add(
+			'webhook_processed',
+			array(
+				'event_type' => $event_type,
+				'plugin_id'  => (string) $plugin_id,
+				'user_type'  => $user_type,
+				'email'      => $email,
+			)
+		);
+
 		return array(
 			'status'  => 'success',
-			'message' => __( 'Webhook processed successfully', 'freemkit' ),
+			'message' => __( 'Webhook processed successfully.', 'freemkit' ),
 		);
 	}
 
@@ -369,7 +404,7 @@ class Webhook_Handler {
 		if ( ! $respect_marketing_optout ) {
 			return array(
 				'status'  => 'ignored',
-				'message' => 'Marketing opt-out handling is disabled.',
+				'message' => __( 'Marketing opt-out handling is disabled.', 'freemkit' ),
 			);
 		}
 
@@ -389,7 +424,7 @@ class Webhook_Handler {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Database Error during marketing opt-out: %s', $db_result->get_error_message() ) );
 			}
-			return new \WP_Error( 'db_error', 'Marketing opt-out recorded with database errors' );
+			return new \WP_Error( 'db_error', __( 'Marketing opt-out recorded with database errors', 'freemkit' ) );
 		}
 
 		$event = new Subscriber_Event(
@@ -420,7 +455,7 @@ class Webhook_Handler {
 
 		return array(
 			'status'  => 'success',
-			'message' => 'Marketing opt-out processed; subscriber unsubscribed from Kit.',
+			'message' => __( 'Marketing opt-out processed; subscriber unsubscribed from Kit.', 'freemkit' ),
 		);
 	}
 
@@ -457,7 +492,7 @@ class Webhook_Handler {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Database Error during marketing opt-in: %s', $db_result->get_error_message() ) );
 			}
-			return new \WP_Error( 'db_error', 'Marketing opt-in recorded with database errors' );
+			return new \WP_Error( 'db_error', __( 'Marketing opt-in recorded with database errors', 'freemkit' ) );
 		}
 
 		$event = new Subscriber_Event(
@@ -481,7 +516,7 @@ class Webhook_Handler {
 
 		return array(
 			'status'  => 'success',
-			'message' => 'Marketing opt-in processed; subscriber status set to active.',
+			'message' => __( 'Marketing opt-in processed; subscriber status set to active.', 'freemkit' ),
 		);
 	}
 
@@ -503,7 +538,7 @@ class Webhook_Handler {
 		if ( ! $sync_name_on_change ) {
 			return array(
 				'status'  => 'ignored',
-				'message' => 'Name change sync is disabled.',
+				'message' => __( 'Name change sync is disabled.', 'freemkit' ),
 			);
 		}
 
@@ -518,7 +553,7 @@ class Webhook_Handler {
 			}
 			return array(
 				'status'  => 'ignored',
-				'message' => 'Subscriber not found in local database; skipping name sync.',
+				'message' => __( 'Subscriber not found in local database; skipping name sync.', 'freemkit' ),
 			);
 		}
 
@@ -527,7 +562,7 @@ class Webhook_Handler {
 
 		$kit_fields      = array();
 		$last_name_field = Options_API::get_option( 'last_name_field' );
-		if ( $last_name_field ) {
+		if ( $last_name_field && $last_name ) {
 			$kit_fields[ $this->api->resolve_custom_field_key( (string) $last_name_field ) ] = $last_name;
 		}
 
@@ -553,7 +588,7 @@ class Webhook_Handler {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Database Error during name sync: %s', $db_result->get_error_message() ) );
 			}
-			return new \WP_Error( 'db_error', 'Name change processed with database errors' );
+			return new \WP_Error( 'db_error', __( 'Name change processed with database errors', 'freemkit' ) );
 		}
 
 		$event = new Subscriber_Event(
@@ -577,7 +612,7 @@ class Webhook_Handler {
 
 		return array(
 			'status'  => 'success',
-			'message' => 'Name change processed successfully.',
+			'message' => __( 'Name change processed successfully.', 'freemkit' ),
 		);
 	}
 
@@ -706,19 +741,19 @@ class Webhook_Handler {
 	public function validate_webhook_signature( string $input, string $signature ) {
 		$fs_event = json_decode( $input );
 		if ( empty( $fs_event ) || empty( $fs_event->plugin_id ) ) {
-			return new \WP_Error( 'invalid_request', 'Invalid request body or missing plugin ID' );
+			return new \WP_Error( 'invalid_request', __( 'Invalid request body or missing plugin ID', 'freemkit' ) );
 		}
 
 		$plugin_id = $fs_event->plugin_id;
 		if ( ! isset( $this->plugin_configs[ $plugin_id ] ) ) {
-			return new \WP_Error( 'invalid_plugin', 'Plugin ID not found in configuration' );
+			return new \WP_Error( 'invalid_plugin', __( 'Plugin ID not found in configuration', 'freemkit' ) );
 		}
 
 		$plugin_config = $this->plugin_configs[ $plugin_id ];
 		$hash          = hash_hmac( 'sha256', $input, $plugin_config['secret_key'] );
 
 		if ( ! hash_equals( $hash, $signature ) ) {
-			return new \WP_Error( 'invalid_signature', 'Invalid signature' );
+			return new \WP_Error( 'invalid_signature', __( 'Invalid signature', 'freemkit' ) );
 		}
 
 		return true;
@@ -736,7 +771,7 @@ class Webhook_Handler {
 		if ( null === $timestamp ) {
 			$require_timestamp = (bool) apply_filters( 'freemkit_webhook_require_timestamp', false, $request );
 			if ( $require_timestamp ) {
-				return new \WP_Error( 'missing_timestamp', 'Webhook timestamp is required but missing.' );
+				return new \WP_Error( 'missing_timestamp', __( 'Webhook timestamp is required but missing.', 'freemkit' ) );
 			}
 			return true;
 		}
@@ -747,7 +782,7 @@ class Webhook_Handler {
 		}
 
 		if ( abs( time() - $timestamp ) > $max_age ) {
-			return new \WP_Error( 'stale_webhook', 'Webhook timestamp is outside the accepted time window.' );
+			return new \WP_Error( 'stale_webhook', __( 'Webhook timestamp is outside the accepted time window.', 'freemkit' ) );
 		}
 
 		return true;
@@ -860,7 +895,7 @@ class Webhook_Handler {
 		if ( $this->is_duplicate_webhook( $event_key ) ) {
 			return array(
 				'status'  => 'ignored',
-				'message' => 'Duplicate webhook ignored.',
+				'message' => __( 'Duplicate webhook ignored.', 'freemkit' ),
 			);
 		}
 
@@ -879,7 +914,7 @@ class Webhook_Handler {
 				$this->process_queued_webhook( $event_key );
 				return array(
 					'status'  => 'processed',
-					'message' => 'Webhook processed immediately because scheduling was unavailable.',
+					'message' => __( 'Webhook processed immediately because scheduling was unavailable.', 'freemkit' ),
 				);
 			}
 		}
@@ -894,13 +929,13 @@ class Webhook_Handler {
 			$this->process_queued_webhook( $event_key );
 			return array(
 				'status'  => 'processed',
-				'message' => 'Webhook processed immediately because WP-Cron is disabled.',
+				'message' => __( 'Webhook processed immediately because WP-Cron is disabled.', 'freemkit' ),
 			);
 		}
 
 		return array(
 			'status'  => 'queued',
-			'message' => 'Webhook accepted for asynchronous processing.',
+			'message' => __( 'Webhook accepted for asynchronous processing.', 'freemkit' ),
 		);
 	}
 

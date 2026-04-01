@@ -8,8 +8,8 @@
 
 namespace WebberZone\FreemKit\Admin;
 
+use WebberZone\FreemKit\Audit_Log;
 use WebberZone\FreemKit\Kit\Kit_API;
-use WebberZone\FreemKit\Kit\Kit_Audit_Log;
 use WebberZone\FreemKit\Kit\Kit_Settings;
 use WebberZone\FreemKit\Util\Hook_Registry;
 
@@ -50,7 +50,7 @@ class Kit_OAuth {
 
 		// If ConvertKit plugin owns credentials, FreemKit stays read-only.
 		if ( $settings->using_convertkit_credentials() && isset( $_GET['code'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			Kit_Audit_Log::add( 'oauth_callback_skipped_convertkit_owned' );
+			Audit_Log::add( 'oauth_callback_skipped_convertkit_owned' );
 			Admin::add_notice( esc_html__( 'Connection is managed by the ConvertKit plugin. Reconnect from that plugin if needed.', 'freemkit' ), 'notice-warning' );
 			wp_safe_redirect( $this->get_settings_url() );
 			exit;
@@ -59,7 +59,7 @@ class Kit_OAuth {
 		if ( isset( $_GET['freemkit_oauth_disconnect'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			check_admin_referer( 'freemkit_oauth_disconnect' );
 			if ( $settings->using_convertkit_credentials() ) {
-				Kit_Audit_Log::add( 'disconnect_skipped_convertkit_owned' );
+				Audit_Log::add( 'disconnect_skipped_convertkit_owned' );
 				Admin::add_notice( esc_html__( 'Connection is managed by the ConvertKit plugin. Disconnect it there if needed.', 'freemkit' ), 'notice-warning' );
 				wp_safe_redirect( $this->get_settings_url() );
 				exit;
@@ -67,7 +67,7 @@ class Kit_OAuth {
 
 			$settings->delete_credentials();
 			$this->clear_kit_cache();
-			Kit_Audit_Log::add( 'disconnect_local_success' );
+			Audit_Log::add( 'disconnect_local_success' );
 			Admin::add_notice( esc_html__( 'Disconnected from Kit.', 'freemkit' ), 'notice-success' );
 			wp_safe_redirect( $this->get_settings_url() );
 			exit;
@@ -80,7 +80,7 @@ class Kit_OAuth {
 		// Verify the OAuth state parameter to prevent CSRF attacks and recover the return URL.
 		$redirect_url = $this->verify_oauth_state_and_get_redirect(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( is_wp_error( $redirect_url ) ) {
-			Kit_Audit_Log::add( 'oauth_state_invalid', array( 'error' => $redirect_url->get_error_message() ), 'warning' );
+			Audit_Log::add( 'oauth_state_invalid', array( 'error' => $redirect_url->get_error_message() ), 'warning' );
 			Admin::add_notice( esc_html__( 'Kit OAuth failed: invalid state parameter. Please try connecting again.', 'freemkit' ), 'notice-error' );
 			wp_safe_redirect( $this->get_settings_url() );
 			exit;
@@ -90,7 +90,7 @@ class Kit_OAuth {
 		$result             = $api->get_access_token( $authorization_code );
 
 		if ( is_wp_error( $result ) ) {
-			Kit_Audit_Log::add( 'oauth_connect_failed', array( 'error' => $result->get_error_message() ), 'warning' );
+			Audit_Log::add( 'oauth_connect_failed', array( 'error' => $result->get_error_message() ), 'warning' );
 
 			/* translators: %s: Error message. */
 			Admin::add_notice( sprintf( esc_html__( 'Kit OAuth failed: %s', 'freemkit' ), $result->get_error_message() ), 'notice-error' );
@@ -101,7 +101,7 @@ class Kit_OAuth {
 
 		$settings->update_credentials( $result );
 		$this->clear_kit_cache();
-		Kit_Audit_Log::add( 'oauth_connect_success' );
+		Audit_Log::add( 'oauth_connect_success' );
 		Admin::add_notice( esc_html__( 'Successfully connected to Kit via OAuth.', 'freemkit' ), 'notice-success' );
 		wp_safe_redirect( $redirect_url );
 		exit;

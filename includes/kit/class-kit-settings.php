@@ -8,6 +8,7 @@
 
 namespace WebberZone\FreemKit\Kit;
 
+use WebberZone\FreemKit\Audit_Log;
 use WebberZone\FreemKit\Options_API;
 
 /**
@@ -124,13 +125,13 @@ class Kit_Settings {
 	 */
 	public function update_credentials( array $result ): void {
 		if ( empty( $result['access_token'] ) || empty( $result['refresh_token'] ) ) {
-			Kit_Audit_Log::add( 'credentials_update_skipped_missing_tokens', array(), 'warning' );
+			Audit_Log::add( 'credentials_update_skipped_missing_tokens', array(), 'warning' );
 			return;
 		}
 
 		// Keep ConvertKit credentials as the single source of truth when available.
 		if ( $this->using_convertkit_credentials() ) {
-			Kit_Audit_Log::add( 'credentials_update_skipped_convertkit_owned' );
+			Audit_Log::add( 'credentials_update_skipped_convertkit_owned' );
 			return;
 		}
 
@@ -147,7 +148,7 @@ class Kit_Settings {
 			$refresh_at = $token_expiry - $this->get_refresh_advance_seconds( $expires_in );
 			$refresh_at = max( time() + MINUTE_IN_SECONDS, $refresh_at );
 			wp_schedule_single_event( $refresh_at, self::CRON_REFRESH_HOOK );
-			Kit_Audit_Log::add(
+			Audit_Log::add(
 				'credentials_updated_local',
 				array(
 					'token_expiry' => (string) $token_expiry,
@@ -155,7 +156,7 @@ class Kit_Settings {
 				)
 			);
 		} else {
-			Kit_Audit_Log::add( 'credentials_updated_local_no_expiry' );
+			Audit_Log::add( 'credentials_updated_local_no_expiry' );
 		}
 	}
 
@@ -167,7 +168,7 @@ class Kit_Settings {
 	public function delete_credentials(): void {
 		// Do not remove credentials owned by the ConvertKit plugin.
 		if ( $this->using_convertkit_credentials() ) {
-			Kit_Audit_Log::add( 'credentials_delete_skipped_convertkit_owned' );
+			Audit_Log::add( 'credentials_delete_skipped_convertkit_owned' );
 			return;
 		}
 
@@ -175,7 +176,7 @@ class Kit_Settings {
 		Options_API::delete_option( self::OPTION_REFRESH_TOKEN );
 		Options_API::delete_option( self::OPTION_TOKEN_EXPIRES );
 		wp_clear_scheduled_hook( self::CRON_REFRESH_HOOK );
-		Kit_Audit_Log::add( 'credentials_deleted_local', array(), 'warning' );
+		Audit_Log::add( 'credentials_deleted_local', array(), 'warning' );
 	}
 
 	/**
