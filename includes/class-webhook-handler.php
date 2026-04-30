@@ -251,6 +251,19 @@ class Webhook_Handler {
 
 		$api_result = $this->subscribe_to_forms( $active_form_ids, $email, $first_name, $kit_fields, $active_tag_ids );
 
+		if ( is_null( $api_result ) ) {
+			Audit_Log::add(
+				'webhook_no_forms',
+				array(
+					'event_type' => $event_type,
+					'plugin_id'  => (string) $plugin_id,
+					'email'      => $email,
+				),
+				'warning'
+			);
+			return new \WP_Error( 'no_forms', __( 'No Kit forms configured for this event type.', 'freemkit' ) );
+		}
+
 		if ( is_wp_error( $api_result ) ) {
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -948,6 +961,11 @@ class Webhook_Handler {
 	public function process_queued_webhook( string $event_key ): void {
 		$payload = get_transient( self::QUEUE_PREFIX . $event_key );
 		if ( ! is_array( $payload ) || empty( $payload['input'] ) ) {
+			Audit_Log::add(
+				'webhook_payload_missing',
+				array( 'event_key' => $event_key ),
+				'error'
+			);
 			return;
 		}
 
@@ -961,7 +979,7 @@ class Webhook_Handler {
 		$max_attempts  = (int) apply_filters( 'freemkit_webhook_max_retries', 3, $event_key );
 		$next_attempts = $attempts + 1;
 
-		if ( $next_attempts >= $max_attempts ) {
+		if ( $next_attempts > $max_attempts ) {
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log( sprintf( '[FreemKit] Webhook dropped after retries (%s): %s', $event_key, $result->get_error_message() ) );
