@@ -20,11 +20,12 @@ if ( ! defined( 'WPINC' ) ) {
  */
 class Options_API {
 
+
 	/**
 	 * Settings option name.
 	 *
 	 * @since 1.0.0
-	 * @var string
+	 * @var   string
 	 */
 	const SETTINGS_OPTION = 'freemkit_settings';
 
@@ -32,7 +33,7 @@ class Options_API {
 	 * Filter prefix.
 	 *
 	 * @since 1.0.0
-	 * @var string
+	 * @var   string
 	 */
 	const FILTER_PREFIX = 'freemkit';
 
@@ -40,7 +41,7 @@ class Options_API {
 	 * Settings array.
 	 *
 	 * @since 1.0.0
-	 * @var array
+	 * @var   array
 	 */
 	public static $settings;
 
@@ -49,7 +50,7 @@ class Options_API {
 	 *
 	 * Retrieves all plugin settings
 	 *
-	 * @since 1.0.0
+	 * @since  1.0.0
 	 * @return array FreemKit settings
 	 */
 	public static function get_settings() {
@@ -134,7 +135,7 @@ class Options_API {
 		}
 
 		// If no value, delete.
-		if ( empty( $value ) ) {
+		if ( is_null( $value ) ) {
 			return self::delete_option( $key );
 		}
 
@@ -206,7 +207,7 @@ class Options_API {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param string $key Key of the option to fetch.
+	 * @param  string $key Key of the option to fetch.
 	 * @return mixed
 	 */
 	public static function get_default_option( $key = '' ) {
@@ -234,7 +235,7 @@ class Options_API {
 	/**
 	 * Encrypts an API key using either OpenSSL or Sodium, if available.
 	 *
-	 * @param string $key The API key to encrypt.
+	 * @param  string $key The API key to encrypt.
 	 * @return string The encrypted API key, or the plain text key if no secure method is available.
 	 */
 	public static function encrypt_api_key( $key ) {
@@ -263,7 +264,7 @@ class Options_API {
 
 		// Log error and return plain text (not ideal, but prevents breaking functionality).
 		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+         // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( self::FILTER_PREFIX . ': No secure encryption method available.' );
 		}
 
@@ -273,7 +274,7 @@ class Options_API {
 	/**
 	 * Decrypts an API key using either OpenSSL or Sodium, if available.
 	 *
-	 * @param string $encrypted_key The encrypted API key to decrypt.
+	 * @param  string $encrypted_key The encrypted API key to decrypt.
 	 * @return string The decrypted API key, or the encrypted key if no secure method is available.
 	 */
 	public static function decrypt_api_key( $encrypted_key ) {
@@ -322,7 +323,7 @@ class Options_API {
 
 		// Log error and return encrypted key.
 		if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+         // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( self::FILTER_PREFIX . ': No secure decryption method available.' );
 		}
 
