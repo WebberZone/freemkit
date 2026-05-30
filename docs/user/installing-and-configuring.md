@@ -1,3 +1,7 @@
+---
+tags: [freemkit,installation]
+---
+
 # Installing and Configuring FreemKit
 
 This guide walks you through everything needed to get FreemKit running: installing the plugin, connecting your Kit account, and adding your Freemius products.
@@ -33,7 +37,7 @@ FreemKit can share credentials with the official [Kit WordPress plugin](https://
 
 1. Go to **Settings → FreemKit** and open the **Kit** tab (or proceed through the wizard).
 2. Click **Connect with Kit**.
-3. You will be redirected to Kit's authorisation page. Log in and approve access.
+3. You will be redirected to Kit's authorization page. Log in and approve access.
 4. You will be redirected back to WordPress. A green "Connected" status confirms the connection.
 
 To verify the connection at any time, click **Test Kit Connection** on the Kit settings tab.
@@ -93,7 +97,7 @@ See [Event Mapping](event-mapping.md) for a full walkthrough.
 
 ---
 
-## Step 6 — Configure Subscriber Behaviour (Optional)
+## Step 6 — Configure Subscriber Behavior (Optional)
 
 These settings control how FreemKit handles edge cases like marketing opt-outs and name changes. You can leave the defaults in place initially and adjust as needed.
 

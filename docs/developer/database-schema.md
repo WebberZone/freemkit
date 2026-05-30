@@ -1,3 +1,7 @@
+---
+tags: [database,developer,freemkit]
+---
+
 # Database Schema
 
 FreemKit creates two tables on activation, both using the standard WordPress table prefix. The schema version is stored in the `freemkit_db_version` option and migrations run automatically on plugin update.
@@ -99,8 +103,8 @@ FreemKit stores the following entries in `wp_options`:
 
 | Option Key | Autoloaded | Description |
 |---|---|---|
-| `freemkit_settings` | Yes | Serialised array containing all plugin settings |
-| `freemkit_audit_log` | No | Serialised audit log entries array (max 200) |
+| `freemkit_settings` | Yes | Serialized array containing all plugin settings |
+| `freemkit_audit_log` | No | Serialized audit log entries array (max 200) |
 | `freemkit_db_version` | Yes | Installed database schema version |
 | `freemkit_wizard_completed` | Yes | `1` when the setup wizard has been completed |
 | `freemkit_wizard_current_step` | Yes | Current wizard step number (integer) |

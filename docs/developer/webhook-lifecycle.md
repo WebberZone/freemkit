@@ -1,3 +1,7 @@
+---
+tags: [developer,freemkit,webhook]
+---
+
 # Webhook Lifecycle
 
 This document describes how FreemKit receives, validates, queues, and processes a Freemius webhook event from end to end.
@@ -92,7 +96,7 @@ add_filter( 'freemkit_webhook_replay_ttl', function( $ttl ) {
 
 ## 4. Queuing
 
-FreemKit does not process webhooks synchronously. After passing all validation checks, the event payload is serialised and stored in a transient, then a WP-Cron event is scheduled:
+FreemKit does not process webhooks synchronously. After passing all validation checks, the event payload is serialized and stored in a transient, then a WP-Cron event is scheduled:
 
 ```
 Hook:    freemkit_process_webhook_event
@@ -109,7 +113,7 @@ The REST endpoint returns a `202 Accepted` response immediately, before any Kit 
 
 When the cron event fires, `process_queued_webhook()` retrieves the payload from the transient and calls the main processing logic.
 
-### Retry behaviour
+### Retry behavior
 
 If processing fails (for example, due to a Kit API error), FreemKit reschedules the cron event with a linear delay capped at 5 minutes:
 

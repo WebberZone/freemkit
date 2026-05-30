@@ -1,3 +1,7 @@
+---
+tags: [event-mapping,freemkit]
+---
+
 # Event Mapping
 
 Event mapping tells FreemKit what to do when Freemius sends a webhook. You define which events represent a "free" user, which represent a "paid" user, and which Kit forms and tags each user type should be subscribed to.
@@ -45,7 +49,7 @@ You can replace these defaults with any combination of the Freemius events liste
 
 | Field | Description |
 |---|---|
-| **Paid Event Types** | Freemius events that identify a paid user (licence purchase, subscription, etc.). |
+| **Paid Event Types** | Freemius events that identify a paid user (license purchase, subscription, etc.). |
 | **Paid Form IDs** | Kit form IDs for paid users. |
 | **Paid Tag IDs** | Kit tag IDs for paid users. |
 
@@ -93,7 +97,7 @@ The following events can be used in free or paid event type fields.
 |---|---|
 | `user.trial.started` | User started a trial (user-level) |
 
-### Payment and Licence Events
+### Payment and License Events
 
 | Event | Description |
 |---|---|
@@ -104,10 +108,10 @@ The following events can be used in free or paid event type fields.
 | `subscription.created` | Subscription created |
 | `subscription.cancelled` | Subscription cancelled |
 | `subscription.renewal.failed.last` | Final subscription renewal attempt failed |
-| `license.created` | Licence issued |
-| `license.activated` | Licence activated |
-| `license.cancelled` | Licence cancelled |
-| `license.expired` | Licence expired |
+| `license.created` | License issued |
+| `license.activated` | License activated |
+| `license.cancelled` | License cancelled |
+| `license.expired` | License expired |
 
 ### User Events
 

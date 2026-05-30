@@ -1,6 +1,10 @@
+---
+tags: [freemkit,overview]
+---
+
 # FreemKit Documentation
 
-FreemKit connects [Freemius](https://freemius.com/) software licensing with [Kit](https://partners.kit.com/z6ppnmz4nhnb) (aff.) (formerly ConvertKit) email marketing. When a Freemius event fires — a new install, a licence purchase, a cancellation — FreemKit subscribes or unsubscribes the customer in Kit automatically.
+FreemKit connects [Freemius](https://freemius.com/) software licensing with [Kit](https://partners.kit.com/z6ppnmz4nhnb) (aff.) (formerly ConvertKit) email marketing. When a Freemius event fires — a new install, a license purchase, a cancellation — FreemKit subscribes or unsubscribes the customer in Kit automatically.
 
 ---
 

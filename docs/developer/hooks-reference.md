@@ -1,3 +1,7 @@
+---
+tags: [developer,freemkit,hooks]
+---
+
 # Hooks Reference
 
 All FreemKit actions and filters are listed here. Hooks follow the `freemkit_` prefix convention. All hooks can be registered using standard WordPress `add_action()` / `add_filter()` calls, or via `Hook_Registry::add_action()` / `Hook_Registry::add_filter()` if extending from within the plugin.
@@ -310,7 +314,7 @@ $fields = apply_filters( 'freemkit_settings_subscribers', $fields );
 
 ---
 
-### Webhook Behaviour
+### Webhook Behavior
 
 #### `freemkit_webhook_require_timestamp`
 

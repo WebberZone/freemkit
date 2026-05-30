@@ -1,6 +1,10 @@
+---
+tags: [freemkit,settings]
+---
+
 # Settings Reference
 
-All FreemKit settings are found at **Settings → FreemKit** in the WordPress admin. Settings are organised across three tabs: **Kit**, **Freemius**, and **Subscribers**.
+All FreemKit settings are found at **Settings → FreemKit** in the WordPress admin. Settings are organized across three tabs: **Kit**, **Freemius**, and **Subscribers**.
 
 ---
 
@@ -10,7 +14,7 @@ All FreemKit settings are found at **Settings → FreemKit** in the WordPress ad
 
 | Setting | Description |
 |---|---|
-| **Connect with Kit** | Launches the OAuth flow to authorise FreemKit with your Kit account. After authorising, a "Connected" status is shown. |
+| **Connect with Kit** | Launches the OAuth flow to authorize FreemKit with your Kit account. After authorizing, a "Connected" status is shown. |
 | **Test Kit Connection** | Sends a test request to the Kit API to verify the current credentials are valid. |
 | **Disconnect** | Revokes the stored tokens and disconnects from Kit. |
 

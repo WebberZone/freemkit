@@ -1,3 +1,7 @@
+---
+tags: [freemkit,subscribers]
+---
+
 # Subscribers Screen
 
 The Subscribers screen shows every customer FreemKit has processed. It is a local record — it does not replace your Kit subscriber list, but it lets you see who FreemKit has acted on and when.
