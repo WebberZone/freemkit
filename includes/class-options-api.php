@@ -124,8 +124,8 @@ class Options_API {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param  string          $key   The Key to update.
-	 * @param  string|bool|int $value The value to set the key to.
+	 * @param  string               $key   The Key to update.
+	 * @param  string|bool|int|null $value The value to set the key to.
 	 * @return boolean True if updated, false if not.
 	 */
 	public static function update_option( $key = '', $value = false ) {

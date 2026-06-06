@@ -92,7 +92,6 @@ class Runtime {
 			$plugin_id                    = sanitize_text_field( (string) $plugin_fields['id'] );
 			$plugin_configs[ $plugin_id ] = array(
 				'slug'             => sanitize_title( (string) ( $plugin_fields['name'] ?? '' ) ),
-				'public_key'       => (string) ( $plugin_fields['public_key'] ?? '' ),
 				'secret_key'       => (string) ( $plugin_fields['secret_key'] ?? '' ),
 				'free_form_ids'    => (string) ( $plugin_fields['free_form_ids'] ?? '' ),
 				'free_tag_ids'     => (string) ( $plugin_fields['free_tag_ids'] ?? '' ),

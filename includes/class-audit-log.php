@@ -97,7 +97,7 @@ class Audit_Log {
 	 *
 	 * @return array<int,array<string,mixed>>
 	 */
-	private static function read(): array {
+	protected static function read(): array {
 		$value = get_option( self::OPTION, array() );
 		return is_array( $value ) ? $value : array();
 	}
@@ -110,7 +110,7 @@ class Audit_Log {
 	 * @param array<int,array<string,mixed>> $entries Entries to persist.
 	 * @return void
 	 */
-	private static function write( array $entries ): void {
+	protected static function write( array $entries ): void {
 		if ( false === get_option( self::OPTION, false ) ) {
 			add_option( self::OPTION, $entries, '', false );
 			return;
@@ -127,7 +127,7 @@ class Audit_Log {
 	 * @param array $context Raw context values.
 	 * @return array Sanitized context.
 	 */
-	private static function sanitize_context( array $context ): array {
+	protected static function sanitize_context( array $context ): array {
 		$clean = array();
 		foreach ( $context as $key => $value ) {
 			$sanitized_key = sanitize_key( (string) $key );
@@ -154,7 +154,7 @@ class Audit_Log {
 	 * @param string $value String that may contain an email address.
 	 * @return string Value with email addresses masked.
 	 */
-	private static function mask_email( string $value ): string {
+	protected static function mask_email( string $value ): string {
 		return (string) preg_replace_callback(
 			'/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/',
 			static function ( array $matches ): string {

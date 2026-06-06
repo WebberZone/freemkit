@@ -116,7 +116,7 @@ class Kit_OAuth {
 	 *
 	 * @return string|\WP_Error Redirect URL on success, WP_Error if state is present but invalid.
 	 */
-	private function verify_oauth_state_and_get_redirect() {
+	protected function verify_oauth_state_and_get_redirect() {
 		if ( ! isset( $_GET['state'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			// No state sent — fall back gracefully (some OAuth flows omit it).
 			return $this->get_settings_url();

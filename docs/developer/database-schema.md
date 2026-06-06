@@ -19,13 +19,17 @@ CREATE TABLE {prefix}freemkit_subscribers (
     first_name       VARCHAR(50)         DEFAULT '',
     last_name        VARCHAR(50)         DEFAULT '',
     status           VARCHAR(20)         NOT NULL DEFAULT 'active',
-    marketing_optout TINYINT(1)          NOT NULL DEFAULT 0,
+    marketing        TINYINT(1)          NOT NULL DEFAULT 1,
+    freemius_user_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+    freemius_created DATETIME            DEFAULT NULL,
+    meta             LONGTEXT            DEFAULT NULL,
     created          DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
     modified         DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY email (email),
     KEY status (status),
-    KEY marketing_optout (marketing_optout)
+    KEY marketing (marketing),
+    KEY freemius_user_id (freemius_user_id)
 );
 ```
 
@@ -38,14 +42,17 @@ CREATE TABLE {prefix}freemkit_subscribers (
 | `first_name` | `VARCHAR(50)` | First name as received from Freemius |
 | `last_name` | `VARCHAR(50)` | Last name as received from Freemius |
 | `status` | `VARCHAR(20)` | `active` or `opted_out` |
-| `marketing_optout` | `TINYINT(1)` | `1` if the user has opted out of marketing. FreemKit will not subscribe opted-out users when the Respect Marketing Opt-Out setting is enabled |
+| `marketing` | `TINYINT(1)` | `1` if the user has opted in to marketing. Maps to Freemius `is_marketing_allowed`. FreemKit will not subscribe users with `marketing = 0` when the Respect Marketing Opt-Out setting is enabled |
+| `freemius_user_id` | `BIGINT UNSIGNED` | Freemius user ID for cross-referencing |
+| `freemius_created` | `DATETIME` | Account creation date from Freemius |
+| `meta` | `LONGTEXT` | JSON catch-all for fields like `gross`, `email_status`, `is_verified`, `last_login_at` |
 | `created` | `DATETIME` | Timestamp of first record insertion |
 | `modified` | `DATETIME` | Timestamp of last update (auto-managed by MySQL) |
 
 ### Notes
 
 - The `email` unique key means records are matched and upserted by email. A subscriber who triggers multiple events is stored as a single row — only their data is updated, not duplicated.
-- `status` and `marketing_optout` are separate fields because `opted_out` status is a user-visible list-management state, whereas `marketing_optout` reflects Freemius's marketing consent flag specifically.
+- `status` and `marketing` are separate fields because `opted_out` status is a user-visible list-management state, whereas `marketing` reflects Freemius's marketing consent flag (`is_marketing_allowed`).
 
 ---
 

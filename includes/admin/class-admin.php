@@ -33,6 +33,14 @@ class Admin {
 	public $settings;
 
 	/**
+	 * Sync admin object.
+	 *
+	 * @since 1.0.0
+	 * @var Sync_Admin
+	 */
+	public Sync_Admin $sync_admin;
+
+	/**
 	 * Subscribers list table object.
 	 *
 	 * @since 1.0.0
@@ -93,6 +101,9 @@ class Admin {
 		// Initialize subscribers list.
 		$this->subscribers_list = new Subscribers_List( $database );
 
+		// Initialize sync admin.
+		$this->sync_admin = new Sync_Admin( $database );
+
 		// Add admin menu.
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 	}
@@ -150,7 +161,7 @@ class Admin {
 	 *
 	 * @return array<string, mixed>
 	 */
-	private function get_admin_banner_config(): array {
+	protected function get_admin_banner_config(): array {
 		return array(
 			'capability' => 'manage_options',
 			'prefix'     => 'freemkit',
@@ -175,6 +186,13 @@ class Admin {
 					'type'       => 'secondary',
 					'page_slugs' => array( 'freemkit_subscribers' ),
 					'screen_ids' => array( 'users_page_freemkit_subscribers' ),
+				),
+				'sync'        => array(
+					'label'      => __( 'Sync', 'freemkit' ),
+					'url'        => admin_url( 'options-general.php?page=freemkit_sync' ),
+					'type'       => 'secondary',
+					'page_slugs' => array( 'freemkit_sync' ),
+					'screen_ids' => array( 'settings_page_freemkit_sync' ),
 				),
 				'plugins'     => array(
 					'label'  => esc_html__( 'WebberZone Plugins', 'freemkit' ),

@@ -111,7 +111,7 @@ jQuery(document).ready(function ($) {
 		var $status = data.row.find('.freemkit-freemius-status');
 
 		if (!data.plugin_id || !data.public_key || !data.secret_key) {
-			setStatus($status, false, adminString('freemius_missing_fields', 'Product ID, public key, and secret key are required.'));
+			setStatus($status, false, adminString('freemius_missing_fields', 'Product ID, Public Key, and Secret Key are required.'));
 			return;
 		}
 

@@ -270,7 +270,7 @@ class Settings {
 			'plugins'               => array(
 				'id'                => 'plugins',
 				'name'              => __( 'Freemius Plugins', 'freemkit' ),
-				'desc'              => __( 'Use "Validate Keys" on each plugin row to verify the Product ID, public key, and secret key against Freemius before saving.', 'freemkit' ),
+				'desc'              => __( 'Use "Validate Keys" on each plugin row to verify the Product ID and Public/Secret Key pair against Freemius before saving. The Secret Key is also required for webhook signature verification.', 'freemkit' ),
 				'type'              => 'repeater',
 				'add_button_text'   => __( 'Add Plugin', 'freemkit' ),
 				'new_item_text'     => __( 'New Plugin', 'freemkit' ),
@@ -299,7 +299,7 @@ class Settings {
 					array(
 						'id'       => 'public_key',
 						'name'     => __( 'Public Key', 'freemkit' ),
-						'desc'     => __( 'Enter your Product Public Key', 'freemkit' ),
+						'desc'     => __( 'Public key from the product\'s Settings page in the Freemius dashboard.', 'freemkit' ),
 						'type'     => 'text',
 						'required' => true,
 						'default'  => '',
@@ -308,7 +308,7 @@ class Settings {
 					array(
 						'id'       => 'secret_key',
 						'name'     => __( 'Secret Key', 'freemkit' ),
-						'desc'     => __( 'Enter your Product Secret Key. Once saved, this will be securely stored and masked.', 'freemkit' ),
+						'desc'     => __( 'Webhook secret key from the product\'s Settings page in the Freemius dashboard. Used to verify incoming webhook signatures. Once saved, this will be securely stored and masked.', 'freemkit' ),
 						'type'     => 'sensitive',
 						'required' => true,
 						'default'  => '',
@@ -682,9 +682,9 @@ class Settings {
 						'cache_error'                 => esc_html__( 'Error clearing cache: ', 'freemkit' ),
 						'api_validation_error'        => esc_html__( 'Error validating API credentials.', 'freemkit' ),
 						'validate_freemius_keys'      => esc_html__( 'Validate Keys', 'freemkit' ),
-						'freemius_missing_fields'     => esc_html__( 'Product ID, public key, and secret key are required.', 'freemkit' ),
-						'freemius_validation_success' => esc_html__( 'Freemius credentials are valid.', 'freemkit' ),
-						'freemius_validation_error'   => esc_html__( 'Unable to validate Freemius credentials.', 'freemkit' ),
+						'freemius_missing_fields'     => esc_html__( 'Product ID and Public/Secret Keys are required.', 'freemkit' ),
+						'freemius_validation_success' => esc_html__( 'Freemius keys are valid.', 'freemkit' ),
+						'freemius_validation_error'   => esc_html__( 'Unable to validate Freemius keys.', 'freemkit' ),
 						'copy_success'                => esc_html__( 'Webhook URL copied.', 'freemkit' ),
 						'copy_failed'                 => esc_html__( 'Copy failed. Select and copy manually.', 'freemkit' ),
 					),
@@ -809,7 +809,6 @@ class Settings {
 			$plugin_id  = trim( (string) ( $fields['id'] ?? '' ) );
 			$public_key = trim( (string) ( $fields['public_key'] ?? '' ) );
 			$secret_raw = (string) ( $fields['secret_key'] ?? '' );
-
 			$secret_key = Settings_API::decrypt_api_key( $secret_raw );
 			if ( '' === $secret_key ) {
 				$secret_key = trim( $secret_raw );
@@ -1014,54 +1013,32 @@ class Settings {
 		$secret_key = isset( $_POST['secret_key'] ) ? trim( (string) wp_unslash( $_POST['secret_key'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$row_id     = isset( $_POST['row_id'] ) ? sanitize_text_field( wp_unslash( $_POST['row_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
-		// Preserve key material exactly; only reject control characters.
-		if ( preg_match( '/[\x00-\x1F\x7F]/', $public_key . $secret_key ) ) {
+		// Reject control characters in secret key.
+		if ( preg_match( '/[\x00-\x1F\x7F]/', $secret_key ) ) {
 			wp_send_json_error(
 				(object) array(
-					'message' => esc_html__( 'The provided key contains invalid control characters.', 'freemkit' ),
+					'message' => esc_html__( 'The provided secret key contains invalid control characters.', 'freemkit' ),
 				)
 			);
 		}
 
-		$stored_row       = array();
 		$secret_is_masked = false !== strpos( $secret_key, '**' );
 
-		if ( '' !== $row_id || '' !== $plugin_id ) {
-			$stored_row = $this->get_saved_freemius_plugin_row( $row_id, $plugin_id );
-		}
-
-		// If secret is masked and non-secret values changed, require re-entry of the secret.
-		if ( $secret_is_masked && ! empty( $stored_row ) ) {
-			$stored_id         = isset( $stored_row['id'] ) ? (string) $stored_row['id'] : '';
-			$stored_public_key = isset( $stored_row['public_key'] ) ? (string) $stored_row['public_key'] : '';
-			$id_changed        = '' !== $plugin_id && '' !== $stored_id && $plugin_id !== $stored_id;
-			$public_changed    = '' !== $public_key && '' !== $stored_public_key && $public_key !== $stored_public_key;
-
-			if ( $id_changed || $public_changed ) {
-				wp_send_json_error(
-					(object) array(
-						'message' => esc_html__( 'You changed Product ID or Public Key. Please re-enter the Secret Key before validating.', 'freemkit' ),
-					)
-				);
-			}
-		}
-
+		// If the secret key is masked (stored value), resolve it from the saved row.
 		if ( '' === $plugin_id || '' === $public_key || '' === $secret_key || $secret_is_masked ) {
-			if ( empty( $stored_row ) ) {
-				$stored_row = $this->get_saved_freemius_plugin_row( $row_id, $plugin_id );
-			}
+			$stored_row = $this->get_saved_freemius_plugin_row( $row_id, $plugin_id );
 
 			if ( ! empty( $stored_row ) ) {
 				$plugin_id  = '' !== $plugin_id ? $plugin_id : (string) ( $stored_row['id'] ?? '' );
 				$public_key = '' !== $public_key ? $public_key : (string) ( $stored_row['public_key'] ?? '' );
-				$secret_key = $this->resolve_secret_key_for_validation( $secret_key, $stored_row );
+				$secret_key = $this->resolve_secret_key_for_validation( $secret_key, $stored_row, 'secret_key' );
 			}
 		}
 
 		if ( '' === $plugin_id || '' === $public_key || '' === $secret_key ) {
 			wp_send_json_error(
 				(object) array(
-					'message' => esc_html__( 'Product ID, public key, and secret key are required to validate credentials.', 'freemkit' ),
+					'message' => esc_html__( 'Product ID, Public Key, and Secret Key are required to validate.', 'freemkit' ),
 				)
 			);
 		}
@@ -1071,20 +1048,15 @@ class Settings {
 			$message = $result->get_error_message();
 			$details = $result->get_error_data();
 
-			if ( is_array( $details ) ) {
-				$status_code = isset( $details['status_code'] ) ? absint( $details['status_code'] ) : 0;
-				$api_message = isset( $details['api_message'] ) ? sanitize_text_field( (string) $details['api_message'] ) : '';
-
-				if ( $status_code > 0 ) {
-					$message .= sprintf( ' (HTTP %d)', $status_code );
-				}
+			if ( is_array( $details ) && ! empty( $details['status_code'] ) ) {
+				$message .= sprintf( ' (HTTP %d)', absint( $details['status_code'] ) );
 			}
 
 			wp_send_json_error( (object) array( 'message' => $message ) );
 		}
 
 		/* translators: 1: Freemius product name, 2: Product ID. */
-		$message = sprintf( esc_html__( 'Credentials are valid for %1$s (ID: %2$s).', 'freemkit' ), $result['name'], $result['id'] );
+		$message = sprintf( esc_html__( 'Keys are valid for %1$s (ID: %2$s).', 'freemkit' ), $result['name'], $result['id'] );
 		wp_send_json_success( (object) array( 'message' => $message ) );
 	}
 
@@ -1129,23 +1101,24 @@ class Settings {
 	}
 
 	/**
-	 * Resolve plaintext secret key for validation request.
+	 * Resolve plaintext sensitive field value for validation.
 	 *
-	 * @param string               $secret_key Submitted secret key.
+	 * @param string               $submitted  Submitted value (may be masked or empty).
 	 * @param array<string,string> $stored_row Stored row values.
+	 * @param string               $field_key  Field key within the stored row.
 	 * @return string
 	 */
-	private function resolve_secret_key_for_validation( string $secret_key, array $stored_row ): string {
-		if ( '' !== $secret_key && false === strpos( $secret_key, '**' ) ) {
-			return $secret_key;
+	private function resolve_secret_key_for_validation( string $submitted, array $stored_row, string $field_key = 'secret_key' ): string {
+		if ( '' !== $submitted && false === strpos( $submitted, '**' ) ) {
+			return $submitted;
 		}
 
-		$stored_secret = isset( $stored_row['secret_key'] ) ? (string) $stored_row['secret_key'] : '';
-		if ( '' === $stored_secret ) {
+		$stored = isset( $stored_row[ $field_key ] ) ? (string) $stored_row[ $field_key ] : '';
+		if ( '' === $stored ) {
 			return '';
 		}
 
-		return Settings_API::decrypt_api_key( $stored_secret );
+		return Settings_API::decrypt_api_key( $stored );
 	}
 
 	/**

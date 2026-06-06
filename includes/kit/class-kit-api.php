@@ -18,9 +18,9 @@ class Kit_API extends \ConvertKit_API_V4 {
 	/**
 	 * Error codes.
 	 */
-	private const ERROR_NO_CONNECTION = 'invalid_connection';
-	private const ERROR_NO_EMAIL      = 'invalid_email';
-	private const ERROR_API_ERROR     = 'api_error';
+	protected const ERROR_NO_CONNECTION = 'invalid_connection';
+	protected const ERROR_NO_EMAIL      = 'invalid_email';
+	protected const ERROR_API_ERROR     = 'api_error';
 
 	/**
 	 * Whether credentials are sourced from the ConvertKit plugin.
@@ -176,6 +176,216 @@ class Kit_API extends \ConvertKit_API_V4 {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Bulk subscribe multiple subscribers to Kit forms and tags.
+	 *
+	 * Uses Kit's v4 bulk endpoints to minimise API calls.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array<int, array<string, mixed>> $tasks Array of tasks. Each task must contain:
+	 *                                                email (string), first_name (string),
+	 *                                                form_ids (int[]), tag_ids (int[]).
+	 * @return array<string, array<string, mixed>>|\WP_Error
+	 *         Array mapping email to result arrays on success, WP_Error on total failure.
+	 */
+	public function bulk_subscribe_to_kit( array $tasks ) {
+		// Build subscribers array for bulk create.
+		$subscribers    = array();
+		$email_to_task  = array();
+		$invalid_emails = array();
+
+		foreach ( $tasks as $task ) {
+			$email = isset( $task['email'] ) ? sanitize_email( (string) $task['email'] ) : '';
+			if ( empty( $email ) || ! is_email( $email ) ) {
+				$invalid_emails[] = isset( $task['email'] ) ? (string) $task['email'] : '';
+				continue;
+			}
+
+			$first_name = isset( $task['first_name'] ) ? sanitize_text_field( (string) $task['first_name'] ) : '';
+
+			$subscribers[] = array(
+				'email_address' => $email,
+				'first_name'    => $first_name,
+				'state'         => 'active',
+			);
+
+			$email_to_task[ strtolower( $email ) ] = $task;
+		}
+
+		if ( empty( $subscribers ) ) {
+			return new \WP_Error( self::ERROR_NO_EMAIL, esc_html__( 'No valid subscribers to process.', 'freemkit' ) );
+		}
+
+		// 1. Bulk create subscribers.
+		$create_result = parent::create_subscribers( $subscribers );
+		if ( is_wp_error( $create_result ) ) {
+			return $create_result;
+		}
+
+		// Map email to subscriber ID from response.
+		$email_to_id = array();
+		$failures    = array();
+
+		if ( ! empty( $create_result['subscribers'] ) && is_array( $create_result['subscribers'] ) ) {
+			foreach ( $create_result['subscribers'] as $sub ) {
+				if ( ! is_array( $sub ) || empty( $sub['email_address'] ) ) {
+					continue;
+				}
+				$email                 = strtolower( (string) $sub['email_address'] );
+				$email_to_id[ $email ] = isset( $sub['id'] ) ? (int) $sub['id'] : 0;
+			}
+		}
+
+		if ( ! empty( $create_result['failures'] ) && is_array( $create_result['failures'] ) ) {
+			foreach ( $create_result['failures'] as $failure ) {
+				if ( ! is_array( $failure ) || ! is_array( $failure['subscriber'] ?? null ) ) {
+					continue;
+				}
+				$email = strtolower( (string) ( $failure['subscriber']['email_address'] ?? '' ) );
+				if ( $email ) {
+					$failures[ $email ] = isset( $failure['errors'] ) && is_array( $failure['errors'] )
+						? implode( ', ', $failure['errors'] )
+						: esc_html__( 'Unknown error during bulk creation.', 'freemkit' );
+				}
+			}
+		}
+
+		// 2. Build additions for bulk forms.
+		$additions = array();
+		foreach ( $email_to_task as $email => $task ) {
+			if ( isset( $failures[ $email ] ) || ! isset( $email_to_id[ $email ] ) ) {
+				continue;
+			}
+
+			$sid = $email_to_id[ $email ];
+			if ( $sid <= 0 ) {
+				continue;
+			}
+
+			$form_ids = isset( $task['form_ids'] ) && is_array( $task['form_ids'] ) ? $task['form_ids'] : array();
+			foreach ( $form_ids as $form_id ) {
+				$form_id = (int) $form_id;
+				if ( $form_id > 0 ) {
+					$additions[] = array(
+						'form_id'       => $form_id,
+						'subscriber_id' => $sid,
+					);
+				}
+			}
+		}
+
+		if ( ! empty( $additions ) ) {
+			$form_result = parent::add_subscribers_to_forms( $additions );
+			if ( is_wp_error( $form_result ) ) {
+				$form_error = $form_result->get_error_message();
+				foreach ( $email_to_task as $email => $task ) {
+					if ( ! isset( $failures[ $email ] ) && isset( $email_to_id[ $email ] ) && $email_to_id[ $email ] > 0 ) {
+						$failures[ $email ] = $form_error;
+					}
+				}
+			} elseif ( ! empty( $form_result['failures'] ) && is_array( $form_result['failures'] ) ) {
+				foreach ( $form_result['failures'] as $failure ) {
+					if ( ! is_array( $failure ) || ! is_array( $failure['subscription'] ?? null ) ) {
+						continue;
+					}
+					$sid = (int) ( $failure['subscription']['subscriber_id'] ?? 0 );
+					if ( $sid > 0 ) {
+						$email = array_search( $sid, $email_to_id, true );
+						if ( false !== $email && ! isset( $failures[ $email ] ) ) {
+							$failures[ $email ] = isset( $failure['errors'] ) && is_array( $failure['errors'] )
+								? implode( ', ', $failure['errors'] )
+								: esc_html__( 'Failed to add to form.', 'freemkit' );
+						}
+					}
+				}
+			}
+		}
+
+		// 3. Build taggings for bulk tags.
+		$taggings = array();
+		foreach ( $email_to_task as $email => $task ) {
+			if ( isset( $failures[ $email ] ) || ! isset( $email_to_id[ $email ] ) ) {
+				continue;
+			}
+
+			$sid = $email_to_id[ $email ];
+			if ( $sid <= 0 ) {
+				continue;
+			}
+
+			$tag_ids = isset( $task['tag_ids'] ) && is_array( $task['tag_ids'] ) ? $task['tag_ids'] : array();
+			foreach ( $tag_ids as $tag_id ) {
+				$tag_id = (int) $tag_id;
+				if ( $tag_id > 0 ) {
+					$taggings[] = array(
+						'tag_id'        => $tag_id,
+						'subscriber_id' => $sid,
+					);
+				}
+			}
+		}
+
+		if ( ! empty( $taggings ) ) {
+			$tag_result = $this->post( 'bulk/tags/subscribers', array( 'taggings' => $taggings ) );
+			if ( is_wp_error( $tag_result ) ) {
+				$tag_error = $tag_result->get_error_message();
+				foreach ( $email_to_task as $email => $task ) {
+					if ( ! isset( $failures[ $email ] ) && isset( $email_to_id[ $email ] ) && $email_to_id[ $email ] > 0 ) {
+						$failures[ $email ] = $tag_error;
+					}
+				}
+			} elseif ( ! empty( $tag_result['failures'] ) && is_array( $tag_result['failures'] ) ) {
+				foreach ( $tag_result['failures'] as $failure ) {
+					if ( ! is_array( $failure ) || ! is_array( $failure['tagging'] ?? null ) ) {
+						continue;
+					}
+					$sid = (int) ( $failure['tagging']['subscriber_id'] ?? 0 );
+					if ( $sid > 0 ) {
+						$email = array_search( $sid, $email_to_id, true );
+						if ( false !== $email && ! isset( $failures[ $email ] ) ) {
+							$failures[ $email ] = isset( $failure['errors'] ) && is_array( $failure['errors'] )
+								? implode( ', ', $failure['errors'] )
+								: esc_html__( 'Failed to apply tag.', 'freemkit' );
+						}
+					}
+				}
+			}
+		}
+
+		// 4. Build final results per email.
+		$results = array();
+		foreach ( $email_to_task as $email => $task ) {
+			$original_email = isset( $task['email'] ) ? sanitize_email( (string) $task['email'] ) : '';
+			if ( isset( $failures[ $email ] ) ) {
+				$results[ $original_email ] = array(
+					'status' => 'error',
+					'error'  => $failures[ $email ],
+				);
+			} elseif ( isset( $email_to_id[ $email ] ) && $email_to_id[ $email ] > 0 ) {
+				$results[ $original_email ] = array(
+					'status'        => 'success',
+					'subscriber_id' => $email_to_id[ $email ],
+				);
+			} else {
+				$results[ $original_email ] = array(
+					'status' => 'error',
+					'error'  => esc_html__( 'Subscriber not found in Kit response.', 'freemkit' ),
+				);
+			}
+		}
+
+		// Track invalid emails separately.
+		foreach ( $invalid_emails as $email ) {
+			$results[ $email ] = array(
+				'status' => 'error',
+				'error'  => esc_html__( 'Invalid email address.', 'freemkit' ),
+			);
+		}
+
+		return $results;
 	}
 
 	/**

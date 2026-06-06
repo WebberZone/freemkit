@@ -210,22 +210,22 @@ class Subscribers_List_Table extends \WP_List_Table {
 			return esc_html( $item->email );
 		}
 
+		$edit_url = wp_nonce_url(
+			add_query_arg(
+				array(
+					'page'   => 'freemkit_subscribers',
+					'action' => 'edit',
+					'id'     => $item->id,
+				),
+				admin_url( 'users.php' )
+			),
+			'edit_subscriber_' . $item->id
+		);
+
 		$actions = array(
 			'edit'   => sprintf(
 				'<a href="%s">%s</a>',
-				esc_url(
-					wp_nonce_url(
-						add_query_arg(
-							array(
-								'page'   => 'freemkit_subscribers',
-								'action' => 'edit',
-								'id'     => $item->id,
-							),
-							admin_url( 'users.php' )
-						),
-						'edit_subscriber_' . $item->id
-					)
-				),
+				esc_url( $edit_url ),
 				esc_html__( 'Edit', 'freemkit' )
 			),
 			'delete' => sprintf(
@@ -248,7 +248,8 @@ class Subscribers_List_Table extends \WP_List_Table {
 		);
 
 		return sprintf(
-			'%1$s %2$s',
+			'<a href="%1$s">%2$s</a> %3$s',
+			esc_url( $edit_url ),
 			esc_html( $item->email ),
 			$this->row_actions( $actions )
 		);

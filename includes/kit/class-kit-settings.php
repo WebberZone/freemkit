@@ -21,11 +21,11 @@ class Kit_Settings {
 	/**
 	 * Option keys.
 	 */
-	private const OPTION_ACCESS_TOKEN  = 'kit_access_token';
-	private const OPTION_REFRESH_TOKEN = 'kit_refresh_token';
-	private const OPTION_TOKEN_EXPIRES = 'kit_token_expires';
-	private const CONVERTKIT_OPTION    = '_wp_convertkit_settings';
-	private const CONVERTKIT_PLUGIN    = 'convertkit/wp-convertkit.php';
+	protected const OPTION_ACCESS_TOKEN  = 'kit_access_token';
+	protected const OPTION_REFRESH_TOKEN = 'kit_refresh_token';
+	protected const OPTION_TOKEN_EXPIRES = 'kit_token_expires';
+	protected const CONVERTKIT_OPTION    = '_wp_convertkit_settings';
+	protected const CONVERTKIT_PLUGIN    = 'convertkit/wp-convertkit.php';
 
 	/**
 	 * Cron hook name.

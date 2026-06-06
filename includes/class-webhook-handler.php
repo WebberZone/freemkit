@@ -218,7 +218,7 @@ class Webhook_Handler {
 		// Block subscription if the subscriber has opted out of marketing.
 		if ( $respect_marketing_optout ) {
 			$existing = $this->database->get_subscriber_by_email( $email );
-			if ( ! is_wp_error( $existing ) && ! empty( $existing->marketing_optout ) ) {
+			if ( ! is_wp_error( $existing ) && empty( $existing->marketing ) ) {
 				// Safety: ensure they are unsubscribed from Kit.
 				$this->api->unsubscribe_subscriber( $email );
 
@@ -423,11 +423,11 @@ class Webhook_Handler {
 
 		$subscriber = new Subscriber(
 			array(
-				'email'            => $email,
-				'first_name'       => $first_name,
-				'last_name'        => $last_name,
-				'status'           => 'opted_out',
-				'marketing_optout' => 1,
+				'email'      => $email,
+				'first_name' => $first_name,
+				'last_name'  => $last_name,
+				'status'     => 'opted_out',
+				'marketing'  => 0,
 			)
 		);
 
@@ -491,11 +491,11 @@ class Webhook_Handler {
 	public function process_marketing_optin( string $email, string $first_name, string $last_name, string $plugin_id, array $plugin_config, int $freemius_user_id, string $event_type ) {
 		$subscriber = new Subscriber(
 			array(
-				'email'            => $email,
-				'first_name'       => $first_name,
-				'last_name'        => $last_name,
-				'status'           => 'active',
-				'marketing_optout' => 0,
+				'email'      => $email,
+				'first_name' => $first_name,
+				'last_name'  => $last_name,
+				'status'     => 'active',
+				'marketing'  => 1,
 			)
 		);
 
@@ -570,8 +570,8 @@ class Webhook_Handler {
 			);
 		}
 
-		$status           = $existing_subscriber->status;
-		$marketing_optout = (int) $existing_subscriber->marketing_optout;
+		$status    = $existing_subscriber->status;
+		$marketing = (int) $existing_subscriber->marketing;
 
 		$kit_fields      = array();
 		$last_name_field = Options_API::get_option( 'last_name_field' );
@@ -587,11 +587,11 @@ class Webhook_Handler {
 
 		$subscriber = new Subscriber(
 			array(
-				'email'            => $email,
-				'first_name'       => $first_name,
-				'last_name'        => $last_name,
-				'status'           => $status,
-				'marketing_optout' => $marketing_optout,
+				'email'      => $email,
+				'first_name' => $first_name,
+				'last_name'  => $last_name,
+				'status'     => $status,
+				'marketing'  => $marketing,
 			)
 		);
 

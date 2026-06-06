@@ -56,12 +56,52 @@ class Subscriber {
 	public string $status = 'active';
 
 	/**
-	 * Marketing opt-out flag.
+	 * Marketing consent flag (1 = opted in, 0 = opted out).
 	 *
 	 * @since 1.0.0
 	 * @var int
 	 */
-	public int $marketing_optout = 0;
+	public int $marketing = 1;
+
+	/**
+	 * Freemius user ID.
+	 *
+	 * @since 1.0.0
+	 * @var int
+	 */
+	public int $freemius_user_id = 0;
+
+	/**
+	 * Freemius account creation date.
+	 *
+	 * @since 1.0.0
+	 * @var string
+	 */
+	public string $freemius_created = '';
+
+	/**
+	 * Email verified flag from Freemius.
+	 *
+	 * @since 1.0.0
+	 * @var int
+	 */
+	public int $is_verified = 0;
+
+	/**
+	 * Email status from Freemius (delivered, bounced, etc.).
+	 *
+	 * @since 1.0.0
+	 * @var string
+	 */
+	public string $email_status = '';
+
+	/**
+	 * JSON meta / catch-all field.
+	 *
+	 * @since 1.0.0
+	 * @var string|array
+	 */
+	public $meta = '';
 
 	/**
 	 * Created timestamp.
@@ -153,7 +193,9 @@ class Subscriber {
 			if ( isset( $data[ $key ] ) ) {
 				switch ( $key ) {
 					case 'id':
-					case 'marketing_optout':
+					case 'marketing':
+					case 'freemius_user_id':
+					case 'is_verified':
 						$this->$key = (int) $data[ $key ];
 						break;
 					case 'email':
@@ -162,7 +204,12 @@ class Subscriber {
 					case 'first_name':
 					case 'last_name':
 					case 'status':
+					case 'freemius_created':
+					case 'email_status':
 						$this->$key = sanitize_text_field( $data[ $key ] );
+						break;
+					case 'meta':
+						$this->meta = $data[ $key ];
 						break;
 					case 'created':
 						// Assign only if it exists, otherwise let MySQL handle it.

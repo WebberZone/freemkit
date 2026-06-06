@@ -79,6 +79,7 @@ class Main {
 	public function hooks(): void {
 		Hook_Registry::add_action( 'init', array( $this->runtime, 'init' ), 1 );
 		Hook_Registry::add_action( 'init', array( $this->runtime, 'init_admin' ) );
+		Hook_Registry::add_action( 'admin_init', array( $this->runtime->database, 'maybe_create_tables' ) );
 		Hook_Registry::add_action( 'freemkit_api_get_access_token', array( $this->credential_hooks, 'maybe_update_credentials' ), 10, 2 );
 		Hook_Registry::add_action( 'freemkit_api_refresh_token', array( $this->credential_hooks, 'maybe_update_credentials' ), 10, 2 );
 		Hook_Registry::add_action( 'convertkit_api_access_token_invalid', array( $this->credential_hooks, 'maybe_delete_credentials' ), 10, 2 );

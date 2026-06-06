@@ -76,13 +76,21 @@ class Database {
 			first_name varchar(50) DEFAULT '',
 			last_name varchar(50) DEFAULT '',
 			status varchar(20) NOT NULL DEFAULT 'active',
-			marketing_optout tinyint(1) NOT NULL DEFAULT 0,
+			marketing tinyint(1) NOT NULL DEFAULT 1,
+			freemius_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			freemius_created datetime DEFAULT NULL,
+			is_verified tinyint(1) NOT NULL DEFAULT 0,
+			email_status varchar(20) NOT NULL DEFAULT '',
+			meta longtext DEFAULT NULL,
 			created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			modified datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			UNIQUE KEY email (email),
 			KEY status (status),
-			KEY marketing_optout (marketing_optout)
+			KEY marketing (marketing),
+			KEY freemius_user_id (freemius_user_id),
+			KEY is_verified (is_verified),
+			KEY email_status (email_status)
 		) {$charset_collate};";
 
 		$events_sql = "CREATE TABLE IF NOT EXISTS {$this->events_table_name} (
@@ -123,6 +131,40 @@ class Database {
 		update_option( 'freemkit_db_version', $this->db_version );
 
 		return true;
+	}
+
+	/**
+	 * Check if a database table exists.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $table_name Full table name (with prefix).
+	 * @return bool
+	 */
+	public function is_table_installed( string $table_name ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (bool) $wpdb->get_var(
+			$wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name )
+		);
+	}
+
+	/**
+	 * Create tables only when one is missing or the schema version is outdated.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function maybe_create_tables(): void {
+		if ( $this->is_table_installed( $this->table_name )
+			&& $this->is_table_installed( $this->events_table_name )
+			&& ! $this->needs_update() ) {
+			return;
+		}
+
+		$this->create_table();
 	}
 
 	/**
@@ -360,8 +402,8 @@ class Database {
 			'status = VALUES(status)',
 		);
 
-		if ( isset( $data['data']['marketing_optout'] ) ) {
-			$update_parts[] = 'marketing_optout = VALUES(marketing_optout)';
+		if ( isset( $data['data']['marketing'] ) ) {
+			$update_parts[] = 'marketing = VALUES(marketing)';
 		}
 
 		$update_parts[] = 'modified = CURRENT_TIMESTAMP';
@@ -502,32 +544,44 @@ class Database {
 	 * @return array Array with 'data' and 'format' keys.
 	 */
 	public function prepare_subscriber_data( $subscriber, $is_new = true ) {
-		$data = array(
-			'email'      => sanitize_email( $subscriber->email ),
-			'first_name' => sanitize_text_field( $subscriber->first_name ),
-			'last_name'  => sanitize_text_field( $subscriber->last_name ),
-			'status'     => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
+		$data   = array(
+			'email'            => sanitize_email( $subscriber->email ),
+			'first_name'       => sanitize_text_field( $subscriber->first_name ),
+			'last_name'        => sanitize_text_field( $subscriber->last_name ),
+			'status'           => ! empty( $subscriber->status ) ? $subscriber->status : 'active',
+			'marketing'        => (int) $subscriber->marketing,
+			'freemius_user_id' => (int) $subscriber->freemius_user_id,
 		);
+		$format = array( '%s', '%s', '%s', '%s', '%d', '%d' );
 
-		if ( $this->subscriber_table_has_column( 'marketing_optout' ) ) {
-			$data['marketing_optout'] = (int) $subscriber->marketing_optout;
+		if ( ! empty( $subscriber->freemius_created ) ) {
+			$data['freemius_created'] = $subscriber->freemius_created;
+			$format[]                 = '%s';
+		}
+
+		$data['is_verified'] = (int) $subscriber->is_verified;
+		$format[]            = '%d';
+
+		$email_status = sanitize_text_field( $subscriber->email_status );
+		if ( '' !== $email_status ) {
+			$data['email_status'] = $email_status;
+			$format[]             = '%s';
+		}
+
+		$meta = $subscriber->meta;
+		if ( is_array( $meta ) && ! empty( $meta ) ) {
+			$data['meta'] = wp_json_encode( $meta );
+			$format[]     = '%s';
+		} elseif ( is_string( $meta ) && '' !== $meta ) {
+			$data['meta'] = $meta;
+			$format[]     = '%s';
 		}
 
 		if ( $is_new ) {
 			$data['created'] = ! empty( $subscriber->created )
 				? $subscriber->created
 				: current_time( 'mysql', true );
-			$format          = array( '%s', '%s', '%s', '%s' );
-
-			if ( isset( $data['marketing_optout'] ) ) {
-				$format[] = '%d';
-			}
-			$format[] = '%s';
-		} else {
-			$format = array( '%s', '%s', '%s', '%s' );
-			if ( isset( $data['marketing_optout'] ) ) {
-				$format[] = '%d';
-			}
+			$format[]        = '%s';
 		}
 
 		return array(

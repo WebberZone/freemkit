@@ -273,5 +273,15 @@ class Subscribers_List {
 		);
 		add_screen_option( $option, $args );
 		$this->subscribers_table = new Subscribers_List_Table( $this->database );
+
+		$action = $this->subscribers_table->current_action();
+		if ( ! empty( $action ) ) {
+			$result = $this->subscribers_table->process_bulk_action();
+			if ( is_wp_error( $result ) ) {
+				$this->redirect_with_message( 'error', $result->get_error_message() );
+			} else {
+				$this->redirect_with_message( 'success', __( 'Subscribers deleted.', 'freemkit' ) );
+			}
+		}
 	}
 }

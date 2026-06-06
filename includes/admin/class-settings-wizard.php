@@ -22,7 +22,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 	/**
 	 * Wizard page slug.
 	 */
-	private const PAGE_SLUG = 'freemkit_setup_wizard';
+	protected const PAGE_SLUG = 'freemkit_setup_wizard';
 
 	/**
 	 * Settings page URL.
@@ -207,7 +207,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 	 *
 	 * @return bool
 	 */
-	private function has_blocking_validation_error(): bool {
+	protected function has_blocking_validation_error(): bool {
 		$errors = get_settings_errors();
 
 		foreach ( $errors as $error ) {
@@ -231,7 +231,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 	 *
 	 * @return bool
 	 */
-	private function is_freemius_step(): bool {
+	protected function is_freemius_step(): bool {
 		$keys  = array_keys( $this->steps );
 		$index = $this->get_current_step() - 1;
 

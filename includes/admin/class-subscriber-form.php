@@ -127,11 +127,43 @@ class Subscriber_Form {
 				),
 			),
 			array(
-				'id'      => 'marketing_optout',
-				'name'    => __( 'Marketing Opt-out', 'freemkit' ),
-				'desc'    => __( 'Subscriber has opted out of marketing emails.', 'freemkit' ),
+				'id'      => 'marketing',
+				'name'    => __( 'Marketing', 'freemkit' ),
+				'desc'    => __( 'Subscriber has opted in to marketing emails.', 'freemkit' ),
 				'type'    => 'checkbox',
-				'default' => 0,
+				'default' => 1,
+			),
+			array(
+				'id'               => 'freemius_user_id',
+				'name'             => __( 'Freemius User ID', 'freemkit' ),
+				'type'             => 'text',
+				'default'          => '',
+				'size'             => 'large',
+				'field_attributes' => array( 'readonly' => 'readonly' ),
+			),
+			array(
+				'id'               => 'freemius_created',
+				'name'             => __( 'Freemius Created', 'freemkit' ),
+				'type'             => 'text',
+				'default'          => '',
+				'size'             => 'large',
+				'field_attributes' => array( 'readonly' => 'readonly' ),
+			),
+			array(
+				'id'               => 'is_verified',
+				'name'             => __( 'Email Verified', 'freemkit' ),
+				'type'             => 'text',
+				'default'          => '',
+				'size'             => 'large',
+				'field_attributes' => array( 'readonly' => 'readonly' ),
+			),
+			array(
+				'id'               => 'email_status',
+				'name'             => __( 'Email Status', 'freemkit' ),
+				'type'             => 'text',
+				'default'          => '',
+				'size'             => 'large',
+				'field_attributes' => array( 'readonly' => 'readonly' ),
 			),
 		);
 	}
@@ -225,8 +257,16 @@ class Subscriber_Form {
 				return $this->subscriber->last_name;
 			case 'status':
 				return $this->subscriber->status;
-			case 'marketing_optout':
-				return $this->subscriber->marketing_optout;
+			case 'marketing':
+				return $this->subscriber->marketing;
+			case 'freemius_user_id':
+				return $this->subscriber->freemius_user_id ? (string) $this->subscriber->freemius_user_id : '';
+			case 'freemius_created':
+				return $this->subscriber->freemius_created;
+			case 'is_verified':
+				return $this->subscriber->is_verified ? __( 'Yes', 'freemkit' ) : __( 'No', 'freemkit' );
+			case 'email_status':
+				return $this->subscriber->email_status;
 			default:
 				return $default_value;
 		}
@@ -301,12 +341,12 @@ class Subscriber_Form {
 		);
 
 		// Sanitize subscriber fields.
-		$subscriber_id    = isset( $posted['subscriber_id'] ) ? absint( $posted['subscriber_id'] ) : 0;
-		$email            = isset( $posted['email'] ) ? sanitize_email( $posted['email'] ) : '';
-		$first_name       = $settings_sanitize->sanitize_text_field( $posted['first_name'] ?? '' );
-		$last_name        = $settings_sanitize->sanitize_text_field( $posted['last_name'] ?? '' );
-		$status           = $settings_sanitize->sanitize_text_field( $posted['status'] ?? 'active' );
-		$marketing_optout = $settings_sanitize->sanitize_checkbox_field( $posted['marketing_optout'] ?? -1 );
+		$subscriber_id = isset( $posted['subscriber_id'] ) ? absint( $posted['subscriber_id'] ) : 0;
+		$email         = isset( $posted['email'] ) ? sanitize_email( $posted['email'] ) : '';
+		$first_name    = $settings_sanitize->sanitize_text_field( $posted['first_name'] ?? '' );
+		$last_name     = $settings_sanitize->sanitize_text_field( $posted['last_name'] ?? '' );
+		$status        = $settings_sanitize->sanitize_text_field( $posted['status'] ?? 'active' );
+		$marketing     = $settings_sanitize->sanitize_checkbox_field( $posted['marketing'] ?? -1 );
 
 		if ( empty( $email ) ) {
 			$this->redirect_with_message( 'error', __( 'Email address is required.', 'freemkit' ) );
@@ -314,14 +354,22 @@ class Subscriber_Form {
 		}
 
 		$subscriber_data = array(
-			'email'            => $email,
-			'first_name'       => $first_name,
-			'last_name'        => $last_name,
-			'status'           => $status,
-			'marketing_optout' => $marketing_optout,
+			'email'      => $email,
+			'first_name' => $first_name,
+			'last_name'  => $last_name,
+			'status'     => $status,
+			'marketing'  => $marketing,
 		);
 
 		if ( $subscriber_id > 0 ) {
+			$existing = $this->database->get_subscriber( $subscriber_id );
+			if ( ! is_wp_error( $existing ) ) {
+				$subscriber_data['freemius_user_id'] = (int) $existing->freemius_user_id;
+				$subscriber_data['freemius_created'] = $existing->freemius_created;
+				$subscriber_data['is_verified']      = (int) $existing->is_verified;
+				$subscriber_data['email_status']     = $existing->email_status;
+				$subscriber_data['meta']             = $existing->meta;
+			}
 			$subscriber_data['id'] = $subscriber_id;
 		}
 
@@ -331,10 +379,15 @@ class Subscriber_Form {
 		if ( is_wp_error( $result ) && 'subscriber_exists' === $result->get_error_code() && $subscriber_id <= 0 ) {
 			$existing = $this->database->get_subscriber_by_email( $email );
 			if ( ! is_wp_error( $existing ) ) {
-				$subscriber_data['id'] = (int) $existing->id;
-				$subscriber            = new Subscriber( $subscriber_data, $this->database );
-				$result                = $subscriber->save();
-				$this->is_edit         = true;
+				$subscriber_data['id']               = (int) $existing->id;
+				$subscriber_data['freemius_user_id'] = (int) $existing->freemius_user_id;
+				$subscriber_data['freemius_created'] = $existing->freemius_created;
+				$subscriber_data['is_verified']      = (int) $existing->is_verified;
+				$subscriber_data['email_status']     = $existing->email_status;
+				$subscriber_data['meta']             = $existing->meta;
+				$subscriber                          = new Subscriber( $subscriber_data, $this->database );
+				$result                              = $subscriber->save();
+				$this->is_edit                       = true;
 			}
 		}
 
@@ -352,7 +405,7 @@ class Subscriber_Form {
 
 		// If the subscriber has opted out of marketing, unsubscribe from Kit immediately
 		// and skip all plugin syncs. The admin is explicitly requesting this.
-		if ( $marketing_optout ) {
+		if ( ! $marketing ) {
 			if ( $kit_api->has_access_and_refresh_token() ) {
 				$kit_api->unsubscribe_subscriber( $email );
 			}

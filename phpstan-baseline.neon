@@ -4,3 +4,11 @@ parameters:
 			message: "#^Constant AUTH_SALT not found\\.$#"
 			count: 4
 			path: includes/class-options-api.php
+		-
+			message: "#^Parameter \\#1 \\$forms_subscribers_ids of method ConvertKit_API_V4::add_subscribers_to_forms\\(\\) expects array\\<array\\<string, string\\>\\>.*#"
+			count: 1
+			path: includes/kit/class-kit-api.php
+		-
+			message: "#^Parameter \\#2 \\$args of method ConvertKit_API_V4::post\\(\\) expects array\\<string, array\\<int\\|string, array\\<string\\>\\|float\\|int\\|string\\>\\|bool\\|float\\|int\\|string\\|null\\>.*#"
+			count: 1
+			path: includes/kit/class-kit-api.php

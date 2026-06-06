@@ -5,10 +5,9 @@ parameters:
     scanFiles:
         - freemkit.php
         - uninstall.php
-        - vendor/convertkit/convertkit-wordpress-libraries/src/class-convertkit-api-traits.php
-        - vendor/convertkit/convertkit-wordpress-libraries/src/class-convertkit-api-v4.php
     scanDirectories:
         - includes
+        - vendor/convertkit/convertkit-wordpress-libraries/src
     paths:
         - freemkit.php
         - includes/
