@@ -10,7 +10,7 @@ This document describes how FreemKit receives, validates, queues, and processes 
 
 ## Overview
 
-```
+```text
 Freemius → HTTP POST → Endpoint
                           │
                     Signature check
@@ -98,7 +98,7 @@ add_filter( 'freemkit_webhook_replay_ttl', function( $ttl ) {
 
 FreemKit does not process webhooks synchronously. After passing all validation checks, the event payload is serialized and stored in a transient, then a WP-Cron event is scheduled:
 
-```
+```text
 Hook:    freemkit_process_webhook_event
 Args:    [ $event_key ]
 ```

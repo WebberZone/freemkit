@@ -37,7 +37,7 @@ Every request must include an `x-signature` header. This is a Freemius-generated
 
 FreemKit recomputes the expected signature server-side:
 
-```
+```text
 hex( HMAC-SHA256( raw_request_body, plugin_secret_key ) )
 ```
 
@@ -45,7 +45,7 @@ The signature is compared as a hex string using constant-time `hash_equals()`.
 
 Requests that do not include a valid signature receive:
 
-```
+```text
 HTTP 401 Unauthorized
 ```
 
@@ -107,7 +107,7 @@ Additional fields in the payload are stored but not acted upon by default. The f
 
 ### Success — event queued
 
-```
+```text
 HTTP 202 Accepted
 Content-Type: application/json
 
@@ -121,7 +121,7 @@ Returned when the event passes all validation checks and has been queued for asy
 
 ### Success — event ignored (duplicate)
 
-```
+```text
 HTTP 200 OK
 Content-Type: application/json
 
@@ -135,7 +135,7 @@ Returned when the event has already been processed within the deduplication wind
 
 ### Error — no matching plugin
 
-```
+```text
 HTTP 400 Bad Request
 ```
 
@@ -143,7 +143,7 @@ Returned when the `plugin_id` in the payload does not match any configured plugi
 
 ### Error — invalid signature
 
-```
+```text
 HTTP 401 Unauthorized
 ```
 
@@ -151,7 +151,7 @@ The `x-signature` header is missing or the signature does not match.
 
 ### Error — event too old
 
-```
+```text
 HTTP 200 OK
 Content-Type: application/json
 
