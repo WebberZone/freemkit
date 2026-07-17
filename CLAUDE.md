@@ -4,63 +4,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Plugin Overview
 
-FreemKit is a WordPress plugin (v1.0.0-beta1) that bridges Freemius software licensing with Kit (formerly ConvertKit) email marketing. It receives Freemius webhook events and subscribes customers to Kit forms/tags based on whether they are free or paid users. Namespace: `WebberZone\FreemKit`. Prefix: `freemkit_`. Requires WordPress 5.0+, PHP 7.4+.
+FreemKit is a WordPress plugin (v1.0.0) that bridges Freemius software licensing with Kit (formerly ConvertKit) email marketing. It receives Freemius webhook events and subscribes customers to Kit forms/tags based on whether they are free or paid users. Namespace: `WebberZone\FreemKit`. Prefix: `freemkit_`. Text domain: `freemkit`. Requires WordPress 6.6+, PHP 7.4+.
 
 ## Commands
 
 ### PHP
 
 ```bash
-composer phpcs          # Lint PHP (WordPress coding standards)
-composer phpcbf         # Auto-fix PHP code style
-composer phpstan        # Static analysis (level configured in phpstan.neon.dist)
-composer phpcompat      # Check PHP 7.4–8.5 compatibility
-composer test           # Run all checks (phpcs + phpcompat + phpstan)
-composer build:vendor   # Install production-only dependencies
-composer zip            # Create distribution zip
+composer phpcs            # Lint PHP (WordPress coding standards)
+composer phpcbf           # Auto-fix PHP code style
+composer phpstan          # Static analysis (level configured in phpstan.neon.dist)
+composer phpstan-baseline # Generate a PHPStan baseline
+composer phpcompat        # Check PHP 7.4–8.5 compatibility
+composer test             # Run all checks (phpcs + phpcompat + phpstan)
+composer build:vendor     # Install production-only dependencies
+composer zip              # Create distribution zip
 ```
 
 ### JavaScript/CSS
 
 ```bash
-npm run build           # Build JS/CSS assets with wp-scripts
-npm run build:assets    # Minify CSS/JS and generate RTL CSS (node build-assets.js)
-npm start               # Watch mode
-npm run lint:js         # ESLint
-npm run lint:css        # Stylelint
-npm run format          # Format with wp-scripts
-npm run zip             # Create plugin zip via wp-scripts
+npm run build             # Build JS/CSS assets with wp-scripts
+npm run build:assets      # Minify CSS/JS and generate RTL CSS (node build-assets.js)
+npm start                 # Watch mode
+npm run lint:js           # ESLint
+npm run lint:css          # Stylelint
+npm run format            # Format with wp-scripts
+npm run packages-update   # Update wp-scripts packages
+npm run zip               # Create plugin zip via wp-scripts
 ```
 
 ## Architecture
 
 ### Entry Point & Bootstrap
 
-`freemkit.php` defines constants (`FREEMKIT_VERSION`, `FREEMKIT_PLUGIN_FILE`, `FREEMKIT_PLUGIN_DIR`, `FREEMKIT_PLUGIN_URL`), loads Kit shared library classes from `vendor/convertkit/convertkit-wordpress-libraries/`, registers the autoloader, and calls `\WebberZone\FreemKit\load()` on `plugins_loaded`.
+`freemkit.php` defines constants (`FREEMKIT_VERSION`, `FREEMKIT_PLUGIN_FILE`, `FREEMKIT_PLUGIN_DIR`, `FREEMKIT_PLUGIN_URL`, `FREEMKIT_KIT_OAUTH_CLIENT_ID`, `FREEMKIT_KIT_OAUTH_REDIRECT_URI`), loads Kit shared library classes from `vendor/convertkit/convertkit-wordpress-libraries/`, registers the autoloader, and calls `\WebberZone\FreemKit\load()` on `plugins_loaded`.
 
 **Autoloader convention:** Namespace segments become path segments under `includes/`; underscores → hyphens, lowercase, last segment prefixed with `class-`. e.g. `WebberZone\FreemKit\Admin\Settings` → `includes/admin/class-settings.php`.
 
 ### Core Components
 
-- **`Main`** (`includes/class-main.php`) — Singleton. Instantiates `Runtime`, `Kit_Credential_Hooks`, and `Language_Handler`; registers hooks via `Hook_Registry`.
-- **`Runtime`** (`includes/class-runtime.php`) — Initializes `Database`, `Kit_API`, and `Webhook_Handler` on `init`. Creates the `Admin` object when in admin context.
-- **`Webhook_Handler`** (`includes/class-webhook-handler.php`) — Core logic. Registers a REST endpoint at `freemkit/v1/webhook` (or a query-var fallback). Validates HMAC-SHA256 signatures (`x-signature` header) and webhook freshness (15-minute window). Queues events as WP transients and processes them asynchronously via WP-Cron (`freemkit_process_webhook_event`). Includes deduplication via `freemkit_webhook_seen_*` transients, and exponential-backoff retry (max 3 attempts).
-- **`Database`** (`includes/class-database.php`) — Manages the `{prefix}freemkit_subscribers` custom table, which persists subscriber records locally.
+- **`Main`** (`includes/class-main.php`) — Singleton. Instantiates `Runtime`, `Kit_Credential_Hooks`, and `Language_Handler`; registers hooks via `Hook_Registry`. Registers the activation hook (`Main::activate` → `Runtime::activate`).
+- **`Runtime`** (`includes/class-runtime.php`) — Instantiates `Database` in the constructor. On `init`, creates `Kit_API` and `Webhook_Handler`. Creates the `Admin` object when in admin context (via `init_admin`). Builds per-plugin configs from the `plugins` settings array.
+- **`Webhook_Handler`** (`includes/class-webhook-handler.php`) — Core logic. Registers a REST endpoint at `freemkit/v1/webhook` (or a query-var fallback). Validates HMAC-SHA256 signatures (`x-signature` header) and webhook freshness (15-minute window). Queues events as WP transients and processes them asynchronously via WP-Cron (`freemkit_process_webhook_event`). Includes deduplication via `freemkit_webhook_seen_*` transients, and linear-backoff retry (default max 3 attempts, delay capped at 5 minutes; filterable via `freemkit_webhook_max_retries`).
+- **`Database`** (`includes/class-database.php`) — Manages two custom tables: `{prefix}freemkit_subscribers` (subscriber records) and `{prefix}freemkit_subscriber_events` (per-plugin webhook interactions). Uses object caching and `dbDelta()` for schema.
 - **`Options_API`** (`includes/class-options-api.php`) — All settings stored as a single `freemkit_settings` array in `wp_options`. Access via `Options_API::get_option($key)` / `Options_API::get_settings()`. Sensitive keys (access/refresh tokens) are encrypted at rest using AES-256-CBC (OpenSSL) or libsodium.
+- **`Audit_Log`** (`includes/class-audit-log.php`) — Plugin-wide audit log stored as a non-autoloaded `freemkit_audit_log` WP option. Entries capped at 200 (filterable via `freemkit_audit_log_max_entries`); email addresses are masked. Toggleable via the `enable_audit_log` setting.
+- **`Freemius`** (`includes/class-freemius.php`) — Static helpers: normalizes event types, validates Freemius API credentials against the product endpoint, and returns the list of Freemius event choices for selectors.
+- **`Freemius_API_Client`** (`includes/class-freemius-api-client.php`) — Fetches users and licenses from the Freemius REST API for a single product (used by the Sync admin).
+- **`Subscriber`** / **`Subscriber_Event`** (`includes/class-subscriber.php`, `includes/class-subscriber-event.php`) — Value objects representing a subscriber and a per-plugin webhook event.
+- **`Language_Handler`** (`includes/class-language-handler.php`) — Loads the `freemkit` textdomain on `init`.
 
 ### Kit Integration (`includes/kit/`)
 
-- **`Kit_API`** — Wraps `ConvertKit_API_V4` to subscribe users to forms and apply tags.
-- **`Kit_Settings`** — Manages OAuth tokens (`kit_access_token`, `kit_refresh_token`). Falls back to the official Kit WordPress plugin's stored credentials if available.
-- **`Kit_Credential_Hooks`** — Listens for `freemkit_api_get_access_token` / `freemkit_api_refresh_token` / `convertkit_api_access_token_invalid` actions to keep tokens in sync.
-- **`Kit_Audit_Log`** — Logs Kit API interactions.
+- **`Kit_API`** — Extends `ConvertKit_API_V4` to subscribe users to forms and apply tags.
+- **`Kit_Settings`** — Manages OAuth tokens (`kit_access_token`, `kit_refresh_token`, `kit_token_expires`). Falls back to the official Kit WordPress plugin's stored credentials (`_wp_convertkit_settings`) if available. Schedules token refresh via the `freemkit_refresh_token` cron hook.
+- **`Kit_Credential_Hooks`** — Listens for `freemkit_api_get_access_token` / `freemkit_api_refresh_token` / `convertkit_api_access_token_invalid` actions to keep tokens in sync. Deletes local credentials after 3 invalid-token failures within a 10-minute window.
 
 ### Admin (`includes/admin/`)
 
-- **`Admin`** — Admin menu, settings page, subscriber list screen.
+- **`Admin`** — Admin loader. Instantiates `Settings`, `Settings_Wizard`, `Subscribers_List`, `Sync_Admin`, `Admin_Notices_API`, and `Admin_Banner`.
 - **`Settings`** / **`Settings_Wizard`** — Settings pages; wizard is shown on first activation. Settings include: global Kit form/tag defaults, per-plugin overrides (free and paid form IDs, tag IDs, event types), custom field mappings, webhook endpoint type (REST vs query-var).
 - **`Kit_OAuth`** — OAuth flow for connecting to Kit.
 - **`Subscribers_List`** / **`Subscribers_List_Table`** — Admin screen displaying the local `freemkit_subscribers` table.
+- **`Subscriber_Form`** — Add/edit subscriber form.
+- **`Sync_Admin`** — Sync admin page and two-phase AJAX wizard for backfilling subscribers from Freemius.
+- **`Admin_Notices_API`** / **`Admin_Banner`** — Reusable admin notices and banner helpers.
+- **Settings subfolder** (`includes/admin/settings/`) — `Settings_API`, `Settings_Form`, `Settings_Sanitize`, `Metabox_API`, `Settings_Wizard_API`.
 
 ### Utilities (`includes/util/`)
 
@@ -68,7 +78,7 @@ npm run zip             # Create plugin zip via wp-scripts
 
 ## Key Patterns
 
-- **Webhook event routing:** Freemius sends a `type` field (e.g. `install.installed`, `license.created`). Default free events: `['install.installed']`; default paid events: `['license.created']`. Both can be overridden per-plugin config or via `freemkit_default_free_event_types` / `freemkit_default_paid_event_types` filters.
+- **Webhook event routing:** Freemius sends a `type` field (e.g. `install.installed`, `license.created`). Default free events: `['install.installed']`; default paid events: `['license.created']`. Both can be overridden per-plugin config or via `freemkit_default_free_event_types` / `freemkit_default_paid_event_types` filters. Unsubscribe events (default `user.marketing.opted_out`) trigger Kit unsubscription; `user.marketing.opted_in` re-subscribes; `user.name.changed` updates the subscriber name.
 - **Per-plugin config:** The settings store a `plugins` array, each entry keyed by Freemius plugin ID, with separate free/paid form IDs, tag IDs, and event types. Falls back to global kit form/tag settings when per-plugin values are empty.
 - **Settings access:** Always use `Options_API::get_option($key)` rather than reading `freemkit_settings` directly.
 - **Hook registration:** Use `Hook_Registry::add_action()` / `Hook_Registry::add_filter()` rather than WordPress functions directly.
