@@ -524,4 +524,15 @@ class Settings_Wizard extends Settings_Wizard_API {
 
 		return add_query_arg( array_merge( $default, $args ), admin_url( 'options-general.php' ) );
 	}
+
+	/**
+	 * Get the version for cache busting.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @return string Version number.
+	 */
+	protected function get_version() {
+		return FREEMKIT_VERSION;
+	}
 }

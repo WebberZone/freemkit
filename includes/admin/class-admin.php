@@ -165,6 +165,9 @@ class Admin {
 		return array(
 			'capability' => 'manage_options',
 			'prefix'     => 'freemkit',
+			'style'      => array(
+				'version' => FREEMKIT_VERSION,
+			),
 			'strings'    => array(
 				'region_label' => __( 'FreemKit admin navigation', 'freemkit' ),
 				'nav_label'    => __( 'FreemKit sections', 'freemkit' ),
