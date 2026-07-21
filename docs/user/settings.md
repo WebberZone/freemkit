@@ -26,8 +26,8 @@ These are fallback values used when a plugin entry does not specify its own form
 
 | Setting | Description |
 |---|---|
-| **Default Form** | The Kit form to subscribe users to when no per-plugin form is set. Autocomplete field — start typing a form name to search. |
-| **Default Tag** | The Kit tag to apply when no per-plugin tag is set. Autocomplete field. |
+| **Global Form ID** | The Kit form to subscribe users to when no per-plugin form is set. Autocomplete field — start typing a form name to search. |
+| **Tag ID** | The Kit tag to apply when no per-plugin tag is set. Autocomplete field. |
 
 ---
 
@@ -63,17 +63,17 @@ Click **Validate Keys** after entering credentials to confirm they are correct.
 
 | Field | Description |
 |---|---|
-| **Free Event Types** | Freemius events that should trigger a free-user subscription in Kit. Defaults to `install.installed` if left empty. |
-| **Free Form IDs** | Kit form(s) to subscribe free users to. Autocomplete. Falls back to the global default form if empty. |
-| **Free Tag IDs** | Kit tag(s) to apply to free users. Autocomplete. Falls back to the global default tag if empty. |
+| **Free Trigger Events** | Freemius events that should trigger a free-user subscription in Kit. Defaults to `install.installed` if left empty. |
+| **Free Form** | Kit form(s) to subscribe free users to. Autocomplete. Falls back to the global default form if empty. |
+| **Free Tag** | Kit tag(s) to apply to free users. Autocomplete. Falls back to the global default tag if empty. |
 
 #### Paid User Mapping
 
 | Field | Description |
 |---|---|
-| **Paid Event Types** | Freemius events that should trigger a paid-user subscription in Kit. Defaults to `license.created` if left empty. |
-| **Paid Form IDs** | Kit form(s) to subscribe paid users to. Falls back to the global default form if empty. |
-| **Paid Tag IDs** | Kit tag(s) to apply to paid users. Falls back to the global default tag if empty. |
+| **Paid Trigger Events** | Freemius events that should trigger a paid-user subscription in Kit. Defaults to `license.created` if left empty. |
+| **Paid Form** | Kit form(s) to subscribe paid users to. Falls back to the global default form if empty. |
+| **Paid Tag** | Kit tag(s) to apply to paid users. Falls back to the global default tag if empty. |
 
 See [Event Mapping](event-mapping.md) for a full list of available Freemius event types and example configurations.
 
