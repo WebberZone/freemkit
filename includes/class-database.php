@@ -105,7 +105,7 @@ class Database {
 			freemius_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			created datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
-			KEY subscriber_id (subscriber_id),
+			UNIQUE KEY subscriber_plugin_event (subscriber_id,plugin_id,event_type),
 			KEY plugin_id (plugin_id),
 			KEY event_type (event_type),
 			KEY user_type (user_type),
@@ -823,11 +823,31 @@ class Database {
 			'created'          => ! empty( $event->created ) ? $event->created : current_time( 'mysql', true ),
 		);
 
-		$result = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-			$this->events_table_name,
-			$data,
-			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' )
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$result = $wpdb->query(
+			$wpdb->prepare(
+				"INSERT INTO {$this->events_table_name}
+					(subscriber_id, plugin_id, plugin_slug, event_type, user_type, form_ids, tag_ids, freemius_user_id, created)
+				VALUES (%d, %s, %s, %s, %s, %s, %s, %d, %s)
+				ON DUPLICATE KEY UPDATE
+					id               = LAST_INSERT_ID( id ),
+					plugin_slug      = VALUES(plugin_slug),
+					user_type        = VALUES(user_type),
+					form_ids         = VALUES(form_ids),
+					tag_ids          = VALUES(tag_ids),
+					freemius_user_id = VALUES(freemius_user_id)",
+				$data['subscriber_id'],
+				$data['plugin_id'],
+				$data['plugin_slug'],
+				$data['event_type'],
+				$data['user_type'],
+				$data['form_ids'],
+				$data['tag_ids'],
+				$data['freemius_user_id'],
+				$data['created']
+			)
 		);
+		// phpcs:enable
 
 		if ( false === $result ) {
 			return new \WP_Error(
