@@ -80,6 +80,10 @@ class Subscribers_List {
 			$form->process_form();
 		}
 
+		if ( 'export' === $action ) {
+			$this->process_export();
+		}
+
 		$this->process_single_delete();
 	}
 
@@ -165,6 +169,68 @@ class Subscribers_List {
 			</div><!-- /poststuff -->
 		</div>
 		<?php
+	}
+
+	/**
+	 * Process the CSV/Excel export action.
+	 *
+	 * @since 1.0.0
+	 */
+	protected function process_export(): void {
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET['_wpnonce'] ) ), 'export_subscribers' ) ) {
+			wp_die( esc_html__( 'Security check failed.', 'freemkit' ) );
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to export subscribers.', 'freemkit' ) );
+		}
+
+		$subscribers = $this->database->get_subscribers(
+			array(
+				'per_page' => 99999,
+				'page'     => 1,
+				'orderby'  => 'id',
+				'order'    => 'ASC',
+			)
+		);
+
+		$columns = array(
+			'id'               => __( 'ID', 'freemkit' ),
+			'email'            => __( 'Email', 'freemkit' ),
+			'first_name'       => __( 'First Name', 'freemkit' ),
+			'last_name'        => __( 'Last Name', 'freemkit' ),
+			'status'           => __( 'Status', 'freemkit' ),
+			'marketing'        => __( 'Marketing', 'freemkit' ),
+			'freemius_user_id' => __( 'Freemius User ID', 'freemkit' ),
+			'freemius_created' => __( 'Freemius Created', 'freemkit' ),
+			'is_verified'      => __( 'Verified', 'freemkit' ),
+			'email_status'     => __( 'Email Status', 'freemkit' ),
+			'created'          => __( 'Created', 'freemkit' ),
+			'modified'         => __( 'Modified', 'freemkit' ),
+		);
+
+		$filename = 'freemkit-subscribers-' . gmdate( 'Y-m-d' ) . '.csv';
+
+		header( 'Content-Type: text/csv; charset=UTF-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Cache-Control: max-age=0' );
+
+		$output = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		// UTF-8 BOM for Excel compatibility.
+		fwrite( $output, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+
+		fputcsv( $output, array_values( $columns ), ',', '"', '\\' );
+
+		foreach ( $subscribers as $sub ) {
+			$row = array();
+			foreach ( array_keys( $columns ) as $key ) {
+				$row[] = isset( $sub->$key ) ? $sub->$key : '';
+			}
+			fputcsv( $output, $row, ',', '"', '\\' );
+		}
+
+		fclose( $output ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		exit;
 	}
 
 	/**
@@ -274,8 +340,10 @@ class Subscribers_List {
 		add_screen_option( $option, $args );
 		$this->subscribers_table = new Subscribers_List_Table( $this->database );
 
+		// Only the bulk "delete" action is handled here; row-level edit/add/delete links
+		// share the same `action` query var but are processed in handle_actions() instead.
 		$action = $this->subscribers_table->current_action();
-		if ( ! empty( $action ) ) {
+		if ( 'delete' === $action ) {
 			$result = $this->subscribers_table->process_bulk_action();
 			if ( is_wp_error( $result ) ) {
 				$this->redirect_with_message( 'error', $result->get_error_message() );

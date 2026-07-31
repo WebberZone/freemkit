@@ -118,7 +118,7 @@ class Subscriber_Form {
 			array(
 				'id'      => 'status',
 				'name'    => __( 'Status', 'freemkit' ),
-				'desc'    => __( 'Active subscribers are synced to Kit. Inactive subscribers are stored locally only.', 'freemkit' ),
+				'desc'    => __( 'Subscriber status used for filtering in the subscribers list.', 'freemkit' ),
 				'type'    => 'select',
 				'default' => 'active',
 				'options' => array(
@@ -182,15 +182,16 @@ class Subscriber_Form {
 		}
 
 		return array(
-			'id'                => 'plugins',
-			'name'              => __( 'Plugins', 'freemkit' ),
-			'desc'              => __( 'Each row creates a Kit subscription event for the selected plugin. Form and tag fields are optional — when empty, they are resolved from the plugin config based on user type, then from global defaults.', 'freemkit' ),
-			'type'              => 'repeater',
-			'add_button_text'   => __( 'Add Plugin', 'freemkit' ),
-			'new_item_text'     => __( 'New Plugin', 'freemkit' ),
-			'live_update_field' => 'plugin_id',
-			'default'           => array(),
-			'fields'            => array(
+			'id'                        => 'plugins',
+			'name'                      => __( 'Plugins', 'freemkit' ),
+			'desc'                      => __( 'Each row creates a Kit subscription event for the selected plugin. Form and tag fields are optional — when empty, they are resolved from the plugin config based on user type, then from global defaults.', 'freemkit' ),
+			'type'                      => 'repeater',
+			'add_button_text'           => __( 'Add Plugin', 'freemkit' ),
+			'new_item_text'             => __( 'New Plugin', 'freemkit' ),
+			'live_update_field'         => 'plugin_id',
+			'live_update_field_options' => $plugin_options,
+			'default'                   => array(),
+			'fields'                    => array(
 				array(
 					'id'      => 'plugin_id',
 					'name'    => __( 'Plugin', 'freemkit' ),
@@ -402,60 +403,66 @@ class Subscriber_Form {
 		$kit_api      = new Kit_API();
 		$events       = isset( $posted['plugins'] ) && is_array( $posted['plugins'] ) ? $posted['plugins'] : array();
 		$kit_messages = array();
+		$sync_to_kit  = isset( $_POST['freemkit_save_sync'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$kit_synced   = false;
 
-		// If the subscriber has opted out of marketing, unsubscribe from Kit immediately
-		// and skip all plugin syncs. The admin is explicitly requesting this.
+		// If the subscriber has opted out of marketing, unsubscribe from Kit.
 		if ( ! $marketing ) {
 			if ( $kit_api->has_access_and_refresh_token() ) {
 				$kit_api->unsubscribe_subscriber( $email );
 			}
 			$kit_messages[] = __( 'Subscriber unsubscribed from Kit due to marketing opt-out.', 'freemkit' );
-		} else {
-			foreach ( $events as $event_row ) {
-				if ( ! is_array( $event_row ) ) {
-					continue;
+		}
+
+		// Always save plugin events to DB. Sync to Kit only when explicitly requested.
+		foreach ( $events as $event_row ) {
+			if ( ! is_array( $event_row ) ) {
+				continue;
+			}
+
+			$event_fields = isset( $event_row['fields'] ) && is_array( $event_row['fields'] ) ? $event_row['fields'] : $event_row;
+			$plugin_id    = $settings_sanitize->sanitize_text_field( $event_fields['plugin_id'] ?? '' );
+			$user_type    = $settings_sanitize->sanitize_text_field( $event_fields['user_type'] ?? 'free' );
+			$form_ids     = $settings_sanitize->sanitize_text_field( $event_fields['form_ids'] ?? '' );
+			$tag_ids      = $settings_sanitize->sanitize_text_field( $event_fields['tag_ids'] ?? '' );
+
+			if ( '' === $plugin_id && '' === $form_ids && '' === $tag_ids ) {
+				continue;
+			}
+
+			$resolved      = $this->resolve_form_tag_ids( $plugin_id, $user_type, $form_ids, $tag_ids );
+			$plugin_config = $this->get_plugin_config( $plugin_id );
+
+			$event = new Subscriber_Event(
+				array(
+					'subscriber_id' => $result,
+					'plugin_id'     => $plugin_id,
+					'plugin_slug'   => $plugin_config ? $plugin_config['slug'] : '',
+					'event_type'    => 'manual',
+					'user_type'     => $user_type,
+					'form_ids'      => implode( ',', $resolved['form_ids'] ),
+					'tag_ids'       => implode( ',', $resolved['tag_ids'] ),
+				)
+			);
+			$this->database->add_subscriber_event( $event );
+
+			if ( $sync_to_kit && $marketing ) {
+				$kit_msg = $this->sync_to_kit( $subscriber, $resolved['form_ids'], $resolved['tag_ids'], $kit_api );
+				if ( ! empty( $kit_msg ) ) {
+					$kit_messages[] = $kit_msg;
 				}
-
-				$event_fields = isset( $event_row['fields'] ) && is_array( $event_row['fields'] ) ? $event_row['fields'] : $event_row;
-				$plugin_id    = $settings_sanitize->sanitize_text_field( $event_fields['plugin_id'] ?? '' );
-				$user_type    = $settings_sanitize->sanitize_text_field( $event_fields['user_type'] ?? 'free' );
-				$form_ids     = $settings_sanitize->sanitize_text_field( $event_fields['form_ids'] ?? '' );
-				$tag_ids      = $settings_sanitize->sanitize_text_field( $event_fields['tag_ids'] ?? '' );
-
-				if ( '' === $plugin_id && '' === $form_ids && '' === $tag_ids ) {
-					continue;
-				}
-
-				$resolved      = $this->resolve_form_tag_ids( $plugin_id, $user_type, $form_ids, $tag_ids );
-				$plugin_config = $this->get_plugin_config( $plugin_id );
-
-				$event = new Subscriber_Event(
-					array(
-						'subscriber_id' => $result,
-						'plugin_id'     => $plugin_id,
-						'plugin_slug'   => $plugin_config ? $plugin_config['slug'] : '',
-						'event_type'    => 'manual',
-						'user_type'     => $user_type,
-						'form_ids'      => implode( ',', $resolved['form_ids'] ),
-						'tag_ids'       => implode( ',', $resolved['tag_ids'] ),
-					)
-				);
-				$this->database->add_subscriber_event( $event );
-
-				// Sync to Kit for active subscribers.
-				if ( 'active' === $status ) {
-					$kit_msg = $this->sync_to_kit( $subscriber, $resolved['form_ids'], $resolved['tag_ids'], $kit_api );
-					if ( ! empty( $kit_msg ) ) {
-						$kit_messages[] = $kit_msg;
-					}
-				}
+				$kit_synced = true;
 			}
 		}
 
 		if ( $subscriber_id > 0 ) {
-			$message = __( 'Subscriber updated successfully.', 'freemkit' );
+			$message = ( $sync_to_kit && $kit_synced )
+				? __( 'Subscriber updated and synced to Kit.', 'freemkit' )
+				: __( 'Subscriber updated successfully.', 'freemkit' );
 		} else {
-			$message = __( 'Subscriber added successfully.', 'freemkit' );
+			$message = ( $sync_to_kit && $kit_synced )
+				? __( 'Subscriber added and synced to Kit.', 'freemkit' )
+				: __( 'Subscriber added successfully.', 'freemkit' );
 		}
 
 		if ( ! empty( $kit_messages ) ) {
@@ -761,6 +768,10 @@ class Subscriber_Form {
 			? __( 'Update Subscriber', 'freemkit' )
 			: __( 'Add Subscriber', 'freemkit' );
 
+		$sync_text = $this->is_edit
+			? __( 'Update & Sync to Kit', 'freemkit' )
+			: __( 'Add & Sync to Kit', 'freemkit' );
+
 		$settings_form = new Settings_Form(
 			array(
 				'settings_key' => self::SETTINGS_KEY,
@@ -817,6 +828,7 @@ class Subscriber_Form {
 
 				<p class="submit">
 					<input type="submit" name="submit" class="button button-primary" value="<?php echo esc_attr( $submit_text ); ?>" />
+					<input type="submit" name="freemkit_save_sync" class="button button-secondary" value="<?php echo esc_attr( $sync_text ); ?>" />
 					<?php if ( $this->is_edit && $this->subscriber && $this->subscriber->id ) { ?>
 					&nbsp;&nbsp;&nbsp;&nbsp;<button type="submit" name="freemkit_delete_subscriber" class="button" style="background-color: #dc3545; border-color: #dc3545; color: white;" onclick="return confirm('<?php echo esc_js( __( 'Are you sure you want to delete this subscriber?', 'freemkit' ) ); ?>');"><?php esc_html_e( 'Delete Subscriber', 'freemkit' ); ?></button>
 					<?php } ?>

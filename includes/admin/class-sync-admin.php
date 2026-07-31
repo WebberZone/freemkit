@@ -66,7 +66,7 @@ class Sync_Admin {
 	 */
 	public function register_sync_page(): void {
 		$this->page_id = add_submenu_page(
-			'options-general.php',
+			'tools.php',
 			__( 'FreemKit Sync', 'freemkit' ),
 			__( 'FreemKit Sync', 'freemkit' ),
 			'manage_options',
@@ -135,7 +135,7 @@ class Sync_Admin {
 					'fetch_error'    => __( 'Failed to fetch users. Check your settings and try again.', 'freemkit' ),
 					'process_error'  => __( 'Error processing user.', 'freemkit' ),
 					'request_failed' => __( 'Request failed. Check your connection and try again.', 'freemkit' ),
-					'summary'        => __( 'Processed: {processed} • Synced: {synced} • Updated: {updated} • Skipped: {skipped} • Errors: {errors}', 'freemkit' ),
+					'summary'        => __( 'Processed: {processed} • Synced: {synced} • Updated: {updated} • Opted-out: {opted_out} • Skipped: {skipped} • Errors: {errors}', 'freemkit' ),
 				),
 			)
 		);
@@ -342,6 +342,10 @@ class Sync_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized.', 'freemkit' ) ) );
 		}
+
+		// A DB error echoed mid-response (e.g. by another plugin leaving $wpdb->show_errors() on) would corrupt this JSON payload.
+		global $wpdb;
+		$wpdb->hide_errors();
 
 		// phpcs:disable WordPress.Security.ValidatedSanitizedInput
 		$source       = isset( $_POST['source'] ) ? sanitize_key( wp_unslash( $_POST['source'] ) ) : 'local';
@@ -633,6 +637,10 @@ class Sync_Admin {
 			wp_send_json_error( array( 'message' => __( 'Unauthorized.', 'freemkit' ) ) );
 		}
 
+		// A DB error echoed mid-response (e.g. by another plugin leaving $wpdb->show_errors() on) would corrupt this JSON payload.
+		global $wpdb;
+		$wpdb->hide_errors();
+
 		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$raw_tasks = isset( $_POST['tasks'] ) && is_array( $_POST['tasks'] ) ? wp_unslash( $_POST['tasks'] ) : array();
 		// phpcs:enable
@@ -711,20 +719,36 @@ class Sync_Admin {
 			);
 		}
 
-		// Skip opted-out subscribers.
+		// Opted-out subscribers: still record/update them locally, but skip the Kit push.
 		$respect_optout = (bool) Options_API::get_option( 'respect_marketing_optout' );
 		if ( $respect_optout ) {
 			$existing = $this->database->get_subscriber_by_email( $email );
 			if ( ! is_wp_error( $existing ) && empty( $existing->marketing ) ) {
+				$subscriber = new Subscriber(
+					array(
+						'email'            => $email,
+						'first_name'       => $first,
+						'last_name'        => $last,
+						'marketing'        => 0,
+						'freemius_user_id' => $fs_uid,
+						'freemius_created' => sanitize_text_field( $task['freemius_created'] ?? '' ),
+						'is_verified'      => isset( $task['is_verified'] ) ? (int) $task['is_verified'] : 0,
+						'email_status'     => isset( $task['email_status'] ) ? sanitize_text_field( $task['email_status'] ) : '',
+						'meta'             => $task_meta,
+					)
+				);
+				$this->database->upsert_subscriber_by_email( $subscriber );
+
 				return array(
-					'action'      => 'skipped',
+					'action'      => 'opted_out',
 					'email'       => $email,
 					'first_name'  => $first,
 					'last_name'   => $last,
 					'user_type'   => $user_type,
+					'plugin_name' => $plugin_name,
 					'destination' => $destination,
 					'forms'       => '',
-					'error'       => __( 'Skipped: subscriber has opted out of marketing.', 'freemkit' ),
+					'error'       => __( 'Saved locally; not synced to Kit — subscriber has opted out of marketing.', 'freemkit' ),
 				);
 			}
 		}
@@ -869,8 +893,9 @@ class Sync_Admin {
 			);
 		}
 
-		// marketing=0: write to local DB to record the subscriber, but skip Kit.
-		if ( 0 === $marketing ) {
+		// marketing=0: write to local DB to record the subscriber, but skip Kit — unless
+		// the admin has disabled opt-out enforcement, in which case Kit sync proceeds below.
+		if ( 0 === $marketing && $respect_optout ) {
 			$subscriber = new Subscriber(
 				array(
 					'email'            => $email,
@@ -886,7 +911,7 @@ class Sync_Admin {
 			);
 			$this->database->upsert_subscriber_by_email( $subscriber );
 			return array(
-				'action'      => 'skipped',
+				'action'      => 'opted_out',
 				'email'       => $email,
 				'first_name'  => $first,
 				'last_name'   => $last,
@@ -894,7 +919,7 @@ class Sync_Admin {
 				'plugin_name' => $plugin_name,
 				'destination' => $destination,
 				'forms'       => '',
-				'error'       => __( 'Skipped: subscriber has opted out of marketing.', 'freemkit' ),
+				'error'       => __( 'Saved locally; not synced to Kit — subscriber has opted out of marketing.', 'freemkit' ),
 			);
 		}
 
@@ -1070,12 +1095,27 @@ class Sync_Admin {
 				continue;
 			}
 
-			// Marketing opt-out check (DB + task flag).
+			// Opted-out subscribers: still record/update them locally, but skip the Kit push.
 			if ( $respect_optout ) {
 				$existing = $this->database->get_subscriber_by_email( $email );
 				if ( ! is_wp_error( $existing ) && empty( $existing->marketing ) ) {
+					$subscriber = new Subscriber(
+						array(
+							'email'            => $email,
+							'first_name'       => $first,
+							'last_name'        => $last,
+							'marketing'        => 0,
+							'freemius_user_id' => $fs_uid,
+							'freemius_created' => sanitize_text_field( $task['freemius_created'] ?? '' ),
+							'is_verified'      => isset( $task['is_verified'] ) ? (int) $task['is_verified'] : 0,
+							'email_status'     => isset( $task['email_status'] ) ? sanitize_text_field( $task['email_status'] ) : '',
+							'meta'             => $task_meta_data,
+						)
+					);
+					$this->database->upsert_subscriber_by_email( $subscriber );
+
 					$results[] = array(
-						'action'      => 'skipped',
+						'action'      => 'opted_out',
 						'email'       => $email,
 						'first_name'  => $first,
 						'last_name'   => $last,
@@ -1083,14 +1123,15 @@ class Sync_Admin {
 						'plugin_name' => $plugin_name,
 						'destination' => $destination,
 						'forms'       => '',
-						'error'       => __( 'Skipped: subscriber has opted out of marketing.', 'freemkit' ),
+						'error'       => __( 'Saved locally; not synced to Kit — subscriber has opted out of marketing.', 'freemkit' ),
 					);
 					continue;
 				}
 			}
 
-			// marketing=0: write to local DB to record the subscriber, but skip Kit.
-			if ( 0 === $marketing ) {
+			// marketing=0: write to local DB to record the subscriber, but skip Kit — unless
+			// the admin has disabled opt-out enforcement, in which case Kit sync proceeds below.
+			if ( 0 === $marketing && $respect_optout ) {
 				$subscriber = new Subscriber(
 					array(
 						'email'            => $email,
@@ -1106,7 +1147,7 @@ class Sync_Admin {
 				);
 				$this->database->upsert_subscriber_by_email( $subscriber );
 				$results[] = array(
-					'action'      => 'skipped',
+					'action'      => 'opted_out',
 					'email'       => $email,
 					'first_name'  => $first,
 					'last_name'   => $last,
@@ -1114,7 +1155,7 @@ class Sync_Admin {
 					'plugin_name' => $plugin_name,
 					'destination' => $destination,
 					'forms'       => '',
-					'error'       => __( 'Skipped: subscriber has opted out of marketing.', 'freemkit' ),
+					'error'       => __( 'Saved locally; not synced to Kit — subscriber has opted out of marketing.', 'freemkit' ),
 				);
 				continue;
 			}

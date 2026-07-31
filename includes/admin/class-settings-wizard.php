@@ -528,7 +528,7 @@ class Settings_Wizard extends Settings_Wizard_API {
 	/**
 	 * Get the version for cache busting.
 	 *
-	 * @since 4.4.0
+	 * @since 1.0.0
 	 *
 	 * @return string Version number.
 	 */

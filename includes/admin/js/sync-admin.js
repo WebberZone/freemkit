@@ -16,14 +16,16 @@ jQuery( document ).ready( function ( $ ) {
 	var totalFetched = 0;
 
 	// Toggle Kit-specific fields when destination changes.
-	$( 'input[name="sync_destination"]' ).on( 'change', function () {
+	function toggleKitFields() {
 		var dest = $( 'input[name="sync_destination"]:checked' ).val();
 		if ( 'local' === dest ) {
 			$kitFields.find( 'tr' ).hide();
 		} else {
 			$kitFields.find( 'tr' ).show();
 		}
-	} );
+	}
+	$( 'input[name="sync_destination"]' ).on( 'change', toggleKitFields );
+	toggleKitFields();
 
 	$form.on( 'submit', function ( e ) {
 		e.preventDefault();
@@ -62,7 +64,7 @@ jQuery( document ).ready( function ( $ ) {
 			overrideTagIds:  overrideTagIds
 		};
 
-		var counts = { processed: 0, synced: 0, updated: 0, skipped: 0, errors: 0 };
+		var counts = { processed: 0, synced: 0, updated: 0, optedOut: 0, skipped: 0, errors: 0 };
 
 		fetchPage( context, 0, 0, counts );
 	} );
@@ -197,10 +199,11 @@ jQuery( document ).ready( function ( $ ) {
 					response.data.results.forEach( function ( result ) {
 						counts.processed++;
 						appendRow( result );
-						if ( 'synced' === result.action )       { counts.synced++; }
-						else if ( 'updated' === result.action ) { counts.updated++; }
-						else if ( 'skipped' === result.action )   { counts.skipped++; }
-						else if ( 'error' === result.action )     { counts.errors++; }
+						if ( 'synced' === result.action )          { counts.synced++; }
+						else if ( 'updated' === result.action )    { counts.updated++; }
+						else if ( 'opted_out' === result.action )  { counts.optedOut++; }
+						else if ( 'skipped' === result.action )    { counts.skipped++; }
+						else if ( 'error' === result.action )      { counts.errors++; }
 					} );
 				} else {
 					var msg = ( response && response.data && response.data.message ) || data.strings.process_error;
@@ -241,10 +244,11 @@ jQuery( document ).ready( function ( $ ) {
 		$cancelBtn.hide();
 		$submitBtn.prop( 'disabled', false );
 
-		var summaryText = ( data.strings.summary || 'Processed: {processed} • Synced: {synced} • Updated: {updated} • Skipped: {skipped} • Errors: {errors}' )
+		var summaryText = ( data.strings.summary || 'Processed: {processed} • Synced: {synced} • Updated: {updated} • Opted-out: {opted_out} • Skipped: {skipped} • Errors: {errors}' )
 			.replace( '{processed}', counts.processed )
 			.replace( '{synced}',    counts.synced )
 			.replace( '{updated}',   counts.updated )
+			.replace( '{opted_out}', counts.optedOut )
 			.replace( '{skipped}',   counts.skipped )
 			.replace( '{errors}',    counts.errors );
 
@@ -257,6 +261,8 @@ jQuery( document ).ready( function ( $ ) {
 
 		if ( 'error' === result.action ) {
 			$row.css( 'background-color', '#fce8e8' );
+		} else if ( 'opted_out' === result.action ) {
+			$row.css( 'background-color', '#e7f3fe' );
 		} else if ( 'skipped' === result.action ) {
 			$row.css( 'background-color', '#fff3cd' );
 		}

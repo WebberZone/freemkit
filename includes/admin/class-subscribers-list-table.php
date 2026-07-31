@@ -385,10 +385,10 @@ class Subscribers_List_Table extends \WP_List_Table {
 		$export_url = wp_nonce_url(
 			add_query_arg(
 				array(
-					'page'   => 'subscribers',
+					'page'   => 'freemkit_subscribers',
 					'action' => 'export',
 				),
-				admin_url( 'admin.php' )
+				admin_url( 'users.php' )
 			),
 			'export_subscribers'
 		);

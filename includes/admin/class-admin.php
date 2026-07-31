@@ -192,10 +192,10 @@ class Admin {
 				),
 				'sync'        => array(
 					'label'      => __( 'Sync', 'freemkit' ),
-					'url'        => admin_url( 'options-general.php?page=freemkit_sync' ),
+					'url'        => admin_url( 'tools.php?page=freemkit_sync' ),
 					'type'       => 'secondary',
 					'page_slugs' => array( 'freemkit_sync' ),
-					'screen_ids' => array( 'settings_page_freemkit_sync' ),
+					'screen_ids' => array( 'tools_page_freemkit_sync' ),
 				),
 				'plugins'     => array(
 					'label'  => esc_html__( 'WebberZone Plugins', 'freemkit' ),
