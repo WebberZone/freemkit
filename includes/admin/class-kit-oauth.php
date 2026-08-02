@@ -111,15 +111,14 @@ class Kit_OAuth {
 	 * Verify the OAuth state parameter and return the redirect URL from it.
 	 *
 	 * Decodes the base64url-encoded JSON state that get_oauth_url() generated,
-	 * verifies the client_id matches, and returns the return_to URL if valid.
-	 * Falls back to get_settings_url() if state is absent or malformed.
+	 * verifies the client_id matches, checks the nonce that round-trips inside
+	 * return_to, and returns that URL if valid.
 	 *
-	 * @return string|\WP_Error Redirect URL on success, WP_Error if state is present but invalid.
+	 * @return string|\WP_Error Redirect URL on success, WP_Error if state is missing or invalid.
 	 */
 	protected function verify_oauth_state_and_get_redirect() {
 		if ( ! isset( $_GET['state'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			// No state sent — fall back gracefully (some OAuth flows omit it).
-			return $this->get_settings_url();
+			return new \WP_Error( 'oauth_state_missing', 'Missing state parameter.' );
 		}
 
 		$raw_state = sanitize_text_field( wp_unslash( $_GET['state'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -143,18 +142,32 @@ class Kit_OAuth {
 			return new \WP_Error( 'oauth_state_client_id', 'State client_id mismatch.' );
 		}
 
-		// Use return_to URL if present and local to prevent open-redirect.
-		if ( ! empty( $state_data['return_to'] ) && is_string( $state_data['return_to'] ) ) {
-			$return_to = $state_data['return_to'];
-			$admin_url = admin_url();
-			$site_url  = site_url();
-			$is_local  = ( 0 === strpos( $return_to, $admin_url ) || 0 === strpos( $return_to, $site_url ) );
-			if ( $is_local ) {
-				return esc_url_raw( $return_to );
-			}
+		// Require a local return_to URL to prevent open-redirect.
+		if ( empty( $state_data['return_to'] ) || ! is_string( $state_data['return_to'] ) ) {
+			return new \WP_Error( 'oauth_state_return_to', 'State is missing a return URL.' );
 		}
 
-		return $this->get_settings_url();
+		$return_to = $state_data['return_to'];
+		$admin_url = admin_url();
+		$site_url  = site_url();
+		if ( 0 !== strpos( $return_to, $admin_url ) && 0 !== strpos( $return_to, $site_url ) ) {
+			return new \WP_Error( 'oauth_state_return_to', 'State return URL is not local.' );
+		}
+
+		// The nonce round-trips inside state.return_to, binding the callback to the user who started the flow.
+		$nonce = '';
+		$query = wp_parse_url( $return_to, PHP_URL_QUERY );
+		if ( is_string( $query ) ) {
+			$parsed = array();
+			wp_parse_str( $query, $parsed );
+			$nonce = isset( $parsed['freemkit_oauth_nonce'] ) ? sanitize_text_field( $parsed['freemkit_oauth_nonce'] ) : '';
+		}
+
+		if ( ! wp_verify_nonce( $nonce, 'freemkit_oauth_connect' ) ) {
+			return new \WP_Error( 'oauth_state_nonce', 'State nonce is missing or expired.' );
+		}
+
+		return esc_url_raw( remove_query_arg( 'freemkit_oauth_nonce', $return_to ) );
 	}
 
 	/**
@@ -170,8 +183,9 @@ class Kit_OAuth {
 		$settings_url = add_query_arg(
 			array_merge(
 				array(
-					'page' => $menu_slug,
-					'tab'  => 'kit',
+					'page'                 => $menu_slug,
+					'tab'                  => 'kit',
+					'freemkit_oauth_nonce' => wp_create_nonce( 'freemkit_oauth_connect' ),
 				),
 				$query_args
 			),

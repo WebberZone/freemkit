@@ -80,6 +80,14 @@ Yes! The plugin is built with security in mind:
 * Features comprehensive input sanitization
 * Stores sensitive data securely
 
+= A customer opted back in to marketing. Why are they still unsubscribed in Kit? =
+
+Kit provides no way to reverse an unsubscribe — there is no API endpoint that moves a subscriber from `cancelled` back to `active`. Once someone has left your list, only they can rejoin it, by submitting one of your Kit forms.
+
+When FreemKit receives a `user.marketing.opted_in` event for someone in that position, it records the opt-in locally and logs it, but makes no attempt to add them back to Kit. Look for `kit_reactivation_skipped` entries in the audit log to see when this has happened.
+
+Customers who are still active in Kit, or who were never added to it, are handled normally — their forms and tags are applied as usual.
+
 = Can I customize the integration? =
 
 Yes! The plugin provides various WordPress filters and actions for developers to customize its behavior. Check the documentation for available hooks.
@@ -107,11 +115,7 @@ Yes! The plugin provides various WordPress filters and actions for developers to
 == Changelog ==
 
 = 1.0.0 =
-* Initial release with core integration features
-* Webhook handling implementation
-* Custom Settings API integration
-* Kit field mapping
-* Basic debugging tools
+* Initial release
 
 == Upgrade Notice ==
 

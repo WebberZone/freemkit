@@ -92,7 +92,8 @@ class Runtime {
 			$plugin_id                    = sanitize_text_field( (string) $plugin_fields['id'] );
 			$plugin_configs[ $plugin_id ] = array(
 				'slug'             => sanitize_title( (string) ( $plugin_fields['name'] ?? '' ) ),
-				'secret_key'       => (string) ( $plugin_fields['secret_key'] ?? '' ),
+				// Stored encrypted at rest; the webhook HMAC needs the real Freemius secret.
+				'secret_key'       => Options_API::decrypt_api_key( (string) ( $plugin_fields['secret_key'] ?? '' ) ),
 				'free_form_ids'    => (string) ( $plugin_fields['free_form_ids'] ?? '' ),
 				'free_tag_ids'     => (string) ( $plugin_fields['free_tag_ids'] ?? '' ),
 				'free_event_types' => (string) ( $plugin_fields['free_event_types'] ?? '' ),

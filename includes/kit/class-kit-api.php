@@ -418,6 +418,47 @@ class Kit_API extends \ConvertKit_API_V4 {
 	}
 
 	/**
+	 * Get a subscriber's current state in Kit.
+	 *
+	 * Unlike get_subscriber_id(), this queries across every state, so cancelled and
+	 * bounced subscribers are visible rather than reported as missing.
+	 *
+	 * Kit's v4 API has no endpoint that moves a subscriber back to 'active' — neither
+	 * create nor update accepts a state change — so an opt-in cannot undo an earlier
+	 * unsubscribe. Callers use this to detect and report that case.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $email Email address.
+	 * @return string|\WP_Error State such as 'active', 'cancelled' or 'bounced';
+	 *                          empty string when the subscriber is not in Kit at all.
+	 */
+	public function get_subscriber_state( string $email ) {
+		$validate = $this->validate_email( $email );
+		if ( is_wp_error( $validate ) ) {
+			return $validate;
+		}
+
+		$subscribers = $this->get(
+			'subscribers',
+			array(
+				'email_address' => $email,
+				'status'        => 'all',
+			)
+		);
+
+		if ( is_wp_error( $subscribers ) ) {
+			return $subscribers;
+		}
+
+		if ( empty( $subscribers['subscribers'] ) ) {
+			return '';
+		}
+
+		return (string) ( $subscribers['subscribers'][0]['state'] ?? '' );
+	}
+
+	/**
 	 * Unsubscribe a subscriber from Kit by email.
 	 *
 	 * @param string $email Email address.

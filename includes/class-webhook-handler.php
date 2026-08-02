@@ -473,9 +473,53 @@ class Webhook_Handler {
 	}
 
 	/**
+	 * Resolve the user type a subscriber was last recorded under.
+	 *
+	 * A marketing opt-in event carries no free/paid signal of its own, so the most
+	 * recent event that did record one decides which forms and tags to restore.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int $subscriber_id Local subscriber ID.
+	 * @return string 'paid', 'free', or '' when nothing has been recorded yet.
+	 */
+	protected function resolve_last_user_type( int $subscriber_id ): string {
+		$events = $this->database->get_subscriber_events(
+			$subscriber_id,
+			array(
+				'per_page' => 50,
+				'orderby'  => 'created',
+				'order'    => 'DESC',
+			)
+		);
+
+		if ( empty( $events ) ) {
+			return '';
+		}
+
+		foreach ( $events as $event ) {
+			$user_type = sanitize_key( $event->user_type );
+			if ( 'paid' === $user_type || 'free' === $user_type ) {
+				return $user_type;
+			}
+		}
+
+		return '';
+	}
+
+	/**
 	 * Process a marketing opt-in or reset event.
 	 *
-	 * Clears the opt-out flag and sets the subscriber status back to active.
+	 * Clears the opt-out flag, sets the subscriber status back to active, and restores
+	 * the Kit form and tag membership that the matching opt-out removed.
+	 *
+	 * A subscriber who has already left Kit is not pulled back in. Kit's v4 API has no
+	 * endpoint that reverses an unsubscribe, and that is treated as a decision to
+	 * respect rather than an obstacle to work around: when the subscriber's Kit state
+	 * is anything other than 'active', no Kit write is attempted at all. The opt-in is
+	 * still recorded locally and logged as 'kit_reactivation_skipped' so the gap
+	 * between Freemius and Kit is visible. Re-subscribing is then the subscriber's own
+	 * action to take, through a Kit form.
 	 *
 	 * @since 1.0.0
 	 *
@@ -508,15 +552,72 @@ class Webhook_Handler {
 			return new \WP_Error( 'db_error', __( 'Marketing opt-in recorded with database errors', 'freemkit' ) );
 		}
 
+		// Restore the forms and tags for whichever type this subscriber was last seen as.
+		$user_type = $this->resolve_last_user_type( (int) $db_result );
+		$type_key  = ( 'paid' === $user_type ) ? 'paid' : 'free';
+
+		$active_form_ids = $this->resolve_list_config( $plugin_config, $type_key . '_form_ids', Options_API::get_option( 'kit_form_id' ) );
+		$active_tag_ids  = $this->resolve_list_config( $plugin_config, $type_key . '_tag_ids', Options_API::get_option( 'kit_tag_id' ) );
+
+		// A subscriber who has left Kit stays gone. Kit offers no way to reverse an
+		// unsubscribe, and that is their decision to make, not ours to route around.
+		$kit_state  = $this->api->get_subscriber_state( $email );
+		$has_left   = ! is_wp_error( $kit_state ) && '' !== $kit_state && 'active' !== $kit_state;
+		$api_result = null;
+
+		if ( $has_left ) {
+			Audit_Log::add(
+				'kit_reactivation_skipped',
+				array(
+					'event_type' => $event_type,
+					'plugin_id'  => (string) $plugin_id,
+					'email'      => $email,
+					'kit_state'  => $kit_state,
+				),
+				'warning'
+			);
+
+			$active_form_ids = array();
+			$active_tag_ids  = array();
+		} else {
+			$kit_fields      = array();
+			$last_name_field = Options_API::get_option( 'last_name_field' );
+			if ( $last_name_field && $last_name ) {
+				$kit_fields[ $this->api->resolve_custom_field_key( $last_name_field ) ] = $last_name;
+			}
+
+			$api_result = $this->subscribe_to_forms( $active_form_ids, $email, $first_name, $kit_fields, $active_tag_ids );
+
+			if ( is_wp_error( $api_result ) ) {
+				if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log( sprintf( '[FreemKit] Kit API Error during marketing opt-in: %s', $api_result->get_error_message() ) );
+				}
+				Audit_Log::add(
+					'optin_kit_error',
+					array(
+						'event_type' => $event_type,
+						'plugin_id'  => (string) $plugin_id,
+						'email'      => $email,
+						'error'      => $api_result->get_error_message(),
+					),
+					'error'
+				);
+
+				$active_form_ids = array();
+				$active_tag_ids  = array();
+			}
+		}
+
 		$event = new Subscriber_Event(
 			array(
 				'subscriber_id'    => $db_result,
 				'plugin_id'        => (string) $plugin_id,
 				'plugin_slug'      => $plugin_config['slug'],
 				'event_type'       => $event_type,
-				'user_type'        => '',
-				'form_ids'         => '',
-				'tag_ids'          => '',
+				'user_type'        => $user_type,
+				'form_ids'         => implode( ',', $active_form_ids ),
+				'tag_ids'          => implode( ',', $active_tag_ids ),
 				'freemius_user_id' => $freemius_user_id,
 			)
 		);
@@ -527,9 +628,20 @@ class Webhook_Handler {
 			error_log( sprintf( '[FreemKit] Event insert error during marketing opt-in: %s', $event_result->get_error_message() ) );
 		}
 
+		if ( is_wp_error( $api_result ) ) {
+			return new \WP_Error( 'api_error', __( 'Marketing opt-in recorded locally, but the Kit update failed.', 'freemkit' ) );
+		}
+
+		if ( $has_left ) {
+			return array(
+				'status'  => 'success',
+				'message' => __( 'Marketing opt-in recorded locally. The subscriber has unsubscribed in Kit and was not re-added; they can resubscribe themselves through a Kit form.', 'freemkit' ),
+			);
+		}
+
 		return array(
 			'status'  => 'success',
-			'message' => __( 'Marketing opt-in processed; subscriber status set to active.', 'freemkit' ),
+			'message' => __( 'Marketing opt-in processed; subscriber reactivated locally and Kit forms/tags restored.', 'freemkit' ),
 		);
 	}
 
