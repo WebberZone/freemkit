@@ -4,7 +4,7 @@ tags: [freemkit,installation]
 
 # Installing and Configuring FreemKit
 
-This guide walks you through everything needed to get FreemKit running: installing the plugin, connecting your Kit account, and adding your Freemius products.
+This guide covers installing FreemKit, connecting your Kit account, and adding your Freemius products.
 
 ---
 
@@ -21,7 +21,7 @@ This guide walks you through everything needed to get FreemKit running: installi
 
 1. Upload the `freemkit` folder to `/wp-content/plugins/`, or install via the WordPress plugin screen.
 2. Activate the plugin under **Plugins → Installed Plugins**.
-3. The setup wizard will launch automatically on first activation. You can also reach it at any time via **Settings → FreemKit → Start Setup Wizard**.
+3. The setup wizard launches automatically on first activation. Reach it at any time via **Settings → FreemKit → Start Setup Wizard**.
 
 ---
 
@@ -99,7 +99,7 @@ See [Event Mapping](event-mapping.md) for a full walkthrough.
 
 ## Step 6 — Configure Subscriber Behavior (Optional)
 
-These settings control how FreemKit handles edge cases like marketing opt-outs and name changes. You can leave the defaults in place initially and adjust as needed.
+These settings control how FreemKit handles edge cases like marketing opt-outs and name changes. The defaults work for most sites; adjust them as needed.
 
 Go to **Settings → FreemKit → Subscribers** tab. Key options:
 
