@@ -9,6 +9,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - No suggestions outside the scope of what was asked
 - Skip preamble and trailing summaries
 
+## Links
+
+- GitHub: <https://github.com/WebberZone/freemkit>
+
+Internal tooling plugin — not distributed on WordPress.org or webberzone.com/plugins.
+
 ## Plugin Overview
 
 FreemKit is a WordPress plugin (v1.0.0) that bridges Freemius software licensing with Kit (formerly ConvertKit) email marketing. It receives Freemius webhook events and subscribes customers to Kit forms/tags based on whether they are free or paid users. Namespace: `WebberZone\FreemKit`. Prefix: `freemkit_`. Text domain: `freemkit`. Requires WordPress 6.6+, PHP 7.4+.
