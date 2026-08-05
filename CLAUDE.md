@@ -37,14 +37,15 @@ composer zip              # Create distribution zip
 ### JavaScript/CSS
 
 ```bash
-npm run build             # Build JS/CSS assets with wp-scripts
-npm run build:assets      # Minify CSS/JS and generate RTL CSS (node build-assets.js)
-npm start                 # Watch mode
-npm run lint:js           # ESLint
-npm run lint:css          # Stylelint
-npm run format            # Format with wp-scripts
-npm run packages-update   # Update wp-scripts packages
-npm run zip               # Create plugin zip via wp-scripts
+pnpm run build             # Build JS/CSS assets with wp-scripts
+pnpm run build:assets      # Minify CSS/JS and generate RTL CSS (node build-assets.js)
+pnpm start                 # Watch mode
+pnpm run lint:js           # ESLint
+pnpm run lint:css          # Stylelint
+pnpm run format            # Format with wp-scripts
+pnpm run packages-update   # Update wp-scripts packages
+pnpm run zip               # Create plugin zip via wp-scripts
+ncu -u && pnpm install   # Update dependencies to latest and reinstall
 ```
 
 ## Architecture
