@@ -1353,7 +1353,7 @@ class Settings {
 		}
 
 		$html .= '<p><button type="button" class="button button-secondary test-kit-connection">' . esc_html__( 'Test Connection', 'freemkit' ) . '</button>';
-		$html .= '<span class="kit-connection-status" style="margin-left: 10px;"></span></p>';
+		$html .= '<span class="kit-connection-status" role="status" aria-live="polite" aria-atomic="true" aria-busy="false" style="margin-left: 10px;"></span></p>';
 
 		return $html;
 	}
@@ -1500,10 +1500,10 @@ class Settings {
 
 		$string  = '<div class="webhook-url-container" data-rest-url="' . esc_attr( $rest_url ) . '" data-query-url="' . esc_attr( $query_url ) . '">';
 		$string .= '<p>' . esc_html__( 'Copy the following URL to your Freemius dashboard:', 'freemkit' ) . '</p>';
-		$string .= '<p><input type="text" class="regular-text freemkit-webhook-url-input" readonly value="' . esc_attr( $webhook_url ) . '" /></p>';
+		$string .= '<p><label class="screen-reader-text" for="freemkit-webhook-url">' . esc_html__( 'Webhook URL', 'freemkit' ) . '</label><input type="text" id="freemkit-webhook-url" class="regular-text freemkit-webhook-url-input" readonly value="' . esc_attr( $webhook_url ) . '" /></p>';
 		$string .= '<p><button type="button" class="button button-secondary freemkit-webhook-copy">' . esc_html__( 'Copy URL', 'freemkit' ) . '</button></p>';
 		$string .= '<p class="description freemkit-webhook-copy-status" aria-live="polite"></p>';
-		$string .= '<p><code class="freemkit-webhook-url-code" title="' . esc_attr__( 'Click to copy URL', 'freemkit' ) . '" style="cursor:pointer;">' . esc_html( $webhook_url ) . '</code></p>';
+		$string .= '<p><code class="freemkit-webhook-url-code">' . esc_html( $webhook_url ) . '</code></p>';
 		$string .= '<p class="description">' . esc_html__( 'This URL updates automatically based on your selected endpoint type.', 'freemkit' ) . '</p>';
 		$string .= '</div>';
 

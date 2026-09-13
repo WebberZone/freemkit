@@ -15,6 +15,12 @@ jQuery( document ).ready( function ( $ ) {
 	var totalKnown   = 0;
 	var totalFetched = 0;
 
+	function setProgress( percent ) {
+		percent = Math.max( 0, Math.min( 100, parseInt( percent, 10 ) || 0 ) );
+		$bar.css( 'width', percent + '%' );
+		$bar.closest( '[role="progressbar"]' ).attr( 'aria-valuenow', percent );
+	}
+
 	// Toggle Kit-specific fields when destination changes.
 	function toggleKitFields() {
 		var dest = $( 'input[name="sync_destination"]:checked' ).val();
@@ -47,7 +53,8 @@ jQuery( document ).ready( function ( $ ) {
 
 		// Reset UI.
 		$progress.show();
-		$bar.css( 'width', '0%' );
+		$progress.attr( 'aria-busy', 'true' );
+		setProgress( 0 );
 		$statusText.text( data.strings.fetching );
 		$results.show();
 		$tbody.empty();
@@ -72,6 +79,7 @@ jQuery( document ).ready( function ( $ ) {
 	$cancelBtn.on( 'click', function () {
 		isCancelled = true;
 		$statusText.text( data.strings.cancelled );
+		$progress.attr( 'aria-busy', 'false' );
 		$cancelBtn.hide();
 		$submitBtn.prop( 'disabled', false );
 	} );
@@ -177,7 +185,7 @@ jQuery( document ).ready( function ( $ ) {
 
 		if ( totalKnown > 0 ) {
 			var pct = Math.round( ( counts.processed / totalKnown ) * 100 );
-			$bar.css( 'width', pct + '%' );
+			setProgress( pct );
 		}
 
 		$statusText.text(
@@ -239,7 +247,8 @@ jQuery( document ).ready( function ( $ ) {
 	}
 
 	function finishSync( counts ) {
-		$bar.css( 'width', '100%' );
+		setProgress( 100 );
+		$progress.attr( 'aria-busy', 'false' );
 		$statusText.text( data.strings.done );
 		$cancelBtn.hide();
 		$submitBtn.prop( 'disabled', false );
@@ -297,6 +306,7 @@ jQuery( document ).ready( function ( $ ) {
 
 	function showError( message ) {
 		$statusText.text( message );
+		$progress.attr( 'aria-busy', 'false' );
 		$submitBtn.prop( 'disabled', false );
 		$cancelBtn.hide();
 	}

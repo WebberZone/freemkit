@@ -60,8 +60,8 @@
 		<h2 class='hndle'><span><?php esc_html_e( 'Follow me', 'freemkit' ); ?></span></h2>
 
 		<div class="inside" style="text-align: center">
-			<a href="https://x.com/webberzone/" target="_blank"><img src="<?php echo esc_url( plugins_url( 'images/x.png', __FILE__ ) ); ?>" width="100" height="100"></a>	
-			<a href="https://facebook.com/webberzone/" target="_blank"><img src="<?php echo esc_url( plugins_url( 'images/fb.png', __FILE__ ) ); ?>" width="100" height="100"></a>
+			<a href="https://x.com/webberzone/" target="_blank"><img src="<?php echo esc_url( plugins_url( 'images/x.png', __FILE__ ) ); ?>" width="100" height="100" alt="<?php esc_attr_e( 'Follow WebberZone on X', 'freemkit' ); ?>"></a>
+			<a href="https://facebook.com/webberzone/" target="_blank"><img src="<?php echo esc_url( plugins_url( 'images/fb.png', __FILE__ ) ); ?>" width="100" height="100" alt="<?php esc_attr_e( 'Follow WebberZone on Facebook', 'freemkit' ); ?>"></a>
 		</div><!-- /.inside -->
 	</div><!-- /.postbox -->
 </div>

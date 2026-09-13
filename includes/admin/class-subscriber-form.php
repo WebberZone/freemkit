@@ -752,7 +752,7 @@ class Subscriber_Form {
 			$callback      = method_exists( $form, "callback_{$type}" ) ? array( $form, "callback_{$type}" ) : array( $form, 'callback_missing' );
 
 			echo '<tr>';
-			echo '<th scope="row">' . $args['name'] . '</th>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo '<th scope="row"><label for="' . esc_attr( $form->get_field_id( $args ) ) . '">' . wp_kses_post( $args['name'] ) . '</label></th>';
 			echo '<td>';
 			call_user_func( $callback, $args );
 			echo '</td>';

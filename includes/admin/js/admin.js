@@ -108,11 +108,6 @@ jQuery(document).ready(function($) {
         copyWebhookUrl($(this).closest('.webhook-url-container'));
     });
 
-    $(document).on('click', '.freemkit-webhook-url-code', function(e) {
-        e.preventDefault();
-        copyWebhookUrl($(this).closest('.webhook-url-container'));
-    });
-
     $(document).on('click focus', '.freemkit-webhook-url-input', function() {
         var $input = $(this);
         selectInputText($input);

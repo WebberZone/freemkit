@@ -18,6 +18,7 @@ jQuery(document).ready(function ($) {
 		$node
 			.text(message)
 			.attr('title', message)
+			.attr('aria-busy', 'false')
 			.css('color', ok ? '#008a20' : '#a60000');
 	}
 
@@ -27,7 +28,7 @@ jQuery(document).ready(function ($) {
 		var $status = $button.siblings('.kit-connection-status');
 
 		$button.prop('disabled', true);
-		$status.html('<span class="spinner is-active" style="float:none;margin:0;"></span>');
+		$status.attr('aria-busy', 'true').empty().append('<span class="spinner is-active" aria-hidden="true" style="float:none;margin:0;"></span>');
 
 		$.ajax({
 			url: adminData().ajax_url || ajaxurl,
@@ -61,7 +62,7 @@ jQuery(document).ready(function ($) {
 		var html = [
 			'<div class="freemkit-freemius-validate-wrap" style="display:flex;align-items:flex-start;gap:8px;margin:0 0 12px 0;padding:8px 10px;background:#f6f7f7;border:1px solid #dcdcde;border-radius:4px;">',
 			'<button type="button" class="button button-secondary button-small freemkit-test-freemius-keys">', adminString('validate_freemius_keys', 'Validate Keys'), '</button>',
-			'<span class="freemkit-freemius-status" style="font-weight:500;font-size:12px;line-height:1.4;white-space:normal;word-break:break-word;"></span>',
+			'<span class="freemkit-freemius-status" role="status" aria-live="polite" aria-atomic="true" aria-busy="false" style="font-weight:500;font-size:12px;line-height:1.4;white-space:normal;word-break:break-word;"></span>',
 			'</div>'
 		].join('');
 
@@ -116,7 +117,7 @@ jQuery(document).ready(function ($) {
 		}
 
 		$button.prop('disabled', true);
-		$status.html('<span class="spinner is-active" style="float:none;margin:0;"></span>');
+		$status.attr('aria-busy', 'true').empty().append('<span class="spinner is-active" aria-hidden="true" style="float:none;margin:0;"></span>');
 
 		$.ajax({
 			url: adminData().ajax_url || ajaxurl,

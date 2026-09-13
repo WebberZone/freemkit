@@ -294,16 +294,16 @@ class Sync_Admin {
 				<button type="button" id="freemkit-sync-cancel" class="button" style="display:none; margin-left:6px;"><?php esc_html_e( 'Cancel', 'freemkit' ); ?></button>
 			</form>
 
-			<div id="freemkit-sync-progress" style="display:none; margin-top:20px;">
-				<div style="background:#e0e0e0; border-radius:4px; height:22px; overflow:hidden;">
+			<div id="freemkit-sync-progress" aria-busy="false" style="display:none; margin-top:20px;">
+				<div role="progressbar" aria-label="<?php esc_attr_e( 'Sync progress', 'freemkit' ); ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" style="background:#e0e0e0; border-radius:4px; height:22px; overflow:hidden;">
 					<div id="freemkit-progress-bar-inner" style="background:#2271b1; height:100%; width:0%; transition:width 0.2s;"></div>
 				</div>
-				<p id="freemkit-progress-text" style="margin:6px 0 0;"></p>
+				<p id="freemkit-progress-text" role="status" aria-live="polite" aria-atomic="true" style="margin:6px 0 0;"></p>
 			</div>
 
 			<div id="freemkit-sync-results" style="display:none; margin-top:20px;">
 				<h2><?php esc_html_e( 'Sync Results', 'freemkit' ); ?></h2>
-				<p id="freemkit-sync-summary" style="display:none; font-weight:600;"></p>
+				<p id="freemkit-sync-summary" role="status" aria-live="polite" aria-atomic="true" style="display:none; font-weight:600;"></p>
 				<table class="widefat striped" id="freemkit-results-table">
 					<thead>
 						<tr>
