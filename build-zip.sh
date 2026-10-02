@@ -31,6 +31,7 @@ wporg-assets/
 test-tools/
 docs/
 build-assets.js
+eslint.config.*
 *.dist
 *.yml
 *.neon
