@@ -264,6 +264,10 @@ class Webhook_Handler {
 			return new \WP_Error( 'no_forms', __( 'No Kit forms configured for this event type.', 'freemkit' ) );
 		}
 
+		if ( is_wp_error( $api_result ) && Kit_API::ERROR_SUBSCRIBER_LEFT === $api_result->get_error_code() ) {
+			return $this->record_kit_left( $api_result, $email, $first_name, $last_name, (string) $plugin_id, $plugin_config, $freemius_user_id, $event_type, $user_type );
+		}
+
 		if ( is_wp_error( $api_result ) ) {
 			if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -287,6 +291,7 @@ class Webhook_Handler {
 				'email'      => $email,
 				'first_name' => $first_name,
 				'last_name'  => $last_name,
+				'kit_status' => 'active',
 			)
 		);
 
@@ -340,6 +345,81 @@ class Webhook_Handler {
 		return array(
 			'status'  => 'success',
 			'message' => __( 'Webhook processed successfully.', 'freemkit' ),
+		);
+	}
+
+	/**
+	 * Record an event for a subscriber Kit refused to reactivate.
+	 *
+	 * Kit's state wins: the subscriber is saved locally as 'kit_unsubscribed' with their
+	 * Kit state, the event is recorded without forms or tags, and a success is returned
+	 * so the webhook is not retried.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param \WP_Error $api_error        Kit error carrying `kit_state` in its data.
+	 * @param string    $email            Subscriber email.
+	 * @param string    $first_name       Subscriber first name.
+	 * @param string    $last_name        Subscriber last name.
+	 * @param string    $plugin_id        Freemius plugin ID.
+	 * @param array     $plugin_config    Plugin configuration.
+	 * @param int       $freemius_user_id Freemius user ID.
+	 * @param string    $event_type       Normalized event type.
+	 * @param string    $user_type        User type (free|paid).
+	 * @return array|\WP_Error
+	 */
+	public function record_kit_left( \WP_Error $api_error, string $email, string $first_name, string $last_name, string $plugin_id, array $plugin_config, int $freemius_user_id, string $event_type, string $user_type ) {
+		$error_data = $api_error->get_error_data();
+		$kit_state  = is_array( $error_data ) && ! empty( $error_data['kit_state'] ) ? (string) $error_data['kit_state'] : 'cancelled';
+
+		$subscriber = new Subscriber(
+			array(
+				'email'      => $email,
+				'first_name' => $first_name,
+				'last_name'  => $last_name,
+				'status'     => 'kit_unsubscribed',
+				'kit_status' => $kit_state,
+			)
+		);
+
+		$db_result = $this->database->upsert_subscriber_by_email( $subscriber );
+		if ( is_wp_error( $db_result ) ) {
+			return new \WP_Error( 'db_error', __( 'Processed with database errors', 'freemkit' ) );
+		}
+
+		$event_result = $this->database->add_subscriber_event(
+			new Subscriber_Event(
+				array(
+					'subscriber_id'    => $db_result,
+					'plugin_id'        => $plugin_id,
+					'plugin_slug'      => $plugin_config['slug'],
+					'event_type'       => $event_type,
+					'user_type'        => $user_type,
+					'form_ids'         => '',
+					'tag_ids'          => '',
+					'freemius_user_id' => $freemius_user_id,
+				)
+			)
+		);
+		if ( is_wp_error( $event_result ) && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[FreemKit] Event insert error: %s', $event_result->get_error_message() ) );
+		}
+
+		Audit_Log::add(
+			'kit_resubscribe_skipped',
+			array(
+				'event_type' => $event_type,
+				'plugin_id'  => $plugin_id,
+				'email'      => $email,
+				'kit_state'  => $kit_state,
+			),
+			'warning'
+		);
+
+		return array(
+			'status'  => 'success',
+			'message' => __( 'Recorded locally. The subscriber has left Kit and was not re-added.', 'freemkit' ),
 		);
 	}
 

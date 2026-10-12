@@ -661,6 +661,31 @@ class Sync {
 			}
 		}
 
+		if ( is_wp_error( $api_result ) && Kit_API::ERROR_SUBSCRIBER_LEFT === $api_result->get_error_code() ) {
+			$error_data = $api_result->get_error_data();
+
+			return $this->record_kit_left(
+				array(
+					'email'            => $email,
+					'first_name'       => $first,
+					'last_name'        => $last,
+					'user_type'        => $user_type,
+					'plugin_id'        => $plugin_id,
+					'plugin_name'      => $plugin_name,
+					'plugin_slug'      => $slug,
+					'freemius_user_id' => $fs_uid,
+					'source'           => $source,
+					'destination'      => $destination,
+					'marketing'        => $marketing,
+					'freemius_created' => $freemius_created,
+					'is_verified'      => $is_verified,
+					'email_status'     => $email_status,
+					'meta'             => $meta,
+				),
+				is_array( $error_data ) ? (string) ( $error_data['kit_state'] ?? '' ) : ''
+			);
+		}
+
 		if ( is_wp_error( $api_result ) ) {
 			return array(
 				'action'      => 'error',
@@ -681,6 +706,7 @@ class Sync {
 				'first_name'       => $first,
 				'last_name'        => $last,
 				'marketing'        => $marketing,
+				'kit_status'       => 'active',
 				'freemius_user_id' => $fs_uid,
 				'freemius_created' => $freemius_created,
 				'is_verified'      => $is_verified,
@@ -744,6 +770,69 @@ class Sync {
 			'destination' => $destination,
 			'forms'       => implode( ', ', $active_form_ids ),
 			'error'       => '',
+		);
+	}
+
+	/**
+	 * Record a subscriber Kit refused to reactivate and build the sync result row.
+	 *
+	 * Kit's state wins: the subscriber is saved locally as 'kit_unsubscribed' with their
+	 * Kit state and the result is reported as skipped, not as an error.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array<string, mixed> $meta      Task data (email, names, plugin and Freemius fields).
+	 * @param string               $kit_state Subscriber state in Kit, e.g. 'cancelled' or 'bounced'.
+	 * @return array<string, mixed> Result row.
+	 */
+	protected function record_kit_left( array $meta, string $kit_state ): array {
+		$kit_state = '' !== $kit_state ? $kit_state : 'cancelled';
+
+		$subscriber = new Subscriber(
+			array(
+				'email'            => $meta['email'],
+				'first_name'       => $meta['first_name'],
+				'last_name'        => $meta['last_name'],
+				'status'           => 'kit_unsubscribed',
+				'marketing'        => $meta['marketing'],
+				'kit_status'       => $kit_state,
+				'freemius_user_id' => $meta['freemius_user_id'],
+				'freemius_created' => $meta['freemius_created'],
+				'is_verified'      => $meta['is_verified'],
+				'email_status'     => $meta['email_status'],
+				'meta'             => $meta['meta'],
+			)
+		);
+
+		$db_result = $this->database->upsert_subscriber_by_email( $subscriber );
+		if ( ! is_wp_error( $db_result ) ) {
+			$this->database->add_subscriber_event(
+				new Subscriber_Event(
+					array(
+						'subscriber_id'    => $db_result,
+						'plugin_id'        => $meta['plugin_id'],
+						'plugin_slug'      => $meta['plugin_slug'],
+						'event_type'       => ( 'local' === $meta['source'] ) ? 'sync.resynced' : 'sync.imported',
+						'user_type'        => $meta['user_type'],
+						'form_ids'         => '',
+						'tag_ids'          => '',
+						'freemius_user_id' => $meta['freemius_user_id'],
+					)
+				)
+			);
+		}
+
+		return array(
+			'action'      => 'skipped',
+			'email'       => $meta['email'],
+			'first_name'  => $meta['first_name'],
+			'last_name'   => $meta['last_name'],
+			'user_type'   => $meta['user_type'],
+			'plugin_name' => $meta['plugin_name'],
+			'destination' => $meta['destination'],
+			'forms'       => '',
+			/* translators: %s: Kit subscriber state, e.g. cancelled or bounced. */
+			'error'       => sprintf( __( 'Saved locally; not re-added to Kit — subscriber is %s in Kit.', 'freemkit' ), $kit_state ),
 		);
 	}
 
@@ -1024,6 +1113,11 @@ class Sync {
 			}
 
 			$bulk_result = $bulk_results[ $email ];
+			if ( 'left' === $bulk_result['status'] ) {
+				$results[] = $this->record_kit_left( $meta, (string) ( $bulk_result['kit_state'] ?? '' ) );
+				continue;
+			}
+
 			if ( 'error' === $bulk_result['status'] ) {
 				$results[] = array(
 					'action'      => 'error',
@@ -1048,6 +1142,7 @@ class Sync {
 					'first_name'       => $meta['first_name'],
 					'last_name'        => $meta['last_name'],
 					'marketing'        => $meta['marketing'],
+					'kit_status'       => 'active',
 					'freemius_user_id' => $meta['freemius_user_id'],
 					'freemius_created' => $meta['freemius_created'],
 					'is_verified'      => $meta['is_verified'],

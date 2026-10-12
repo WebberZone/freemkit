@@ -32,6 +32,13 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 class Subscribers_List_Table extends \WP_List_Table {
 
 	/**
+	 * Default subscribers per page, shared with the Screen Options field.
+	 *
+	 * @since 1.0.0
+	 */
+	public const DEFAULT_PER_PAGE = 20;
+
+	/**
 	 * Database instance.
 	 *
 	 * @since 1.0.0
@@ -108,7 +115,7 @@ class Subscribers_List_Table extends \WP_List_Table {
 			$this->get_sortable_columns(),
 		);
 
-		$per_page     = $this->get_items_per_page( 'subscribers_per_page', 20 );
+		$per_page     = $this->get_items_per_page( 'subscribers_per_page', self::DEFAULT_PER_PAGE );
 		$current_page = $this->get_pagenum();
 
 		$orderby = ( ! empty( $_REQUEST['orderby'] ) ) ? sanitize_key( $_REQUEST['orderby'] ) : 'id'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -267,9 +274,10 @@ class Subscribers_List_Table extends \WP_List_Table {
 		$current = isset( $_REQUEST['status'] ) ? sanitize_key( $_REQUEST['status'] ) : 'all'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		$statuses = array(
-			'all'      => __( 'All', 'freemkit' ),
-			'active'   => __( 'Active', 'freemkit' ),
-			'inactive' => __( 'Inactive', 'freemkit' ),
+			'all'              => __( 'All', 'freemkit' ),
+			'active'           => __( 'Active', 'freemkit' ),
+			'inactive'         => __( 'Inactive', 'freemkit' ),
+			'kit_unsubscribed' => __( 'Unsubscribed in Kit', 'freemkit' ),
 		);
 
 		$counts = $this->database->get_subscriber_counts();

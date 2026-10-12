@@ -23,6 +23,16 @@ class Kit_API extends \ConvertKit_API_V4 {
 	protected const ERROR_API_ERROR     = 'api_error';
 
 	/**
+	 * Error code for a subscriber Kit will not reactivate (unsubscribed, bounced, complained).
+	 */
+	public const ERROR_SUBSCRIBER_LEFT = 'kit_subscriber_left';
+
+	/**
+	 * Kit subscriber states that mean the subscriber has left the list.
+	 */
+	protected const LEFT_STATES = array( 'cancelled', 'bounced', 'complained' );
+
+	/**
 	 * Whether credentials are sourced from the ConvertKit plugin.
 	 *
 	 * @var bool
@@ -140,10 +150,27 @@ class Kit_API extends \ConvertKit_API_V4 {
 			return $validate;
 		}
 
+		// Must run before create_subscriber: the single upsert with state 'active' reactivates a cancelled subscriber.
+		$state = $this->get_subscriber_state( $email );
+		if ( is_wp_error( $state ) ) {
+			return $state;
+		}
+		if ( in_array( $state, self::LEFT_STATES, true ) ) {
+			return new \WP_Error(
+				self::ERROR_SUBSCRIBER_LEFT,
+				/* translators: %s: Kit subscriber state, e.g. cancelled or bounced. */
+				sprintf( esc_html__( 'Subscriber is %s in Kit.', 'freemkit' ), $state ),
+				array( 'kit_state' => $state )
+			);
+		}
+
 		// create_subscriber acts as upsert: creates new or updates first_name for existing.
 		// Custom fields are only set for new subscribers via this endpoint.
 		$subscriber = parent::create_subscriber( $email, $first_name, 'active', $fields );
 		if ( is_wp_error( $subscriber ) ) {
+			if ( self::is_state_conflict( $subscriber->get_error_message() ) ) {
+				return $this->subscriber_left_error( $email, $subscriber->get_error_message() );
+			}
 			return $subscriber;
 		}
 
@@ -228,6 +255,7 @@ class Kit_API extends \ConvertKit_API_V4 {
 		// Map email to subscriber ID from response.
 		$email_to_id = array();
 		$failures    = array();
+		$left        = array();
 
 		if ( ! empty( $create_result['subscribers'] ) && is_array( $create_result['subscribers'] ) ) {
 			foreach ( $create_result['subscribers'] as $sub ) {
@@ -236,6 +264,9 @@ class Kit_API extends \ConvertKit_API_V4 {
 				}
 				$email                 = strtolower( (string) $sub['email_address'] );
 				$email_to_id[ $email ] = isset( $sub['id'] ) ? (int) $sub['id'] : 0;
+				if ( in_array( (string) ( $sub['state'] ?? '' ), self::LEFT_STATES, true ) ) {
+					$left[ $email ] = (string) $sub['state'];
+				}
 			}
 		}
 
@@ -256,7 +287,7 @@ class Kit_API extends \ConvertKit_API_V4 {
 		// 2. Build additions for bulk forms.
 		$additions = array();
 		foreach ( $email_to_task as $email => $task ) {
-			if ( isset( $failures[ $email ] ) || ! isset( $email_to_id[ $email ] ) ) {
+			if ( isset( $failures[ $email ] ) || isset( $left[ $email ] ) || ! isset( $email_to_id[ $email ] ) ) {
 				continue;
 			}
 
@@ -307,7 +338,7 @@ class Kit_API extends \ConvertKit_API_V4 {
 		// 3. Build taggings for bulk tags.
 		$taggings = array();
 		foreach ( $email_to_task as $email => $task ) {
-			if ( isset( $failures[ $email ] ) || ! isset( $email_to_id[ $email ] ) ) {
+			if ( isset( $failures[ $email ] ) || isset( $left[ $email ] ) || ! isset( $email_to_id[ $email ] ) ) {
 				continue;
 			}
 
@@ -359,7 +390,21 @@ class Kit_API extends \ConvertKit_API_V4 {
 		$results = array();
 		foreach ( $email_to_task as $email => $task ) {
 			$original_email = isset( $task['email'] ) ? sanitize_email( (string) $task['email'] ) : '';
-			if ( isset( $failures[ $email ] ) ) {
+			if ( isset( $left[ $email ] ) ) {
+				$results[ $original_email ] = array(
+					'status'    => 'left',
+					/* translators: %s: Kit subscriber state, e.g. cancelled or bounced. */
+					'error'     => sprintf( esc_html__( 'Subscriber is %s in Kit.', 'freemkit' ), $left[ $email ] ),
+					'kit_state' => $left[ $email ],
+				);
+			} elseif ( isset( $failures[ $email ] ) && self::is_state_conflict( $failures[ $email ] ) ) {
+				$state                      = $this->get_subscriber_state( $original_email );
+				$results[ $original_email ] = array(
+					'status'    => 'left',
+					'error'     => $failures[ $email ],
+					'kit_state' => is_string( $state ) ? $state : '',
+				);
+			} elseif ( isset( $failures[ $email ] ) ) {
 				$results[ $original_email ] = array(
 					'status' => 'error',
 					'error'  => $failures[ $email ],
@@ -456,6 +501,40 @@ class Kit_API extends \ConvertKit_API_V4 {
 		}
 
 		return (string) ( $subscribers['subscribers'][0]['state'] ?? '' );
+	}
+
+	/**
+	 * Whether a Kit error means the subscriber has left and cannot be reactivated.
+	 *
+	 * Kit rejects a create/upsert for a cancelled, bounced or complained subscriber
+	 * with "Cannot override state". That is a final answer, not a transient failure.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $message Kit error message.
+	 * @return bool
+	 */
+	public static function is_state_conflict( string $message ): bool {
+		return false !== stripos( $message, 'cannot override state' );
+	}
+
+	/**
+	 * Build the error returned when Kit refuses to reactivate a subscriber.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $email   Email address.
+	 * @param string $message Kit error message.
+	 * @return \WP_Error Carries the subscriber's Kit state as `kit_state` in its data.
+	 */
+	protected function subscriber_left_error( string $email, string $message ): \WP_Error {
+		$state = $this->get_subscriber_state( $email );
+
+		return new \WP_Error(
+			self::ERROR_SUBSCRIBER_LEFT,
+			$message,
+			array( 'kit_state' => is_string( $state ) ? $state : '' )
+		);
 	}
 
 	/**

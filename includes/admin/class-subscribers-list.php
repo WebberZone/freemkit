@@ -53,7 +53,7 @@ class Subscribers_List {
 	 */
 	public function __construct( Database $database ) {
 		$this->database = $database;
-		add_filter( 'set-screen-option', array( __CLASS__, 'set_screen' ), 10, 3 );
+		add_filter( 'set_screen_option_subscribers_per_page', array( __CLASS__, 'set_screen' ), 10, 3 );
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'handle_actions' ) );
 	}
@@ -153,6 +153,7 @@ class Subscribers_List {
 								<input type="hidden" name="page" value="<?php echo esc_attr( $page ); ?>" />
 								<?php
 								$this->subscribers_table->prepare_items();
+								$this->subscribers_table->views();
 								$this->subscribers_table->search_box( __( 'Search Subscribers', 'freemkit' ), 'freemkit' );
 								$this->subscribers_table->display();
 								?>
@@ -334,7 +335,7 @@ class Subscribers_List {
 		$option = 'per_page';
 		$args   = array(
 			'label'   => __( 'Subscribers', 'freemkit' ),
-			'default' => 50,
+			'default' => Subscribers_List_Table::DEFAULT_PER_PAGE,
 			'option'  => 'subscribers_per_page',
 		);
 		add_screen_option( $option, $args );
