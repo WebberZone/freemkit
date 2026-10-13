@@ -402,7 +402,8 @@ class Database {
 		$update_parts = array(
 			'first_name = VALUES(first_name)',
 			'last_name = VALUES(last_name)',
-			'status = VALUES(status)',
+			// A Kit unsubscribe sticks until Kit itself reports the subscriber active again.
+			"status = IF(status = 'kit_unsubscribed' AND VALUES(kit_status) <> 'active', status, VALUES(status))",
 		);
 
 		if ( isset( $data['data']['marketing'] ) ) {
