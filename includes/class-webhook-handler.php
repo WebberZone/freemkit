@@ -956,7 +956,14 @@ class Webhook_Handler {
 		}
 
 		$plugin_config = $this->plugin_configs[ $plugin_id ];
-		$hash          = hash_hmac( 'sha256', $input, $plugin_config['secret_key'] );
+		$secret_key    = isset( $plugin_config['secret_key'] ) ? (string) $plugin_config['secret_key'] : '';
+
+		// An empty key (never set, or undecryptable after a salt change) would let anyone sign requests.
+		if ( '' === $secret_key ) {
+			return new \WP_Error( 'missing_secret_key', __( 'Webhook secret key is not configured for this plugin', 'freemkit' ) );
+		}
+
+		$hash = hash_hmac( 'sha256', $input, $secret_key );
 
 		if ( ! hash_equals( $hash, $signature ) ) {
 			return new \WP_Error( 'invalid_signature', __( 'Invalid signature', 'freemkit' ) );
