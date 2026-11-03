@@ -834,7 +834,7 @@ class Webhook_Handler {
 		$signature = '';
 
 		if ( null !== $request ) {
-			$signature = $request->get_header( 'x-signature' );
+			$signature = (string) $request->get_header( 'x-signature' );
 		}
 
 		if ( empty( $signature ) && function_exists( 'apache_request_headers' ) ) {
