@@ -1205,7 +1205,7 @@ class Webhook_Handler {
 	 */
 	public function check_webhook_permissions( \WP_REST_Request $request ) {
 		$signature = $this->get_signature( $request );
-		return $this->validate_webhook_signature( $request->get_body(), $signature );
+		return $this->validate_webhook_signature( (string) $request->get_body(), $signature );
 	}
 
 	/**
