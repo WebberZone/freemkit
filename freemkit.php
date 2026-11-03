@@ -11,7 +11,7 @@
  * Plugin Name: FreemKit - Glue for Freemius and Kit
  * Plugin URI:  https://webberzone.com/plugins/freemkit/
  * Description: Easily subscribe Freemius customers to Kit email lists.
- * Version:     1.0.0-beta1
+ * Version:     1.0.0
  * Author:      WebberZone
  * Author URI:  https://webberzone.com
  * License:     GPL-2.0+
