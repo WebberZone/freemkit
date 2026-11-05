@@ -11,7 +11,7 @@ toc: true
 
 [toc]
 
-FreemKit exposes one public endpoint: the Freemius webhook receiver. There are no other public REST routes. Internal AJAX actions (Kit search, connection test, key validation) are WordPress admin-only and not documented here.
+[FreemKit](https://webberzone.com/plugins/freemkit/) exposes one public endpoint: the Freemius webhook receiver. There are no other public REST routes. Internal AJAX actions (Kit search, connection test, key validation) are WordPress admin-only and not documented here.
 
 ---
 
@@ -34,7 +34,7 @@ A query variable alternative is available when the REST API is disabled:
 | **URL** | `https://yoursite.com/?freemkit_webhook` |
 | **Method** | `POST` |
 
-Both endpoints use identical validation and processing logic.
+Both endpoints use the same signature, freshness, and queue checks. Their HTTP response handling differs, as described below.
 
 ---
 
@@ -50,13 +50,11 @@ hex( HMAC-SHA256( raw_request_body, plugin_secret_key ) )
 
 The signature is compared as a hex string using constant-time `hash_equals()`.
 
-Requests that do not include a valid signature receive:
+An empty configured secret is rejected with `missing_secret_key` before the HMAC is calculated. This also applies when a saved secret can no longer be decrypted after the site's authentication salts change. Re-enter and save the secret in that product's configuration.
 
-```text
-HTTP 401 Unauthorized
-```
+A missing or incorrect signature returns `invalid_signature`. REST failures are returned as `WP_Error` objects. The plugin does not attach an HTTP status to these validation errors, so do not rely on a fixed `401` response.
 
-You do not call this endpoint directly — Freemius signs and sends the request automatically after you configure the webhook URL in your Freemius dashboard.
+You do not call this endpoint directly: Freemius signs and sends the request automatically after you configure the webhook URL in your Freemius dashboard.
 
 ---
 
@@ -112,7 +110,7 @@ Additional fields in the payload are stored but not acted upon by default. The f
 
 ## Responses
 
-### Success — event queued
+### Success: event queued
 
 ```text
 HTTP 202 Accepted
@@ -126,7 +124,7 @@ Content-Type: application/json
 
 Returned when the event passes all validation checks and has been queued for async processing.
 
-### Success — event ignored (duplicate)
+### Success: event ignored (duplicate)
 
 ```text
 HTTP 200 OK
@@ -134,41 +132,32 @@ Content-Type: application/json
 
 {
     "status": "ignored",
-    "message": "Duplicate event."
+    "message": "Duplicate webhook ignored."
 }
 ```
 
 Returned when the event has already been processed within the deduplication window. A `200` response is used (rather than `4xx`) to prevent Freemius from retrying.
 
-### Error — no matching plugin
+### Success: synchronous fallback
 
-```text
-HTTP 400 Bad Request
-```
+The REST endpoint returns HTTP `200` with `status: processed` if WP-Cron scheduling fails or `DISABLE_WP_CRON` is enabled and processing runs immediately. Ordinary queued requests return HTTP `202`; duplicates return HTTP `200` with `status: ignored`.
 
-Returned when the `plugin_id` in the payload does not match any configured plugin in FreemKit settings. The signature check also fails in this case because FreemKit cannot look up the secret key without a matching plugin.
+### Validation errors
 
-### Error — invalid signature
+| Error code | Reason |
+| --- | --- |
+| `invalid_request` | The body is invalid or has no plugin ID. |
+| `invalid_plugin` | The plugin ID does not match a configured product. |
+| `missing_secret_key` | The matched product has no usable secret key. |
+| `invalid_signature` | The signature does not match the raw body. |
+| `missing_timestamp` | A timestamp is required by the filter but is absent. |
+| `stale_webhook` | The timestamp is outside the accepted window, including too far in the future. |
 
-```text
-HTTP 401 Unauthorized
-```
+The REST handler returns these as `WP_Error` objects without an explicit HTTP status. A stale webhook is an error; it is not an ignored-success response. The default accepted timestamp difference is 900 seconds.
 
-The `x-signature` header is missing or the signature does not match.
+### Query-variable responses
 
-### Error — event too old
-
-```text
-HTTP 200 OK
-Content-Type: application/json
-
-{
-    "status": "ignored",
-    "message": "Event timestamp is too old."
-}
-```
-
-The event timestamp predates the allowed window (default: 15 minutes). A `200` response is used to prevent retries.
+The query-variable endpoint returns plain response text. A non-POST request returns HTTP `405`. Signature/configuration and freshness failures return HTTP `400`; a queue error returns HTTP `500`. On a successful queue call it returns HTTP `202`, including duplicate or synchronous-fallback results.
 
 ---
 
@@ -179,7 +168,7 @@ The event timestamp predates the allowed window (default: 15 minutes). A `200` r
 3. Go to **Settings → Webhooks**.
 4. Set the endpoint URL to the FreemKit webhook URL for your site.
 5. Select the event types you want Freemius to send (or select all).
-6. Save. Freemius will display a **Secret Key** — copy this and enter it into FreemKit's plugin configuration (Settings → FreemKit → Freemius → Secret Key).
+6. Save. Freemius will display a **Secret Key**: copy this and enter it into FreemKit's plugin configuration (Settings → FreemKit → Freemius → Secret Key).
 
 ---
 

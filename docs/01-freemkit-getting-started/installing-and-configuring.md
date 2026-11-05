@@ -11,7 +11,7 @@ toc: true
 
 [toc]
 
-This guide covers installing FreemKit, connecting your Kit account, and adding your Freemius products.
+This guide covers installing [FreemKit](https://webberzone.com/plugins/freemkit/), connecting your Kit account, and adding your Freemius products.
 
 ---
 
@@ -24,7 +24,7 @@ This guide covers installing FreemKit, connecting your Kit account, and adding y
 
 ---
 
-## Step 1 — Install and Activate
+## Step 1: Install and Activate
 
 1. Upload the `freemkit` folder to `/wp-content/plugins/`, or install via the WordPress plugin screen.
 2. Activate the plugin under **Plugins → Installed Plugins**.
@@ -32,13 +32,13 @@ This guide covers installing FreemKit, connecting your Kit account, and adding y
 
 ---
 
-## Step 2 — Connect Kit
+## Step 2: Connect Kit
 
 FreemKit uses Kit's OAuth flow to connect your account. No API keys are needed.
 
 ### If the Kit plugin is already active
 
-FreemKit can share credentials with the official [Kit WordPress plugin](https://wordpress.org/plugins/convertkit/). If the Kit plugin is connected, FreemKit will detect this automatically and use the same access token — you can skip the OAuth step.
+FreemKit can share credentials with the official [Kit WordPress plugin](https://wordpress.org/plugins/convertkit/). If the Kit plugin is connected, FreemKit will detect this automatically and use the same access token: you can skip the OAuth step.
 
 ### Connecting via OAuth
 
@@ -51,7 +51,7 @@ To verify the connection at any time, click **Test Kit Connection** on the Kit s
 
 ---
 
-## Step 3 — Configure the Webhook Endpoint
+## Step 3: Configure the Webhook Endpoint
 
 FreemKit receives events from Freemius via a webhook. You need to decide which endpoint type to use and then register the URL in your Freemius developer dashboard.
 
@@ -70,11 +70,11 @@ To change the endpoint type, go to **Settings → FreemKit → Freemius** tab an
 2. Open the plugin you want to connect.
 3. Go to **Settings → Webhooks**.
 4. Add the webhook URL shown in FreemKit's Freemius settings tab.
-5. Freemius will display a **Secret Key** after saving. Copy it — you will need it in the next step.
+5. Freemius will display a **Secret Key** after saving. Copy it: you will need it in the next step.
 
 ---
 
-## Step 4 — Add Your Freemius Products
+## Step 4: Add Your Freemius Products
 
 Each Freemius plugin you sell is configured separately in FreemKit.
 
@@ -82,12 +82,12 @@ Each Freemius plugin you sell is configured separately in FreemKit.
 2. Under **Plugins**, click **Add Plugin**.
 3. Fill in the following fields:
 
-| Field | Where to find it | Notes |
-|---|---|---|
-| **Plugin Name** | Your own label | For reference only |
-| **Product ID** | Freemius dashboard → your plugin → Settings | Numeric ID |
-| **Public Key** | Freemius dashboard → your plugin → Settings → API | Starts with `pk_` |
-| **Secret Key** | Freemius webhook settings (see Step 3) | Stored encrypted |
+    | Field | Where to find it | Notes |
+    |---|---|---|
+    | **Plugin Name** | Your own label | For reference only |
+    | **Product ID** | Freemius dashboard → your plugin → Settings | Numeric ID |
+    | **Public Key** | Freemius dashboard → your plugin → Settings → API | Starts with `pk_` |
+    | **Secret Key** | Freemius webhook settings (see Step 3) | Stored encrypted |
 
 4. Click **Validate Keys** to confirm the credentials are correct.
 5. Save settings.
@@ -96,7 +96,7 @@ Repeat for each plugin you want to connect.
 
 ---
 
-## Step 5 — Map Events to Forms and Tags
+## Step 5: Map Events to Forms and Tags
 
 After adding a product, you need to tell FreemKit which Kit forms and tags to use for free and paid users, and which Freemius events should trigger them.
 
@@ -104,16 +104,16 @@ See [Event Mapping](event-mapping.md) for a full walkthrough.
 
 ---
 
-## Step 6 — Configure Subscriber Behavior (Optional)
+## Step 6: Configure Subscriber Behavior (Optional)
 
 These settings control how FreemKit handles edge cases like marketing opt-outs and name changes. The defaults work for most sites; adjust them as needed.
 
 Go to **Settings → FreemKit → Subscribers** tab. Key options:
 
-- **Respect marketing opt-out** — When enabled (default), FreemKit will not subscribe users to Kit if they have opted out of marketing.
-- **Sync name on change** — When enabled (default), FreemKit updates the subscriber's name in Kit when Freemius sends a `user.name.changed` event.
-- **Unsubscribe on delete** — When enabled, deleting a subscriber from the local FreemKit list will also unsubscribe them in Kit. Disabled by default.
-- **Enable audit log** — Keeps a log of all FreemKit actions for debugging. Enabled by default.
+- **Respect marketing opt-out**: When enabled (default), FreemKit will not subscribe users to Kit if they have opted out of marketing.
+- **Sync name on change**: When enabled (default), FreemKit updates the subscriber's name in Kit when Freemius sends a `user.name.changed` event.
+- **Unsubscribe on delete**: When enabled, deleting a subscriber from the local FreemKit list will also unsubscribe them in Kit. Disabled by default.
+- **Enable audit log**: Keeps a log of all FreemKit actions for debugging. Enabled by default.
 
 For a full description of every setting, see the [Settings Reference](settings.md).
 

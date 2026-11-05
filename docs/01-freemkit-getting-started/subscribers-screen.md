@@ -11,74 +11,51 @@ toc: true
 
 [toc]
 
-The Subscribers screen shows every customer FreemKit has processed. It is a local record — it does not replace your Kit subscriber list, but it lets you see who FreemKit has acted on and when.
+The Subscribers screen shows the local customer records [FreemKit](https://webberzone.com/plugins/freemkit/) has processed. Open **Users → Subscribers** to search them, edit details, or export the list. Access requires `manage_options`.
 
-**Location:** WordPress Admin → Users → FreemKit Subscribers
-
----
-
-## The Subscriber List
-
-Each row represents one subscriber. The columns are:
+## The subscriber list
 
 | Column | Description |
-|---|---|
-| **Email** | The subscriber's email address. Clicking it opens the edit form. |
-| **First Name** | First name as received from Freemius. |
-| **Last Name** | Last name as received from Freemius. |
-| **Status** | `active` or `opted_out`. Reflects the subscriber's marketing consent state. |
-| **Marketing Opt-Out** | A flag indicating the subscriber has opted out of marketing. FreemKit will not subscribe opted-out users to Kit (if the Respect Marketing Opt-Out setting is enabled). |
+| --- | --- |
+| **Email** | The subscriber's address. Click it to edit the record. |
+| **First Name** | First name received from Freemius or entered manually. |
+| **Last Name** | Last name received from Freemius or entered manually. |
+| **Status** | The saved local status, such as `active`, `inactive`, `opted_out`, or `kit_unsubscribed`. |
+| **Created** | When the local record was created. |
+| **Plugins** | Names of the configured plugins associated with the subscriber's recorded events. |
 
----
+Marketing consent and Kit subscription state are separate from the local status. A Freemius marketing opt-in does not override a cancellation, bounce, or complaint recorded by Kit.
 
-## Searching and Filtering
+## Searching, filtering, and pagination
 
-Use the search box at the top right to find subscribers by email, first name, or last name. The list updates on submit.
+Search by email, first name, or last name. The status filters above the table are **All**, **Active**, **Inactive**, and **Unsubscribed in Kit**. **All** also includes other saved statuses, such as `opted_out`.
 
----
+The **Unsubscribed in Kit** filter selects local records with status `kit_unsubscribed`. Webhooks and sync operations use this status when Kit reports a subscriber as `cancelled`, `bounced`, or `complained`. These subscribers are not automatically re-added to Kit.
 
-## Adding a Subscriber Manually
+The list shows 20 subscribers per page by default. Open **Screen Options**, change **Subscribers**, and apply the change to save your preferred page size.
 
-Click **Add New Subscriber** at the top of the screen. Fill in the subscriber's details:
+## Adding a subscriber manually
 
-| Field | Required | Description |
-|---|---|---|
-| **Email** | Yes | Must be a valid email address. Must not already exist in the local list. |
-| **First Name** | No | |
-| **Last Name** | No | |
-| **Status** | Yes | `active` or `opted_out` |
+Click **Add New**. Enter an **Email** address and optional **First Name**, **Last Name**, and **Notes**. **Status** offers **Active** and **Inactive**. **Marketing** records whether the subscriber has opted in to marketing emails.
 
-After saving, you can optionally trigger a Kit subscription from the edit form (see below).
+In **Plugins**, add rows for the relevant Freemius products and select the **User Type**. **Kit Forms** and **Kit Tags** override that product's mapping. Leave them blank to use the product mapping, then the global defaults.
 
----
+Click **Add Subscriber** to save locally. **Add & Sync to Kit** also attempts the configured Kit subscriptions when **Marketing** is enabled. If the email already exists, the form updates that local record instead of creating a duplicate.
 
-## Editing a Subscriber
+## Editing a subscriber
 
-Click a subscriber's email address to open the edit form. From here you can:
+Click the subscriber's email address. **Freemius User ID**, **Freemius Created**, **Email Verified**, and **Email Status** show imported information as read-only fields.
 
-- Update the subscriber's name, email, or status.
-- **Subscribe to Kit** — Manually trigger a Kit form subscription for this subscriber. Select the form from the dropdown and click Subscribe.
-- **Unsubscribe from Kit** — Manually unsubscribe this subscriber from Kit.
+Use **Update Subscriber** to save changes without requesting a Kit subscription. **Update & Sync to Kit** also attempts the subscriptions configured in the plugin rows. Kit cancellations, bounces, and complaints are not overridden by a subscription attempt.
 
-Changes to a subscriber's record here affect only the local FreemKit database unless you explicitly trigger a Kit action.
+Clearing **Marketing** attempts to unsubscribe the address from Kit when Kit is connected, even when you use the ordinary save button. Saving also replaces the subscriber's stored event rows with the plugin rows in the form.
 
----
+## Deleting and exporting
 
-## Bulk Actions
+Use the row's **Delete** action, the edit form's **Delete Subscriber** button, or the **Delete** bulk action to remove local records. If **Unsubscribe from Kit on Delete** is enabled, deletion also attempts a Kit unsubscribe.
 
-Select one or more subscribers using the checkboxes, then choose an action from the **Bulk Actions** dropdown:
+**Export CSV** is a separate button above the table. It exports up to 99,999 local records in ID order. It does not use the selected checkboxes, search, or status filter. The CSV includes identity, status, marketing consent, Freemius details, verification information, and timestamps.
 
-| Action | Description |
-|---|---|
-| **Delete** | Permanently removes the selected subscribers from the local FreemKit database. If **Unsubscribe from Kit on Delete** is enabled in settings, this will also unsubscribe them in Kit. |
-| **Export** | Downloads a CSV file of the selected subscribers containing email, first name, last name, status, and opt-out flag. |
+## Syncing historical subscribers
 
----
-
-## What This Screen Does Not Show
-
-The Subscribers screen shows local FreemKit records only. It does not show:
-
-- Your full Kit subscriber list — log in to Kit for that.
-- Which Kit forms or tags a subscriber was added to — check the audit log for per-event detail.
-- Subscribers added directly to Kit outside of FreemKit.
+Use [Syncing existing subscribers](https://webberzone.com/support/knowledgebase/syncing-existing-subscribers/) to import historical Freemius customers or re-send captured subscribers to Kit. This is separate from editing a single local record.

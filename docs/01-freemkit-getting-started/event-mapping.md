@@ -11,7 +11,7 @@ toc: true
 
 [toc]
 
-Event mapping tells FreemKit what to do when Freemius sends a webhook. You define which events represent a "free" user, which represent a "paid" user, and which Kit forms and tags each user type should be subscribed to.
+Event mapping tells [FreemKit](https://webberzone.com/plugins/freemkit/) what to do when Freemius sends a webhook. You define which events represent a "free" user, which represent a "paid" user, and which Kit forms and tags each user type should be subscribed to.
 
 ---
 
@@ -31,10 +31,10 @@ FreemKit ships with sensible defaults so you can get started quickly:
 
 | User type | Default trigger event |
 |---|---|
-| Free | `install.installed` |
+| Free | `user.marketing.opted_in` |
 | Paid | `license.created` |
 
-You can replace these defaults with any combination of the Freemius events listed below.
+You can replace the trigger lists with the Freemius events below. Marketing opt-out, marketing opt-in, and name-change events have dedicated handlers that run before the free/paid trigger lists. An opt-in also attempts to restore the previous free or paid form and tag mappings while respecting Kit's subscription state.
 
 ---
 
@@ -60,7 +60,7 @@ You can replace these defaults with any combination of the Freemius events liste
 | **Paid Form IDs** | Kit form IDs for paid users. |
 | **Paid Tag IDs** | Kit tag IDs for paid users. |
 
-All form and tag fields have autocomplete — start typing a name and FreemKit will search your Kit account.
+All form and tag fields have autocomplete: start typing a name and FreemKit will search your Kit account.
 
 ---
 
@@ -68,10 +68,10 @@ All form and tag fields have autocomplete — start typing a name and FreemKit w
 
 If a plugin's form or tag fields are left empty, FreemKit falls back to the **global Kit defaults** set on the Kit tab:
 
-- **Default Form** — Applied to all users when no per-plugin form is set.
-- **Default Tag** — Applied to all users when no per-plugin tag is set.
+- **Global Form ID**: Applied to all users when no per-plugin form is set.
+- **Tag ID**: Applied to all users when no per-plugin tag is set.
 
-Event type fields do not fall back to a global default — if left empty, FreemKit uses the built-in defaults (`install.installed` for free, `license.created` for paid).
+Event type fields do not fall back to a global default: if left empty, FreemKit uses the built-in defaults (`user.marketing.opted_in` for free, `license.created` for paid).
 
 ---
 
@@ -134,13 +134,13 @@ The following events can be used in free or paid event type fields.
 
 Some events should trigger an **unsubscribe** from Kit rather than a subscription. Configure these under **Settings → FreemKit → Subscribers → Unsubscribe Event Types**.
 
-The default unsubscribe event is `user.marketing.opted_out`. You can add others — for example `install.uninstalled` or `license.cancelled` — depending on your list management strategy.
+The default unsubscribe event is `user.marketing.opted_out`. Depending on your list management strategy, you can add other events, such as `install.uninstalled` or `license.cancelled`.
 
 ---
 
 ## Example Configurations
 
-### SaaS plugin — free tier and paid tier
+### SaaS plugin: free tier and paid tier
 
 | Field | Value |
 |---|---|

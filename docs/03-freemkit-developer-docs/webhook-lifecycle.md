@@ -11,7 +11,7 @@ toc: true
 
 [toc]
 
-This document describes how FreemKit receives, validates, queues, and processes a Freemius webhook event from end to end.
+This document describes how [FreemKit](https://webberzone.com/plugins/freemkit/) receives, validates, queues, and processes a Freemius webhook event from end to end.
 
 ---
 
@@ -67,7 +67,7 @@ Every incoming request must carry an `x-signature` header containing a Freemius-
 
 FreemKit computes the expected signature by hashing the raw request body with the plugin's **Secret Key** using `hash_hmac('sha256', $body, $secret_key)` (returning a hex string) and comparing it against the header value using `hash_equals()` to prevent timing attacks.
 
-Requests that fail signature validation receive a `401 Unauthorized` response. No further processing occurs.
+A missing or unusable secret key returns `missing_secret_key` before signature comparison. This includes a secret that cannot be decrypted after a salt change. Re-enter the configured secret to restore delivery. An incorrect signature returns `invalid_signature`. The REST callback returns a `WP_Error` without assigning an HTTP status; the query-variable endpoint returns HTTP `400`. No further processing occurs.
 
 ---
 
@@ -77,7 +77,7 @@ After signature validation, FreemKit applies two additional guards.
 
 ### Timestamp check
 
-If the webhook payload (or headers) contains a timestamp, FreemKit checks that the event was generated within the allowed window (default: 15 minutes). This prevents delayed or replayed requests.
+If the webhook payload (or headers) contains a timestamp, FreemKit checks that its difference from the current time is within the allowed window (default: 15 minutes), including future timestamps. This prevents delayed or replayed requests.
 
 The maximum age is configurable via the `freemkit_webhook_max_age` filter (value in seconds).
 
@@ -89,7 +89,7 @@ add_filter( 'freemkit_webhook_require_timestamp', '__return_true' );
 
 ### Replay prevention
 
-FreemKit stores a transient keyed on the event's unique identifier (`freemkit_webhook_seen_{hash}`) for 24 hours after processing. Any request with a matching identifier within that window is rejected with a `200 OK` response and an `ignored` status (to prevent Freemius from retrying).
+FreemKit marks an event as seen before queuing it, using a transient keyed as `freemkit_webhook_seen_{hash}`. The default lifetime is 24 hours. A duplicate returns `status: ignored`; the REST endpoint responds with HTTP `200`, while the query-variable endpoint responds with HTTP `202`.
 
 The deduplication window is configurable:
 
@@ -103,16 +103,14 @@ add_filter( 'freemkit_webhook_replay_ttl', function( $ttl ) {
 
 ## 4. Queuing
 
-FreemKit does not process webhooks synchronously. After passing all validation checks, the event payload is serialized and stored in a transient, then a WP-Cron event is scheduled:
+FreemKit normally queues webhooks for processing. After validation, the event payload is stored in a transient and a WP-Cron event is scheduled:
 
 ```text
 Hook:    freemkit_process_webhook_event
 Args:    [ $event_key ]
 ```
 
-The REST endpoint returns a `202 Accepted` response immediately, before any Kit API calls are made. This ensures Freemius receives a timely acknowledgement regardless of Kit's response time.
-
-**Exception:** If WP-Cron scheduling fails, FreemKit falls back to synchronous processing in the same request.
+For an ordinarily queued event, the REST endpoint returns HTTP `202` with `status: queued`. If scheduling fails or `DISABLE_WP_CRON` is enabled, FreemKit processes the event in the same request and returns HTTP `200` with `status: processed`. The query-variable endpoint uses HTTP `202` for either successful result.
 
 ---
 
@@ -126,11 +124,12 @@ If processing fails (for example, due to a Kit API error), FreemKit reschedules 
 
 | Attempt | Delay |
 |---|---|
-| 1 (initial) | Immediate |
-| 2 | 1 minute |
-| 3 | 2 minutes |
+| 1 (initial) | Scheduled after 1 second, or processed synchronously by the fallback |
+| 2 | 1 minute after the first failure |
+| 3 | 2 minutes after the second failure |
+| 4 | 3 minutes after the third failure |
 
-After the maximum number of attempts (default: 3), the event is discarded and an error is written to the audit log.
+The default `freemkit_webhook_max_retries` value of `3` permits three retries after the initial attempt. After the fourth failure, FreemKit deletes the queued payload and seen marker. It writes a diagnostic to the PHP error log when `WP_DEBUG_LOG` is enabled.
 
 The retry limit is configurable:
 
@@ -153,11 +152,11 @@ Branches are evaluated in order. The first match wins.
 | Priority | Condition | Handler |
 |---|---|---|
 | 1 | Event type matches unsubscribe event types (default: `user.marketing.opted_out`) | Mark opted-out locally, unsubscribe from Kit |
-| 2 | Event type is `user.marketing.opted_in` | Clear opt-out flag locally |
+| 2 | Event type is `user.marketing.opted_in` | Clear marketing opt-out locally and attempt to restore previous form/tag mappings without overriding Kit unsubscribe state |
 | 3 | Event type is `user.name.changed` | Update name in Kit (if sync setting is enabled) |
 | 4 | Event type matches free event types | Subscribe as free user |
 | 5 | Event type matches paid event types | Subscribe as paid user |
-| — | No match | Log as ignored, take no action |
+| Not applicable | No match | Log as ignored, take no action |
 
 ---
 
@@ -172,6 +171,8 @@ For free or paid events, FreemKit calls `Kit_API::subscribe_to_form()` for each 
 3. Sets custom fields (first name, last name, and any mapped fields).
 
 If no per-plugin form is configured, FreemKit falls back to the global default form. If no global default is set, no Kit subscription is attempted (an audit log entry is written).
+
+Before subscribing, FreemKit checks Kit's current state. A `cancelled`, `bounced`, or `complained` subscriber is recorded locally as `kit_unsubscribed`, with the Kit state in `kit_status`. The operation is treated as completed without re-adding that subscriber or retrying the subscription. A later Freemius marketing opt-in does not by itself reactivate a Kit subscription.
 
 ### Unsubscribing a user
 
@@ -206,8 +207,8 @@ The audit log is capped at 200 entries. Older entries are pruned automatically w
 | `freemkit_webhook_require_timestamp` | `false` | Whether to reject requests that have no timestamp |
 | `freemkit_webhook_max_age` | `900` (15 min) | Max event age in seconds |
 | `freemkit_webhook_replay_ttl` | `86400` (24 hr) | Dedup window in seconds |
-| `freemkit_webhook_max_retries` | `3` | Max async retry attempts |
-| `freemkit_default_free_event_types` | `['install.installed']` | Default free trigger events |
+| `freemkit_webhook_max_retries` | `3` | Maximum retries after the initial attempt |
+| `freemkit_default_free_event_types` | `['user.marketing.opted_in']` | Default free trigger events |
 | `freemkit_default_paid_event_types` | `['license.created']` | Default paid trigger events |
 
 See [Hooks Reference](hooks-reference.md) for full signatures.

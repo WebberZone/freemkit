@@ -11,7 +11,7 @@ toc: true
 
 [toc]
 
-All FreemKit settings are found at **Settings → FreemKit** in the WordPress admin. Settings are organized across three tabs: **Kit**, **Freemius**, and **Subscribers**.
+All [FreemKit](https://webberzone.com/plugins/freemkit/) settings are found at **Settings → FreemKit** in the WordPress admin. Settings are organized across three tabs: **Kit**, **Freemius**, and **Subscribers**.
 
 ---
 
@@ -33,7 +33,7 @@ These are fallback values used when a plugin entry does not specify its own form
 
 | Setting | Description |
 |---|---|
-| **Global Form ID** | The Kit form to subscribe users to when no per-plugin form is set. Autocomplete field — start typing a form name to search. |
+| **Global Form ID** | The Kit form to subscribe users to when no per-plugin form is set. Autocomplete field: start typing a form name to search. |
 | **Tag ID** | The Kit tag to apply when no per-plugin tag is set. Autocomplete field. |
 
 ---
@@ -70,7 +70,7 @@ Click **Validate Keys** after entering credentials to confirm they are correct.
 
 | Field | Description |
 |---|---|
-| **Free Trigger Events** | Freemius events that should trigger a free-user subscription in Kit. Defaults to `install.installed` if left empty. |
+| **Free Trigger Events** | Freemius events that should trigger a free-user subscription in Kit. Defaults to `user.marketing.opted_in` if left empty. |
 | **Free Form** | Kit form(s) to subscribe free users to. Autocomplete. Falls back to the global default form if empty. |
 | **Free Tag** | Kit tag(s) to apply to free users. Autocomplete. Falls back to the global default tag if empty. |
 
@@ -100,7 +100,7 @@ See [Event Mapping](event-mapping.md) for a full list of available Freemius even
 | Setting | Default | Description |
 |---|---|---|
 | **Sync Name on Change** | Enabled | When Freemius sends a `user.name.changed` event, FreemKit updates the subscriber's name in Kit. |
-| **Unsubscribe from Kit on Delete** | Disabled | When a subscriber is deleted from the local FreemKit list, they are also unsubscribed in Kit. Use with caution — this cannot be undone from FreemKit. |
+| **Unsubscribe from Kit on Delete** | Disabled | When a subscriber is deleted from the local FreemKit list, they are also unsubscribed in Kit. Use with caution: this cannot be undone from FreemKit. |
 
 ### Audit Log
 

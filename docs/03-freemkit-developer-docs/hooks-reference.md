@@ -8,7 +8,7 @@ status: publish
 order: 0
 ---
 
-All FreemKit actions and filters are listed here. Hooks follow the `freemkit_` prefix convention. All hooks can be registered using standard WordPress `add_action()` / `add_filter()` calls, or via `Hook_Registry::add_action()` / `Hook_Registry::add_filter()` if extending from within the plugin.
+All [FreemKit](https://webberzone.com/plugins/freemkit/) actions and filters are listed here. Hooks follow the `freemkit_` prefix convention. All hooks can be registered using standard WordPress `add_action()` / `add_filter()` calls, or via `Hook_Registry::add_action()` / `Hook_Registry::add_filter()` if extending from within the plugin.
 
 ---
 
@@ -331,7 +331,7 @@ $require = apply_filters( 'freemkit_webhook_require_timestamp', false, $request 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `$require` | bool | `false` | Whether to reject requests with no timestamp |
-| `$request` | WP_REST_Request\|null | — | The incoming request object |
+| `$request` | WP_REST_Request\|null | Not applicable | The incoming request object |
 
 ---
 
@@ -346,7 +346,7 @@ $max_age = apply_filters( 'freemkit_webhook_max_age', 900, $timestamp );
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `$max_age` | int | `900` | Maximum allowed age in seconds |
-| `$timestamp` | int | — | The timestamp extracted from the request |
+| `$timestamp` | int | Not applicable | The timestamp extracted from the request |
 
 Default: `900` (15 minutes).
 
@@ -363,7 +363,7 @@ $ttl = apply_filters( 'freemkit_webhook_replay_ttl', DAY_IN_SECONDS, $event_key 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `$ttl` | int | `86400` | Dedup window in seconds (minimum enforced: 1 hour) |
-| `$event_key` | string | — | The unique key for this event |
+| `$event_key` | string | Not applicable | The unique key for this event |
 
 Default: `86400` (24 hours).
 
@@ -371,7 +371,7 @@ Default: `86400` (24 hours).
 
 #### `freemkit_webhook_max_retries`
 
-Maximum number of async retry attempts before an event is discarded.
+Maximum number of async retries after the initial attempt before an event is discarded. The default `3` allows four attempts in total.
 
 ```php
 $max = apply_filters( 'freemkit_webhook_max_retries', 3, $event_key );
@@ -379,8 +379,8 @@ $max = apply_filters( 'freemkit_webhook_max_retries', 3, $event_key );
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `$max` | int | `3` | Maximum attempts |
-| `$event_key` | string | — | The unique key for this event |
+| `$max` | int | `3` | Maximum retries after the initial attempt |
+| `$event_key` | string | Not applicable | The unique key for this event |
 
 ---
 
@@ -396,8 +396,8 @@ $types = apply_filters( 'freemkit_default_free_event_types', $defaults, $plugin_
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `$defaults` | array | `['install.installed']` | Default free event types |
-| `$plugin_config` | array | — | The plugin configuration array |
+| `$defaults` | array | `['user.marketing.opted_in']` | Default free event types |
+| `$plugin_config` | array | Not applicable | The plugin configuration array |
 
 ```php
 add_filter( 'freemkit_default_free_event_types', function( $types, $config ) {
