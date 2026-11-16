@@ -114,6 +114,12 @@ Yes! The plugin provides various WordPress filters and actions for developers to
 
 == Changelog ==
 
+= 1.0.1 =
+
+**Added**
+
+* Save Changes button in settings navigation.
+
 = 1.0.0 =
 * Initial release
 
